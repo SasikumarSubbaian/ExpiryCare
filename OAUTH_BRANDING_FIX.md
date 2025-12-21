@@ -4,10 +4,13 @@
 
 The Google OAuth consent screen shows:
 ```
-Sign in to kmbpjdgiqrohvophfbes.supabase.co
+Choose an account
+to continue to kmbpjdgiqrohvophfbes.supabase.co
 ```
 
 **Problem:** Users see the technical Supabase project URL instead of your app name.
+
+**⚠️ Important:** Google shows the domain that makes the OAuth request. Since Supabase handles OAuth, the Supabase domain will appear. However, we can make "ExpiryCare" the prominent app name that users see.
 
 ---
 
@@ -22,10 +25,14 @@ Sign in to kmbpjdgiqrohvophfbes.supabase.co
 4. **Configure the consent screen:**
 
    **App Information:**
-   - **App name:** `ExpiryCare` (or your preferred name)
+   - **App name:** `ExpiryCare` ⭐ (This will be prominently displayed)
    - **User support email:** Your email
-   - **App logo:** Upload your app logo (optional, recommended)
+   - **App logo:** Upload your ExpiryCare logo (256x256px PNG, recommended)
    - **App domain:** `expirycare.com`
+   - **Application home page:** `https://expirycare.com`
+   - **Privacy policy link:** `https://expirycare.com/privacy` ⭐ (REQUIRED)
+   - **Terms of service link:** `https://expirycare.com/terms` ⭐ (REQUIRED)
+   - **Authorized domains:** Add `expirycare.com`
    - **Developer contact information:** Your email
 
    **Scopes:**
@@ -39,8 +46,15 @@ Sign in to kmbpjdgiqrohvophfbes.supabase.co
    - Add your email: `sasikumar.subbaiyan@gmail.com`
    - Add any other test emails
 
-5. Click **Save and Continue** through all steps
-6. Click **Back to Dashboard**
+5. **CRITICAL: Publish the App** ⭐
+   - Scroll to bottom of OAuth consent screen
+   - Click **"PUBLISH APP"** button
+   - Confirm publishing
+   - **This is essential!** Testing mode shows Supabase URL more prominently.
+   - After publishing, the app name "ExpiryCare" will be more prominent.
+
+6. Click **Save and Continue** through all steps
+7. Click **Back to Dashboard**
 
 ### Step 2: Configure Supabase Site Name
 
@@ -87,9 +101,11 @@ Sign in to kmbpjdgiqrohvophfbes.supabase.co
 3. **Click:** "Sign up with Google"
 4. **Should now show:**
    ```
-   Sign in to ExpiryCare
+   Sign in with Google
+   ExpiryCare
+   to continue to kmbpjdgiqrohvophfbes.supabase.co
    ```
-   Instead of the Supabase URL! ✅
+   **Note:** The Supabase URL may still appear in small text (this is normal - it's the domain making the OAuth request), but "ExpiryCare" will be the prominent app name! ✅
 
 ---
 
