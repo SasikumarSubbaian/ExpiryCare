@@ -25,15 +25,23 @@ export default function LoginPage() {
       })
 
       if (error) {
+        // Log full error for debugging
+        console.error('Supabase auth error:', error)
+        
         // Provide helpful, calm error messages
         let errorMessage = 'Unable to sign in. Please check your credentials and try again.'
         
-        if (error.message.includes('Invalid login')) {
+        if (error.message.includes('Invalid login') || error.message.includes('Invalid credentials')) {
           errorMessage = 'Email or password is incorrect. Please try again.'
-        } else if (error.message.includes('Email not confirmed')) {
+        } else if (error.message.includes('Email not confirmed') || error.message.includes('email_not_confirmed')) {
           errorMessage = 'Please check your email and confirm your account first.'
+        } else if (error.message.includes('User not found') || error.message.includes('user_not_found')) {
+          errorMessage = 'No account found with this email. Please sign up first.'
         } else if (error.message.includes('network') || error.message.includes('fetch')) {
           errorMessage = 'Connection issue. Please check your internet and try again.'
+        } else if (error.message.includes('JWT') || error.message.includes('API key')) {
+          errorMessage = 'Configuration error. Please contact support.'
+          console.error('Possible API key issue:', error)
         } else if (error.message) {
           errorMessage = error.message
         }
