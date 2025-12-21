@@ -1,7 +1,7 @@
 import { MetadataRoute } from 'next'
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://yourdomain.in'
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://expirycare.com'
   
   return [
     {

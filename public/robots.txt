@@ -3,5 +3,5 @@ Allow: /
 Disallow: /dashboard
 Disallow: /api/
 
-Sitemap: https://yourdomain.in/sitemap.xml
+Sitemap: https://expirycare.com/sitemap.xml
 

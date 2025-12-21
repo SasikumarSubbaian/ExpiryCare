@@ -12,11 +12,11 @@ export const metadata: Metadata = {
   authors: [{ name: 'ExpiryCare' }],
   creator: 'ExpiryCare',
   publisher: 'ExpiryCare',
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://yourdomain.in'),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://expirycare.com'),
   openGraph: {
     type: 'website',
     locale: 'en_IN',
-    url: process.env.NEXT_PUBLIC_SITE_URL || 'https://yourdomain.in',
+    url: process.env.NEXT_PUBLIC_SITE_URL || 'https://expirycare.com',
     siteName: 'ExpiryCare',
     title: 'ExpiryCare - Never Miss an Expiry Date',
     description: 'Track warranties, insurance, medicines & subscriptions. Get smart reminders before expiry.',
