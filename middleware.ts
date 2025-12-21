@@ -2,15 +2,26 @@ import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 export async function middleware(request: NextRequest) {
+  // Check if environment variables are set
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+  if (!supabaseUrl || !supabaseAnonKey) {
+    console.error('Missing Supabase environment variables in middleware')
+    // Return response without auth check if env vars are missing
+    return NextResponse.next()
+  }
+
   let response = NextResponse.next({
     request: {
       headers: request.headers,
     },
   })
 
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+  try {
+    const supabase = createServerClient(
+      supabaseUrl,
+      supabaseAnonKey,
     {
       cookies: {
         get(name: string) {
@@ -52,35 +63,40 @@ export async function middleware(request: NextRequest) {
         },
       },
     }
-  )
+    )
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
 
-  const { pathname } = request.nextUrl
+    const { pathname } = request.nextUrl
 
-  // Protected routes - redirect to login if not authenticated
-  const protectedRoutes = ['/dashboard']
-  const isProtectedRoute = protectedRoutes.some(route => pathname.startsWith(route))
+    // Protected routes - redirect to login if not authenticated
+    const protectedRoutes = ['/dashboard']
+    const isProtectedRoute = protectedRoutes.some(route => pathname.startsWith(route))
 
-  // Auth routes - redirect to dashboard if already authenticated
-  const authRoutes = ['/login', '/signup']
-  const isAuthRoute = authRoutes.includes(pathname)
+    // Auth routes - redirect to dashboard if already authenticated
+    const authRoutes = ['/login', '/signup']
+    const isAuthRoute = authRoutes.includes(pathname)
 
-  if (isProtectedRoute && !user) {
-    const url = request.nextUrl.clone()
-    url.pathname = '/login'
-    return NextResponse.redirect(url)
+    if (isProtectedRoute && !user) {
+      const url = request.nextUrl.clone()
+      url.pathname = '/login'
+      return NextResponse.redirect(url)
+    }
+
+    if (isAuthRoute && user) {
+      const url = request.nextUrl.clone()
+      url.pathname = '/dashboard'
+      return NextResponse.redirect(url)
+    }
+
+    return response
+  } catch (error) {
+    console.error('Middleware error:', error)
+    // Return response even if there's an error to prevent 500
+    return NextResponse.next()
   }
-
-  if (isAuthRoute && user) {
-    const url = request.nextUrl.clone()
-    url.pathname = '/dashboard'
-    return NextResponse.redirect(url)
-  }
-
-  return response
 }
 
 export const config = {
