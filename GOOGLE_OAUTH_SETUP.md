@@ -25,11 +25,12 @@ Google OAuth allows users to sign up and sign in using their Google account, pro
 6. Create OAuth client ID:
    - Application type: **Web application**
    - Name: ExpiryCare Web
-   - **Authorized redirect URIs:** Add:
+   - **Authorized redirect URIs:** Add BOTH:
      ```
      https://rfqwevpkydlwftraiqmn.supabase.co/auth/v1/callback
+     https://kmbpjdgiqrohvophfbes.supabase.co/auth/v1/callback
      ```
-     (Replace with your Supabase project URL)
+     (Add both production and development Supabase project URLs)
    - Click **"Create"**
 7. **Copy:**
    - **Client ID** (looks like: `123456789-abc...googleusercontent.com`)
@@ -37,8 +38,12 @@ Google OAuth allows users to sign up and sign in using their Google account, pro
 
 ### 1.2 Configure in Supabase
 
+**⚠️ IMPORTANT: You need to enable Google OAuth in BOTH projects!**
+
+#### For Production Project (Vercel):
+
 1. Go to [Supabase Dashboard](https://app.supabase.com)
-2. Select your **production** project
+2. Select your **production** project (`rfqwevpkydlwftraiqmn`)
 3. Go to **Authentication** → **Providers**
 4. Find **Google** provider
 5. Click **"Enable"** or toggle it on
@@ -46,6 +51,20 @@ Google OAuth allows users to sign up and sign in using their Google account, pro
    - **Client ID (for OAuth):** Your Google Client ID
    - **Client Secret (for OAuth):** Your Google Client Secret
 7. Click **"Save"**
+
+#### For Development Project (Local Testing):
+
+1. Go to [Supabase Dashboard](https://app.supabase.com)
+2. Select your **development** project (`kmbpjdgiqrohvophfbes`)
+3. Go to **Authentication** → **Providers**
+4. Find **Google** provider
+5. Click **"Enable"** or toggle it on
+6. Enter:
+   - **Client ID (for OAuth):** Same Google Client ID (can reuse)
+   - **Client Secret (for OAuth):** Same Google Client Secret (can reuse)
+7. Click **"Save"**
+
+**Note:** You can use the same Google OAuth credentials for both dev and prod projects.
 
 ### 1.3 Add Redirect URL
 
