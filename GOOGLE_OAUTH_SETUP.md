@@ -18,10 +18,15 @@ Google OAuth allows users to sign up and sign in using their Google account, pro
 4. Click **"Create Credentials"** → **"OAuth client ID"**
 5. Configure OAuth consent screen (if not done):
    - User Type: External
-   - App name: ExpiryCare
+   - App name: **ExpiryCare** (this will show instead of Supabase URL)
    - User support email: Your email
    - Developer contact: Your email
-   - Save and continue
+   - **App logo:** Upload your ExpiryCare logo (optional but recommended)
+   - **App domain:** `expirycare.com`
+   - **Privacy policy URL:** `https://expirycare.com/privacy` (create this page)
+   - **Terms of service URL:** `https://expirycare.com/terms` (create this page)
+   - **Authorized domains:** `expirycare.com`
+   - Save and continue through all steps
 6. Create OAuth client ID:
    - Application type: **Web application**
    - Name: ExpiryCare Web
