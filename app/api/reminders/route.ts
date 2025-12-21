@@ -218,6 +218,6 @@ export async function GET(request: Request) {
 }
 
 // POST endpoint for manual testing
-export async function POST() {
-  return GET()
+export async function POST(request: Request) {
+  return GET(request)
 }

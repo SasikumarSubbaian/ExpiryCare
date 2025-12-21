@@ -153,9 +153,6 @@ export default function FamilyMembersSection({ userPlan = 'free', currentMemberC
           {error && (
             <p className="mt-2 text-sm text-red-600">{error}</p>
           )}
-          {success && (
-            <p className="mt-2 text-sm text-green-600">{success}</p>
-          )}
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md text-sm flex items-start gap-2">
               <span className="text-red-600">⚠️</span>

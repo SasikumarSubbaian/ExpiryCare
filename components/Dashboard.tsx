@@ -79,7 +79,7 @@ export default function Dashboard() {
     ? expiries 
     : expiries.filter(e => e.category === categoryFilter)
 
-  const getExpiryStatus = (expiryDate: string) => {
+  const getExpiryStatus = (expiryDate: string): { status: 'expired' | 'today' | 'urgent' | 'soon' | 'upcoming'; days: number } => {
     const date = new Date(expiryDate)
     const daysUntil = differenceInDays(date, new Date())
     
