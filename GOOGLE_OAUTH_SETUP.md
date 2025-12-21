@@ -71,7 +71,7 @@ Google OAuth allows users to sign up and sign in using their Google account, pro
 
 **Note:** You can use the same Google OAuth credentials for both dev and prod projects.
 
-### 1.3 Add Redirect URL
+### 1.5 Add Redirect URL
 
 In Supabase → Authentication → URL Configuration:
 
