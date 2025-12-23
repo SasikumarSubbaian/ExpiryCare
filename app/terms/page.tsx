@@ -24,200 +24,363 @@ export default function TermsConditionsPage() {
       <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="mb-8">
           <h1 className="text-4xl font-bold text-gray-900 mb-4">Terms & Conditions</h1>
-          <p className="text-sm text-gray-500">Last updated: {new Date().toLocaleDateString('en-IN', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+          <p className="text-sm text-gray-500">Updated at December 21st, 2025</p>
         </div>
 
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 sm:p-12 prose prose-lg max-w-none">
           <section className="mb-8">
-            <h2 className="text-2xl font-semibold text-gray-900 mb-4">1. Acceptance of Terms</h2>
+            <h2 className="text-2xl font-semibold text-gray-900 mb-4">General Terms</h2>
             <p className="text-gray-700 leading-relaxed mb-4">
-              By accessing or using ExpiryCare ("the Service"), you agree to be bound by these Terms & Conditions ("Terms"). If you disagree with any part of these Terms, you may not access the Service.
+              By accessing and placing an order with ExpiryCare, you confirm that you are in agreement with and bound by the terms of service contained in the Terms & Conditions outlined below. These terms apply to the entire website and any email or other type of communication between you and ExpiryCare.
+            </p>
+            <p className="text-gray-700 leading-relaxed mb-4">
+              Under no circumstances shall ExpiryCare team be liable for any direct, indirect, special, incidental or consequential damages, including, but not limited to, loss of data or profit, arising out of the use, or the inability to use, the materials on this site, even if ExpiryCare team or an authorized representative has been advised of the possibility of such damages. If your use of materials from this site results in the need for servicing, repair or correction of equipment or data, you assume any costs thereof.
             </p>
             <p className="text-gray-700 leading-relaxed">
-              We reserve the right to modify these Terms at any time. We will notify users of any material changes by posting the updated Terms on this page and updating the "Last updated" date. Your continued use of the Service after such changes constitutes acceptance of the new Terms.
+              ExpiryCare will not be responsible for any outcome that may occur during the course of usage of our resources. We reserve the rights to change prices and revise the resources usage policy in any moment. This Terms & Conditions was created with Termify.
             </p>
           </section>
 
           <section className="mb-8">
-            <h2 className="text-2xl font-semibold text-gray-900 mb-4">2. Description of Service</h2>
+            <h2 className="text-2xl font-semibold text-gray-900 mb-4">License</h2>
             <p className="text-gray-700 leading-relaxed mb-4">
-              ExpiryCare is a service that helps you track expiry dates for warranties, insurance policies, medicines, subscriptions, and other life items. The Service includes:
+              ExpiryCare grants you a revocable, non-exclusive, non-transferable, limited license to download, install and use the website strictly in accordance with the terms of this Agreement.
+            </p>
+            <p className="text-gray-700 leading-relaxed mb-4">
+              These Terms & Conditions are a contract between you and ExpiryCare (referred to in these Terms & Conditions as " ExpiryCare", "us", "we" or "our"), the provider of the ExpiryCare website and the services accessible from the ExpiryCare website (which are collectively referred to in these Terms & Conditions as the " ExpiryCare Service").
+            </p>
+            <p className="text-gray-700 leading-relaxed">
+              You are agreeing to be bound by these Terms & Conditions. If you do not agree to these Terms & Conditions, please do not use the ExpiryCare Service. In these Terms & Conditions, "you" refers both to you as an individual and to the entity you represent. If you violate any of these Terms & Conditions, we reserve the right to cancel your account or block access to your account without notice.
+            </p>
+          </section>
+
+          <section className="mb-8">
+            <h2 className="text-2xl font-semibold text-gray-900 mb-4">Definitions and key terms</h2>
+            <p className="text-gray-700 leading-relaxed mb-4">
+              To help explain things as clearly as possible in this Terms & Conditions, every time any of these terms are referenced, are strictly defined as:
             </p>
             <ul className="list-disc list-inside text-gray-700 space-y-2 mb-4">
-              <li>Adding and managing life items with expiry dates</li>
-              <li>Email reminders before items expire</li>
-              <li>Organizing items by categories (warranty, insurance, medicine, subscription, etc.)</li>
-              <li>Document storage (for Pro and Family plans)</li>
-              <li>Family sharing features (for Family plan users)</li>
+              <li><strong>Cookie:</strong> small amount of data generated by a website and saved by your web browser. It is used to identify your browser, provide analytics, remember information about you such as your language preference or login information.</li>
+              <li><strong>Company:</strong> when this terms mention "Company," "we," "us," or "our," it refers to ExpiryCare, (13 Cross Street, Ramapuram, Neary DLF, Chennai - 600089), that is responsible for your information under this Terms & Conditions.</li>
+              <li><strong>Country:</strong> where ExpiryCare or the owners/founders of ExpiryCare are based, in this case is India</li>
+              <li><strong>Device:</strong> any internet connected device such as a phone, tablet, computer or any other device that can be used to visit ExpiryCare and use the services.</li>
+              <li><strong>Service:</strong> refers to the service provided by ExpiryCare as described in the relative terms (if available) and on this platform.</li>
+              <li><strong>Third-party service:</strong> refers to advertisers, contest sponsors, promotional and marketing partners, and others who provide our content or whose products or services we think may interest you.</li>
+              <li><strong>Website:</strong> ExpiryCare's site, which can be accessed via this URL: https://www.expirycare.com/</li>
+              <li><strong>You:</strong> a person or entity that is registered with ExpiryCare to use the Services.</li>
             </ul>
-            <p className="text-gray-700 leading-relaxed">
-              We reserve the right to modify, suspend, or discontinue any part of the Service at any time with or without notice.
-            </p>
           </section>
 
           <section className="mb-8">
-            <h2 className="text-2xl font-semibold text-gray-900 mb-4">3. User Accounts and Registration</h2>
+            <h2 className="text-2xl font-semibold text-gray-900 mb-4">Restrictions</h2>
             <p className="text-gray-700 leading-relaxed mb-4">
-              To use the Service, you must create an account by providing accurate and complete information. You are responsible for:
+              You agree not to, and you will not permit others to:
             </p>
             <ul className="list-disc list-inside text-gray-700 space-y-2 mb-4">
-              <li>Maintaining the confidentiality of your account credentials</li>
-              <li>All activities that occur under your account</li>
-              <li>Notifying us immediately of any unauthorized use of your account</li>
-              <li>Ensuring that your account information remains accurate and up-to-date</li>
+              <li>License, sell, rent, lease, assign, distribute, transmit, host, outsource, disclose or otherwise commercially exploit the website or make the platform available to any third party.</li>
+              <li>Modify, make derivative works of, disassemble, decrypt, reverse compile or reverse engineer any part of the website.</li>
+              <li>Remove, alter or obscure any proprietary notice (including any notice of copyright or trademark) of ExpiryCare or its affiliates, partners, suppliers or the licensors of the website.</li>
             </ul>
+          </section>
+
+          <section className="mb-8">
+            <h2 className="text-2xl font-semibold text-gray-900 mb-4">Payment</h2>
+            <p className="text-gray-700 leading-relaxed mb-4">
+              If you register to any of our recurring payment plans, you agree to pay all fees or charges to your account for the Service in accordance with the fees, charges and billing terms in effect at the time that each fee or charge is due and payable. Unless otherwise indicated in an order form, you must provide ExpiryCare with a valid credit card (Visa, MasterCard, or any other issuer accepted by us) ("Payment Provider") as a condition to signing up for the Premium plan. Your Payment Provider agreement governs your use of the designated credit card account, and you must refer to that agreement and not these Terms to determine your rights and liabilities with respect to your Payment Provider. By providing ExpiryCare with your credit card number and associated payment information, you agree that ExpiryCare is authorized to verify information immediately, and subsequently invoice your account for all fees and charges due and payable to ExpiryCare hereunder and that no additional notice or consent is required. You agree to immediately notify ExpiryCare of any change in your billing address or the credit card used for payment hereunder. ExpiryCare reserves the right at any time to change its prices and billing methods, either immediately upon posting on our Site or by e-mail delivery to your organization's administrator(s).
+            </p>
+            <p className="text-gray-700 leading-relaxed mb-4">
+              Any attorney fees, court costs, or other costs incurred in collection of delinquent undisputed amounts shall be the responsibility of and paid for by you.
+            </p>
+            <p className="text-gray-700 leading-relaxed mb-4">
+              No contract will exist between you and ExpiryCare for the Service until ExpiryCare accepts your order by a confirmatory e-mail, SMS/MMS message, or other appropriate means of communication.
+            </p>
             <p className="text-gray-700 leading-relaxed">
-              You must be at least 18 years old to create an account. We reserve the right to suspend or terminate accounts that violate these Terms or engage in fraudulent, abusive, or illegal activities.
+              You are responsible for any third-party fees that you may incur when using the Service.
             </p>
           </section>
 
           <section className="mb-8">
-            <h2 className="text-2xl font-semibold text-gray-900 mb-4">4. Subscription Plans and Pricing</h2>
+            <h2 className="text-2xl font-semibold text-gray-900 mb-4">Return and Refund Policy</h2>
             <p className="text-gray-700 leading-relaxed mb-4">
-              We offer the following subscription plans:
+              Thanks for shopping at ExpiryCare. We appreciate the fact that you like to buy the stuff we build. We also want to make sure you have a rewarding experience while you're exploring, evaluating, and purchasing our products.
             </p>
-            <ul className="list-disc list-inside text-gray-700 space-y-2 mb-4">
-              <li><strong>Free Plan:</strong> Allows tracking of up to 5 life items with basic features</li>
-              <li><strong>Pro Plan:</strong> Unlimited items, medicine tracking, and document uploads</li>
-              <li><strong>Family Plan:</strong> All Pro features plus family sharing for up to 5 members</li>
-            </ul>
             <p className="text-gray-700 leading-relaxed mb-4">
-              All paid plans are billed annually. Prices are subject to change, but we will notify you at least 30 days in advance of any price increases affecting your subscription.
+              As with any shopping experience, there are terms and conditions that apply to transactions at ExpiryCare. We'll be as brief as our attorneys will allow. The main thing to remember is that by placing an order or making a purchase at ExpiryCare, you agree to the terms along with ExpiryCare's Privacy Policy.
             </p>
             <p className="text-gray-700 leading-relaxed">
-              You are responsible for all charges incurred under your account, including applicable taxes. Payments are processed securely through third-party payment processors.
+              If, for any reason, You are not completely satisfied with any good or service that we provide, don't hesitate to contact us and we will discuss any of the issues you are going through with our product.
             </p>
           </section>
 
           <section className="mb-8">
-            <h2 className="text-2xl font-semibold text-gray-900 mb-4">5. User Content and Responsibilities</h2>
-            <p className="text-gray-700 leading-relaxed mb-4">
-              You retain ownership of all content and data you submit to the Service ("User Content"). By submitting User Content, you grant us a non-exclusive, worldwide, royalty-free license to use, store, and process your User Content solely for the purpose of providing the Service to you.
-            </p>
-            <p className="text-gray-700 leading-relaxed mb-4">
-              You agree not to:
-            </p>
-            <ul className="list-disc list-inside text-gray-700 space-y-2 mb-4">
-              <li>Submit any content that is illegal, harmful, threatening, abusive, or violates any third-party rights</li>
-              <li>Upload malicious software, viruses, or any code designed to interfere with the Service</li>
-              <li>Impersonate any person or entity or falsely represent your affiliation with any person or entity</li>
-              <li>Use the Service for any unlawful purpose or to solicit others to perform unlawful acts</li>
-              <li>Attempt to gain unauthorized access to the Service or its related systems or networks</li>
-            </ul>
+            <h2 className="text-2xl font-semibold text-gray-900 mb-4">Your Suggestions</h2>
             <p className="text-gray-700 leading-relaxed">
-              We reserve the right to remove any User Content that violates these Terms or is otherwise objectionable, without prior notice.
+              Any feedback, comments, ideas, improvements or suggestions (collectively, "Suggestions") provided by you to ExpiryCare with respect to the website shall remain the sole and exclusive property of ExpiryCare.
+            </p>
+            <p className="text-gray-700 leading-relaxed">
+              ExpiryCare shall be free to use, copy, modify, publish, or redistribute the Suggestions for any purpose and in any way without any credit or any compensation to you.
             </p>
           </section>
 
           <section className="mb-8">
-            <h2 className="text-2xl font-semibold text-gray-900 mb-4">6. Intellectual Property Rights</h2>
-            <p className="text-gray-700 leading-relaxed mb-4">
-              The Service, including its original content, features, and functionality, is owned by ExpiryCare and is protected by international copyright, trademark, patent, trade secret, and other intellectual property laws.
-            </p>
+            <h2 className="text-2xl font-semibold text-gray-900 mb-4">Your Consent</h2>
             <p className="text-gray-700 leading-relaxed">
-              You may not copy, modify, distribute, sell, or lease any part of the Service or included software, nor may you reverse engineer or attempt to extract the source code of the Service, unless laws prohibit those restrictions or you have our written permission.
+              We've updated our Terms & Conditions to provide you with complete transparency into what is being set when you visit our site and how it's being used. By using our website, registering an account, or making a purchase, you hereby consent to our Terms & Conditions.
             </p>
           </section>
 
           <section className="mb-8">
-            <h2 className="text-2xl font-semibold text-gray-900 mb-4">7. Refund and Cancellation Policy</h2>
-            <p className="text-gray-700 leading-relaxed mb-4">
-              <strong>Free Plan:</strong> You may cancel your free account at any time without any charges.
-            </p>
-            <p className="text-gray-700 leading-relaxed mb-4">
-              <strong>Paid Plans:</strong> 
-            </p>
-            <ul className="list-disc list-inside text-gray-700 space-y-2 mb-4">
-              <li>You may cancel your subscription at any time through your account settings</li>
-              <li>Cancellation will take effect at the end of your current billing period</li>
-              <li>Refunds may be provided on a case-by-case basis within 7 days of purchase, at our sole discretion</li>
-              <li>No refunds will be provided for partial billing periods or after the 7-day refund window</li>
-            </ul>
+            <h2 className="text-2xl font-semibold text-gray-900 mb-4">Links to Other Websites</h2>
             <p className="text-gray-700 leading-relaxed">
-              Upon cancellation, your account will be downgraded to the Free plan, and you may lose access to features and data exceeding Free plan limits.
+              This Terms & Conditions applies only to the Services. The Services may contain links to other websites not operated or controlled by ExpiryCare. We are not responsible for the content, accuracy or opinions expressed in such websites, and such websites are not investigated, monitored or checked for accuracy or completeness by us. Please remember that when you use a link to go from the Services to another website, our Terms & Conditions are no longer in effect. Your browsing and interaction on any other website, including those that have a link on our platform, is subject to that website's own rules and policies. Such third parties may use their own cookies or other methods to collect information about you.
             </p>
           </section>
 
           <section className="mb-8">
-            <h2 className="text-2xl font-semibold text-gray-900 mb-4">8. Service Availability and Disclaimers</h2>
+            <h2 className="text-2xl font-semibold text-gray-900 mb-4">Cookies</h2>
             <p className="text-gray-700 leading-relaxed mb-4">
-              We strive to provide a reliable Service but cannot guarantee that the Service will be available at all times or free from errors, bugs, or interruptions. We are not liable for any losses or damages resulting from:
-            </p>
-            <ul className="list-disc list-inside text-gray-700 space-y-2 mb-4">
-              <li>Service interruptions or downtime</li>
-              <li>Data loss or corruption</li>
-              <li>Delayed or failed email reminders</li>
-              <li>Inaccurate expiry date tracking due to user input errors</li>
-            </ul>
-            <p className="text-gray-700 leading-relaxed">
-              THE SERVICE IS PROVIDED "AS IS" AND "AS AVAILABLE" WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, OR NON-INFRINGEMENT.
+              ExpiryCare uses "Cookies" to identify the areas of our website that you have visited. A Cookie is a small piece of data stored on your computer or mobile device by your web browser. We use Cookies to enhance the performance and functionality of our website but are non-essential to their use. However, without these cookies, certain functionality like videos may become unavailable or you would be required to enter your login details every time you visit the website as we would not be able to remember that you had logged in previously. Most web browsers can be set to disable the use of Cookies. However, if you disable Cookies, you may not be able to access functionality on our website correctly or at all. We never place Personally Identifiable Information in Cookies.
             </p>
           </section>
 
           <section className="mb-8">
-            <h2 className="text-2xl font-semibold text-gray-900 mb-4">9. Limitation of Liability</h2>
+            <h2 className="text-2xl font-semibold text-gray-900 mb-4">Changes To Our Terms & Conditions</h2>
             <p className="text-gray-700 leading-relaxed mb-4">
-              TO THE MAXIMUM EXTENT PERMITTED BY LAW, EXPIRYCARE SHALL NOT BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES, OR ANY LOSS OF PROFITS OR REVENUES, WHETHER INCURRED DIRECTLY OR INDIRECTLY, OR ANY LOSS OF DATA, USE, GOODWILL, OR OTHER INTANGIBLE LOSSES RESULTING FROM:
+              You acknowledge and agree that ExpiryCare may stop (permanently or temporarily) providing the Service (or any features within the Service) to you or to users generally at ExpiryCare's sole discretion, without prior notice to you. You may stop using the Service at any time. You do not need to specifically inform ExpiryCare when you stop using the Service. You acknowledge and agree that if ExpiryCare disables access to your account, you may be prevented from accessing the Service, your account details or any files or other materials which is contained in your account.
             </p>
-            <ul className="list-disc list-inside text-gray-700 space-y-2 mb-4">
-              <li>Your use or inability to use the Service</li>
-              <li>Any unauthorized access to or use of our servers and/or any personal information stored therein</li>
-              <li>Any interruption or cessation of transmission to or from the Service</li>
-              <li>Any bugs, viruses, trojan horses, or the like that may be transmitted to or through the Service</li>
-            </ul>
             <p className="text-gray-700 leading-relaxed">
-              Our total liability for any claims arising from or related to the Service shall not exceed the amount you paid us in the twelve (12) months preceding the claim.
+              If we decide to change our Terms & Conditions, we will post those changes on this page, and/or update the Terms & Conditions modification date below.
             </p>
           </section>
 
           <section className="mb-8">
-            <h2 className="text-2xl font-semibold text-gray-900 mb-4">10. Indemnification</h2>
+            <h2 className="text-2xl font-semibold text-gray-900 mb-4">Modifications to Our website</h2>
             <p className="text-gray-700 leading-relaxed">
-              You agree to indemnify, defend, and hold harmless ExpiryCare, its officers, directors, employees, and agents from and against any and all claims, damages, obligations, losses, liabilities, costs, or debt, and expenses (including attorney's fees) arising from: (a) your use of and access to the Service; (b) your violation of any term of these Terms; (c) your violation of any third-party right, including without limitation any copyright, property, or privacy right; or (d) any claim that your User Content caused damage to a third party.
+              ExpiryCare reserves the right to modify, suspend or discontinue, temporarily or permanently, the website or any service to which it connects, with or without notice and without liability to you.
             </p>
           </section>
 
           <section className="mb-8">
-            <h2 className="text-2xl font-semibold text-gray-900 mb-4">11. Termination</h2>
+            <h2 className="text-2xl font-semibold text-gray-900 mb-4">Updates to Our website</h2>
             <p className="text-gray-700 leading-relaxed mb-4">
-              We may terminate or suspend your account and access to the Service immediately, without prior notice or liability, for any reason, including if you breach these Terms.
+              ExpiryCare may from time to time provide enhancements or improvements to the features/ functionality of the website, which may include patches, bug fixes, updates, upgrades and other modifications ("Updates").
+            </p>
+            <p className="text-gray-700 leading-relaxed mb-4">
+              Updates may modify or delete certain features and/or functionalities of the website. You agree that ExpiryCare has no obligation to (i) provide any Updates, or (ii) continue to provide or enable any particular features and/or functionalities of the website to you.
             </p>
             <p className="text-gray-700 leading-relaxed">
-              Upon termination, your right to use the Service will cease immediately. You may request deletion of your account and data by contacting us at <a href="mailto:Welcome@expirycare.com" className="text-primary-600 hover:text-primary-700">Welcome@expirycare.com</a>.
+              You further agree that all Updates will be (i) deemed to constitute an integral part of the website, and (ii) subject to the terms and conditions of this Agreement.
             </p>
           </section>
 
           <section className="mb-8">
-            <h2 className="text-2xl font-semibold text-gray-900 mb-4">12. Governing Law and Dispute Resolution</h2>
+            <h2 className="text-2xl font-semibold text-gray-900 mb-4">Third-Party Services</h2>
             <p className="text-gray-700 leading-relaxed mb-4">
-              These Terms shall be governed by and construed in accordance with the laws of India, without regard to its conflict of law provisions.
-            </p>
-            <p className="text-gray-700 leading-relaxed mb-4">
-              Any disputes arising out of or relating to these Terms or the Service shall be subject to the exclusive jurisdiction of the courts located in India.
+              We may display, include or make available third-party content (including data, information, applications and other products services) or provide links to third-party websites or services ("Third- Party Services").
             </p>
             <p className="text-gray-700 leading-relaxed">
-              Before filing a formal legal proceeding, you agree to first contact us at <a href="mailto:Welcome@expirycare.com" className="text-primary-600 hover:text-primary-700">Welcome@expirycare.com</a> to attempt to resolve the dispute informally.
+              You acknowledge and agree that ExpiryCare shall not be responsible for any Third-Party Services, including their accuracy, completeness, timeliness, validity, copyright compliance, legality, decency, quality or any other aspect thereof. ExpiryCare does not assume and shall not have any liability or responsibility to you or any other person or entity for any Third-Party Services.
+            </p>
+            <p className="text-gray-700 leading-relaxed">
+              Third-Party Services and links thereto are provided solely as a convenience to you and you access and use them entirely at your own risk and subject to such third parties' terms and conditions.
             </p>
           </section>
 
           <section className="mb-8">
-            <h2 className="text-2xl font-semibold text-gray-900 mb-4">13. Severability</h2>
+            <h2 className="text-2xl font-semibold text-gray-900 mb-4">Term and Termination</h2>
+            <p className="text-gray-700 leading-relaxed mb-4">
+              This Agreement shall remain in effect until terminated by you or ExpiryCare.
+            </p>
+            <p className="text-gray-700 leading-relaxed mb-4">
+              ExpiryCare may, in its sole discretion, at any time and for any or no reason, suspend or terminate this Agreement with or without prior notice.
+            </p>
+            <p className="text-gray-700 leading-relaxed mb-4">
+              This Agreement will terminate immediately, without prior notice from ExpiryCare, in the event that you fail to comply with any provision of this Agreement. You may also terminate this Agreement by deleting the website and all copies thereof from your computer.
+            </p>
+            <p className="text-gray-700 leading-relaxed mb-4">
+              Upon termination of this Agreement, you shall cease all use of the website and delete all copies of the website from your computer.
+            </p>
             <p className="text-gray-700 leading-relaxed">
-              If any provision of these Terms is found to be unenforceable or invalid, that provision will be limited or eliminated to the minimum extent necessary so that these Terms will otherwise remain in full force and effect and enforceable.
+              Termination of this Agreement will not limit any of ExpiryCare's rights or remedies at law or in equity in case of breach by you (during the term of this Agreement) of any of your obligations under the present Agreement.
             </p>
           </section>
 
           <section className="mb-8">
-            <h2 className="text-2xl font-semibold text-gray-900 mb-4">14. Contact Information</h2>
+            <h2 className="text-2xl font-semibold text-gray-900 mb-4">Copyright Infringement Notice</h2>
+            <p className="text-gray-700 leading-relaxed">
+              If you are a copyright owner or such owner's agent and believe any material on our website constitutes an infringement on your copyright, please contact us setting forth the following information: (a) a physical or electronic signature of the copyright owner or a person authorized to act on his behalf; (b) identification of the material that is claimed to be infringing; (c) your contact information, including your address, telephone number, and an email; (d) a statement by you that you have a good faith belief that use of the material is not authorized by the copyright owners; and (e) the a statement that the information in the notification is accurate, and, under penalty of perjury you are authorized to act on behalf of the owner.
+            </p>
+          </section>
+
+          <section className="mb-8">
+            <h2 className="text-2xl font-semibold text-gray-900 mb-4">Indemnification</h2>
+            <p className="text-gray-700 leading-relaxed">
+              You agree to indemnify and hold ExpiryCare and its parents, subsidiaries, affiliates, officers, employees, agents, partners and licensors (if any) harmless from any claim or demand, including reasonable attorneys' fees, due to or arising out of your: (a) use of the website; (b) violation of this Agreement or any law or regulation; or (c) violation of any right of a third party.
+            </p>
+          </section>
+
+          <section className="mb-8">
+            <h2 className="text-2xl font-semibold text-gray-900 mb-4">No Warranties</h2>
             <p className="text-gray-700 leading-relaxed mb-4">
-              If you have any questions about these Terms, please contact us:
+              The website is provided to you "AS IS" and "AS AVAILABLE" and with all faults and defects without warranty of any kind. To the maximum extent permitted under applicable law, ExpiryCare, on its own behalf and on behalf of its affiliates and its and their respective licensors and service providers, expressly disclaims all warranties, whether express, implied, statutory or otherwise, with respect to the website, including all implied warranties of merchantability, fitness for a particular purpose, title and non-infringement, and warranties that may arise out of course of dealing, course of performance, usage or trade practice. Without limitation to the foregoing, ExpiryCare provides no warranty or undertaking, and makes no representation of any kind that the website will meet your requirements, achieve any intended results, be compatible or work with any other software, websites, systems or services, operate without interruption, meet any performance or reliability standards or be error free or that any errors or defects can or will be corrected.
+            </p>
+            <p className="text-gray-700 leading-relaxed">
+              Without limiting the foregoing, neither ExpiryCare nor any ExpiryCare's provider makes any representation or warranty of any kind, express or implied: (i) as to the operation or availability of the website, or the information, content, and materials or products included thereon; (ii) that the website will be uninterrupted or error-free; (iii) as to the accuracy, reliability, or currency of any information or content provided through the website; or (iv) that the website, its servers, the content, or e-mails sent from or on behalf of ExpiryCare are free of viruses, scripts, trojan horses, worms, malware, timebombs or other harmful components.
+            </p>
+            <p className="text-gray-700 leading-relaxed">
+              Some jurisdictions do not allow the exclusion of or limitations on implied warranties or the limitations on the applicable statutory rights of a consumer, so some or all of the above exclusions and limitations may not apply to you.
+            </p>
+          </section>
+
+          <section className="mb-8">
+            <h2 className="text-2xl font-semibold text-gray-900 mb-4">Limitation of Liability</h2>
+            <p className="text-gray-700 leading-relaxed mb-4">
+              Notwithstanding any damages that you might incur, the entire liability of ExpiryCare and any of its suppliers under any provision of this Agreement and your exclusive remedy for all of the foregoing shall be limited to the amount actually paid by you for the website.
+            </p>
+            <p className="text-gray-700 leading-relaxed mb-4">
+              To the maximum extent permitted by applicable law, in no event shall ExpiryCare or its suppliers be liable for any special, incidental, indirect, or consequential damages whatsoever (including, but not limited to, damages for loss of profits, for loss of data or other information, for business interruption, for personal injury, for loss of privacy arising out of or in any way related to the use of or inability to use the website, third-party software and/or third-party hardware used with the website, or otherwise in connection with any provision of this Agreement), even if ExpiryCare or any supplier has been advised of the possibility of such damages and even if the remedy fails of its essential purpose.
+            </p>
+            <p className="text-gray-700 leading-relaxed">
+              Some states/jurisdictions do not allow the exclusion or limitation of incidental or consequential damages, so the above limitation or exclusion may not apply to you.
+            </p>
+          </section>
+
+          <section className="mb-8">
+            <h2 className="text-2xl font-semibold text-gray-900 mb-4">Severability</h2>
+            <p className="text-gray-700 leading-relaxed mb-4">
+              If any provision of this Agreement is held to be unenforceable or invalid, such provision will be changed and interpreted to accomplish the objectives of such provision to the greatest extent possible under applicable law and the remaining provisions will continue in full force and effect.
+            </p>
+            <p className="text-gray-700 leading-relaxed mb-4">
+              This Agreement, together with the Privacy Policy and any other legal notices published by ExpiryCare on the Services, shall constitute the entire agreement between you and ExpiryCare concerning the Services. If any provision of this Agreement is deemed invalid by a court of competent jurisdiction, the invalidity of such provision shall not affect the validity of the remaining provisions of this Agreement, which shall remain in full force and effect. No waiver of any term of this Agreement shall be deemed a further or continuing waiver of such term or any other term, and ExpiryCare's failure to assert any right or provision under this Agreement shall not constitute a waiver of such right or provision. YOU AND ExpiryCare AGREE THAT ANY CAUSE OF ACTION ARISING OUT OF OR RELATED TO THE SERVICES MUST COMMENCE WITHIN ONE (1) YEAR AFTER THE CAUSE OF ACTION ACCRUES. OTHERWISE, SUCH CAUSE OF ACTION IS PERMANENTLY BARRED.
+            </p>
+          </section>
+
+          <section className="mb-8">
+            <h2 className="text-2xl font-semibold text-gray-900 mb-4">Waiver</h2>
+            <p className="text-gray-700 leading-relaxed mb-4">
+              Except as provided herein, the failure to exercise a right or to require performance of an obligation under this Agreement shall not effect a party's ability to exercise such right or require such performance at any time thereafter nor shall be the waiver of a breach constitute waiver of any subsequent breach.
+            </p>
+            <p className="text-gray-700 leading-relaxed">
+              No failure to exercise, and no delay in exercising, on the part of either party, any right or any power under this Agreement shall operate as a waiver of that right or power. Nor shall any single or partial exercise of any right or power under this Agreement preclude further exercise of that or any other right granted herein. In the event of a conflict between this Agreement and any applicable purchase or other terms, the terms of this Agreement shall govern.
+            </p>
+          </section>
+
+          <section className="mb-8">
+            <h2 className="text-2xl font-semibold text-gray-900 mb-4">Amendments to this Agreement</h2>
+            <p className="text-gray-700 leading-relaxed mb-4">
+              ExpiryCare reserves the right, at its sole discretion, to modify or replace this Agreement at any time. If a revision is material we will provide at least 30 days' notice prior to any new terms taking effect. What constitutes a material change will be determined at our sole discretion.
+            </p>
+            <p className="text-gray-700 leading-relaxed">
+              By continuing to access or use our website after any revisions become effective, you agree to be bound by the revised terms. If you do not agree to the new terms, you are no longer authorized to use ExpiryCare.
+            </p>
+          </section>
+
+          <section className="mb-8">
+            <h2 className="text-2xl font-semibold text-gray-900 mb-4">Entire Agreement</h2>
+            <p className="text-gray-700 leading-relaxed mb-4">
+              The Agreement constitutes the entire agreement between you and ExpiryCare regarding your use of the website and supersedes all prior and contemporaneous written or oral agreements between you and ExpiryCare.
+            </p>
+            <p className="text-gray-700 leading-relaxed">
+              You may be subject to additional terms and conditions that apply when you use or purchase other ExpiryCare's services, which ExpiryCare will provide to you at the time of such use or purchase.
+            </p>
+          </section>
+
+          <section className="mb-8">
+            <h2 className="text-2xl font-semibold text-gray-900 mb-4">Updates to Our Terms</h2>
+            <p className="text-gray-700 leading-relaxed mb-4">
+              We may change our Service and policies, and we may need to make changes to these Terms so that they accurately reflect our Service and policies. Unless otherwise required by law, we will notify you (for example, through our Service) before we make changes to these Terms and give you an opportunity to review them before they go into effect. Then, if you continue to use the Service, you will be bound by the updated Terms. If you do not want to agree to these or any updated Terms, you can delete your account.
+            </p>
+          </section>
+
+          <section className="mb-8">
+            <h2 className="text-2xl font-semibold text-gray-900 mb-4">Intellectual Property</h2>
+            <p className="text-gray-700 leading-relaxed">
+              The website and its entire contents, features and functionality (including but not limited to all information, software, text, displays, images, video and audio, and the design, selection and arrangement thereof), are owned by ExpiryCare, its licensors or other providers of such material and are protected by India and international copyright, trademark, patent, trade secret and other intellectual property or proprietary rights laws. The material may not be copied, modified, reproduced, downloaded or distributed in any way, in whole or in part, without the express prior written permission of ExpiryCare, unless and except as is expressly provided in these Terms & Conditions. Any unauthorized use of the material is prohibited.
+            </p>
+          </section>
+
+          <section className="mb-8">
+            <h2 className="text-2xl font-semibold text-gray-900 mb-4">Agreement to Arbitrate</h2>
+            <p className="text-gray-700 leading-relaxed mb-4">
+              This section applies to any dispute EXCEPT IT DOESN'T INCLUDE A DISPUTE RELATING TO CLAIMS FOR INJUNCTIVE OR EQUITABLE RELIEF REGARDING THE ENFORCEMENT OR VALIDITY OF YOUR OR ExpiryCare's INTELLECTUAL PROPERTY RIGHTS. The term "dispute" means any dispute, action, or other controversy between you and ExpiryCare concerning the Services or this agreement, whether in contract, warranty, tort, statute, regulation, ordinance, or any other legal or equitable basis. "Dispute" will be given the broadest possible meaning allowable under law.
+            </p>
+          </section>
+
+          <section className="mb-8">
+            <h2 className="text-2xl font-semibold text-gray-900 mb-4">Notice of Dispute</h2>
+            <p className="text-gray-700 leading-relaxed mb-4">
+              In the event of a dispute, you or ExpiryCare must give the other a Notice of Dispute, which is a written statement that sets forth the name, address, and contact information of the party giving it, the facts giving rise to the dispute, and the relief requested. You must send any Notice of Dispute via email to: <a href="mailto:Welcome@expirycare.com" className="text-primary-600 hover:text-primary-700">Welcome@expirycare.com</a>. ExpiryCare will send any Notice of Dispute to you by mail to your address if we have it, or otherwise to your email address. You and ExpiryCare will attempt to resolve any dispute through informal negotiation within sixty (60) days from the date the Notice of Dispute is sent. After sixty (60) days, you or ExpiryCare may commence arbitration.
+            </p>
+          </section>
+
+          <section className="mb-8">
+            <h2 className="text-2xl font-semibold text-gray-900 mb-4">Binding Arbitration</h2>
+            <p className="text-gray-700 leading-relaxed">
+              If you and ExpiryCare don't resolve any dispute by informal negotiation, any other effort to resolve the dispute will be conducted exclusively by binding arbitration as described in this section. You are giving up the right to litigate (or participate in as a party or class member) all disputes in court before a judge or jury. The dispute shall be settled by binding arbitration in accordance with the commercial arbitration rules of the American Arbitration Association. Either party may seek any interim or preliminary injunctive relief from any court of competent jurisdiction, as necessary to protect the party's rights or property pending the completion of arbitration. Any and all legal, accounting, and other costs, fees, and expenses incurred by the prevailing party shall be borne by the non-prevailing party.
+            </p>
+          </section>
+
+          <section className="mb-8">
+            <h2 className="text-2xl font-semibold text-gray-900 mb-4">Submissions and Privacy</h2>
+            <p className="text-gray-700 leading-relaxed">
+              In the event that you submit or post any ideas, creative suggestions, designs, photographs, information, advertisements, data or proposals, including ideas for new or improved products, services, features, technologies or promotions, you expressly agree that such submissions will automatically be treated as non-confidential and non-proprietary and will become the sole property of ExpiryCare without any compensation or credit to you whatsoever. ExpiryCare and its affiliates shall have no obligations with respect to such submissions or posts and may use the ideas contained in such submissions or posts for any purposes in any medium in perpetuity, including, but not limited to, developing, manufacturing, and marketing products and services using such ideas.
+            </p>
+          </section>
+
+          <section className="mb-8">
+            <h2 className="text-2xl font-semibold text-gray-900 mb-4">Promotions</h2>
+            <p className="text-gray-700 leading-relaxed mb-4">
+              ExpiryCare may, from time to time, include contests, promotions, sweepstakes, or other activities ("Promotions") that require you to submit material or information concerning yourself. Please note that all Promotions may be governed by separate rules that may contain certain eligibility requirements, such as restrictions as to age and geographic location. You are responsible to read all Promotions rules to determine whether or not you are eligible to participate. If you enter any Promotion, you agree to abide by and to comply with all Promotions Rules.
+            </p>
+            <p className="text-gray-700 leading-relaxed">
+              Additional terms and conditions may apply to purchases of goods or services on or through the Services, which terms and conditions are made a part of this Agreement by this reference.
+            </p>
+          </section>
+
+          <section className="mb-8">
+            <h2 className="text-2xl font-semibold text-gray-900 mb-4">Typographical Errors</h2>
+            <p className="text-gray-700 leading-relaxed">
+              In the event a product and/or service is listed at an incorrect price or with incorrect information due to typographical error, we shall have the right to refuse or cancel any orders placed for the product and/or service listed at the incorrect price. We shall have the right to refuse or cancel any such order whether or not the order has been confirmed and your credit card charged. If your credit card has already been charged for the purchase and your order is canceled, we shall immediately issue a credit to your credit card account or other payment account in the amount of the charge.
+            </p>
+          </section>
+
+          <section className="mb-8">
+            <h2 className="text-2xl font-semibold text-gray-900 mb-4">Miscellaneous</h2>
+            <p className="text-gray-700 leading-relaxed mb-4">
+              If for any reason a court of competent jurisdiction finds any provision or portion of these Terms & Conditions to be unenforceable, the remainder of these Terms & Conditions will continue in full force and effect. Any waiver of any provision of these Terms & Conditions will be effective only if in writing and signed by an authorized representative of ExpiryCare. ExpiryCare will be entitled to injunctive or other equitable relief (without the obligations of posting any bond or surety) in the event of any breach or anticipatory breach by you. ExpiryCare operates and controls the ExpiryCare Service from its offices in India. The Service is not intended for distribution to or use by any person or entity in any jurisdiction or country where such distribution or use would be contrary to law or regulation. Accordingly, those persons who choose to access the ExpiryCare Service from other locations do so on their own initiative and are solely responsible for compliance with local laws, if and to the extent local laws are applicable. These Terms & Conditions (which include and incorporate the ExpiryCare Privacy Policy) contains the entire understanding, and supersedes all prior understandings, between you and ExpiryCare concerning its subject matter, and cannot be changed or modified by you. The section headings used in this Agreement are for convenience only and will not be given any legal import.
+            </p>
+          </section>
+
+          <section className="mb-8">
+            <h2 className="text-2xl font-semibold text-gray-900 mb-4">Disclaimer</h2>
+            <p className="text-gray-700 leading-relaxed mb-4">
+              ExpiryCare is not responsible for any content, code or any other imprecision.
+            </p>
+            <p className="text-gray-700 leading-relaxed mb-4">
+              ExpiryCare does not provide warranties or guarantees.
+            </p>
+            <p className="text-gray-700 leading-relaxed mb-4">
+              In no event shall ExpiryCare be liable for any special, direct, indirect, consequential, or incidental damages or any damages whatsoever, whether in an action of contract, negligence or other tort, arising out of or in connection with the use of the Service or the contents of the Service. The Company reserves the right to make additions, deletions, or modifications to the contents on the Service at any time without prior notice.
+            </p>
+            <p className="text-gray-700 leading-relaxed">
+              The ExpiryCare Service and its contents are provided "as is" and "as available" without any warranty or representations of any kind, whether express or implied. ExpiryCare is a distributor and not a publisher of the content supplied by third parties; as such, ExpiryCare exercises no editorial control over such content and makes no warranty or representation as to the accuracy, reliability or currency of any information, content, service or merchandise provided through or accessible via the ExpiryCare Service. Without limiting the foregoing, ExpiryCare specifically disclaims all warranties and representations in any content transmitted on or in connection with the ExpiryCare Service or on sites that may appear as links on the ExpiryCare Service, or in the products provided as a part of, or otherwise in connection with, the ExpiryCare Service, including without limitation any warranties of merchantability, fitness for a particular purpose or non-infringement of third party rights. No oral advice or written information given by ExpiryCare or any of its affiliates, employees, officers, directors, agents, or the like will create a warranty. Price and availability information is subject to change without notice. Without limiting the foregoing, ExpiryCare does not warrant that the ExpiryCare Service will be uninterrupted, uncorrupted, timely, or error-free.
+            </p>
+          </section>
+
+          <section className="mb-8">
+            <h2 className="text-2xl font-semibold text-gray-900 mb-4">Contact Us</h2>
+            <p className="text-gray-700 leading-relaxed mb-4">
+              Don't hesitate to contact us if you have any questions.
             </p>
             <div className="bg-gray-50 p-4 rounded-lg">
               <p className="text-gray-700 mb-2">
-                <strong>Email:</strong> <a href="mailto:Welcome@expirycare.com" className="text-primary-600 hover:text-primary-700">Welcome@expirycare.com</a>
+                <strong>Via Email:</strong> <a href="mailto:Welcome@expirycare.com" className="text-primary-600 hover:text-primary-700">Welcome@expirycare.com</a>
+              </p>
+              <p className="text-gray-700 mb-2">
+                <strong>Via Phone number:</strong> <a href="tel:+916369574440" className="text-primary-600 hover:text-primary-700">+91 6369574440</a>
               </p>
               <p className="text-gray-700">
-                <strong>Phone:</strong> <a href="tel:+916369574440" className="text-primary-600 hover:text-primary-700">+91 6369574440</a>
+                <strong>Via this Link:</strong> <a href="https://www.expirycare.com/" target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:text-primary-700">https://www.expirycare.com/</a>
               </p>
             </div>
           </section>
