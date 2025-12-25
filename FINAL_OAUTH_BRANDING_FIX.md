@@ -4,7 +4,16 @@
 Production users still see `rfqwevpkydlwftraiqmn.supabase.co` in Google OAuth screen instead of "ExpiryCare".
 
 ## Important Note About OAuth Server Feature
-The **"OAuth Server"** feature in Supabase is for making Supabase act as an OAuth **provider** (like Google). This is NOT what we need. We're using Google as the provider and Supabase as the client. **You can ignore the OAuth Server feature** for this use case.
+
+**Question: Is OAuth Server useful for our project?**
+
+**Answer: NO** - The **"OAuth Server"** feature in Supabase is for making Supabase act as an OAuth **provider** (like Google). 
+
+- **What we're doing:** Using Google as the OAuth provider, Supabase as the client
+- **What OAuth Server does:** Makes Supabase an OAuth provider for other apps
+- **Conclusion:** **You can ignore/disable the OAuth Server feature** - it's not needed for Google OAuth login
+
+**Action:** If OAuth Server is enabled, you can leave it as-is (it won't interfere), or disable it if you want to keep things simple.
 
 ---
 
@@ -117,17 +126,21 @@ The Supabase URL is unavoidable because that's the domain making the request, bu
 To **completely** hide the Supabase URL, you need:
 
 1. **Supabase Pro Plan** ($25/month) - Required for custom domains
-2. **Custom Domain Setup:**
-   - Supabase Dashboard → Settings → Custom Domain
-   - Add custom domain (e.g., `auth.expirycare.com`)
-   - Configure DNS records as instructed
-3. **Update OAuth Redirect URIs:**
+2. **Enable Custom Domains Add-on:**
+   - Supabase Dashboard → Billing → Enable Custom Domains add-on
+3. **Configure Custom Domain:**
+   - Set up CNAME record: `auth.expirycare.com` → `rfqwevpkydlwftraiqmn.supabase.co`
+   - Use Supabase CLI to verify domain
+   - Configure in Supabase Dashboard → Settings → Custom Domain
+4. **Update OAuth Redirect URIs:**
    - Google Cloud Console → Use `https://auth.expirycare.com/auth/v1/callback`
    - Supabase → Update redirect URLs
 
 **Result:** Users will see `auth.expirycare.com` instead of `rfqwevpkydlwftraiqmn.supabase.co`
 
-**Cost:** $25/month for Supabase Pro plan
+**Cost:** $25/month for Supabase Pro plan + Custom Domains add-on
+
+**Note:** This is optional. Most apps work fine with the Supabase URL showing in small text, as long as "ExpiryCare" is prominent.
 
 ---
 
@@ -165,11 +178,13 @@ To **completely** hide the Supabase URL, you need:
 
 ### Site Name Option Not Available?
 
-Supabase may have removed or moved the "Site Name" option. The primary branding is controlled by:
-- ✅ **Google Cloud Console OAuth consent screen** (most important)
-- ✅ **Supabase Site URL** (for redirects)
+**Confirmed:** Supabase has removed or moved the "Site Name" option in newer versions. This is normal.
 
-The Google Cloud Console app name is what users see most prominently.
+**The primary branding is controlled by:**
+- ✅ **Google Cloud Console OAuth consent screen** (MOST IMPORTANT - this is what users see)
+- ✅ **Supabase Site URL** (for redirects only, doesn't affect OAuth branding)
+
+**Action:** Focus on Google Cloud Console configuration. The app name there is what users see prominently in the OAuth screen.
 
 ---
 
