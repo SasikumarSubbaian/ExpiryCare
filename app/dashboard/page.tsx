@@ -86,26 +86,16 @@ export default async function DashboardPage() {
   }
 
   // Fetch user's items
-  // Try without explicit user_id filter first (RLS should handle it)
-  // If that fails, try with explicit filter
+  // Always use explicit user_id filter for reliability
   let items: any[] = []
   let error: any = null
   
-  // First try: Let RLS handle the filtering
-  let result = await supabase
+  // Use explicit user_id filter - more reliable than relying solely on RLS
+  const result = await supabase
     .from('life_items')
     .select('id, user_id, title, category, expiry_date, reminder_days, notes, document_url, person_name, created_at, updated_at')
+    .eq('user_id', user.id)
     .order('expiry_date', { ascending: true })
-  
-  if (result.error) {
-    console.error('[Dashboard] Error with RLS-only query:', result.error)
-    // Second try: Explicit user_id filter
-    result = await supabase
-      .from('life_items')
-      .select('id, user_id, title, category, expiry_date, reminder_days, notes, document_url, person_name, created_at, updated_at')
-      .eq('user_id', user.id)
-      .order('expiry_date', { ascending: true })
-  }
   
   items = result.data || []
   error = result.error
@@ -115,9 +105,13 @@ export default async function DashboardPage() {
     console.error('[Dashboard] Error code:', error.code)
     console.error('[Dashboard] Error message:', error.message)
     console.error('[Dashboard] Error details:', JSON.stringify(error, null, 2))
+    console.error('[Dashboard] User ID:', user.id)
+    console.error('[Dashboard] User authenticated:', !!user)
+    
     // If it's a permission error, show helpful message
     if (error.code === '42501') {
       console.error('[Dashboard] RLS Policy Issue: Check that life_items table has proper RLS policies')
+      console.error('[Dashboard] Please run migration 011_ensure_rls_policies_production.sql in Supabase')
     }
   }
 
