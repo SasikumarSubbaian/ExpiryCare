@@ -191,12 +191,17 @@ export default function ItemsSection({
                     {item.document_url && (
                       <div className="mt-2">
                         <a
-                          href={item.document_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
+                          href={`/api/documents/${encodeURIComponent(
+                            item.document_url.includes('/storage/v1/object/public/documents/')
+                              ? item.document_url.split('/storage/v1/object/public/documents/')[1]
+                              : item.document_url.includes('/storage/v1/object/sign/documents/')
+                              ? item.document_url.split('/storage/v1/object/sign/documents/')[1]
+                              : item.document_url
+                          )}`}
                           className="inline-flex items-center gap-1 text-sm text-primary-600 hover:text-primary-700"
+                          download
                         >
-                          📄 View Document
+                          📄 Download Document
                         </a>
                       </div>
                     )}

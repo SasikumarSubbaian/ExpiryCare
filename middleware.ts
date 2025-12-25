@@ -2,6 +2,13 @@ import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 export async function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl
+
+  // Skip middleware for dev routes (development only) - check early to avoid any processing
+  if (pathname.startsWith('/dev')) {
+    return NextResponse.next()
+  }
+
   // Check if environment variables are set
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
@@ -69,8 +76,6 @@ export async function middleware(request: NextRequest) {
       data: { user },
     } = await supabase.auth.getUser()
 
-    const { pathname } = request.nextUrl
-
     // Protected routes - redirect to login if not authenticated
     const protectedRoutes = ['/dashboard']
     const isProtectedRoute = protectedRoutes.some(route => pathname.startsWith(route))
@@ -107,7 +112,8 @@ export const config = {
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
      * - api routes
+     * - dev routes (development only)
      */
-    '/((?!_next/static|_next/image|favicon.ico|api|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    '/((?!_next/static|_next/image|favicon.ico|api|dev|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }

@@ -9,9 +9,29 @@ export async function GET(request: NextRequest) {
 
   if (code) {
     const supabase = await createClient()
-    const { error } = await supabase.auth.exchangeCodeForSession(code)
+    const { data, error } = await supabase.auth.exchangeCodeForSession(code)
     
-    if (!error) {
+    if (!error && data?.user) {
+      // Update profile with name from Google OAuth if available
+      const user = data.user
+      const fullName = user.user_metadata?.full_name || 
+                      user.user_metadata?.name ||
+                      user.user_metadata?.display_name ||
+                      null
+      
+      if (fullName) {
+        // Update or create profile with name
+        await supabase
+          .from('profiles')
+          .upsert({
+            id: user.id,
+            email: user.email,
+            full_name: fullName,
+          }, {
+            onConflict: 'id'
+          })
+      }
+      
       // Redirect to dashboard after successful OAuth
       return NextResponse.redirect(new URL(next, request.url))
     }

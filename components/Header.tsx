@@ -1,10 +1,25 @@
-import Link from 'next/link'
-import { createClient } from '@/lib/supabase/server'
-import SignOutButton from './SignOutButton'
+'use client'
 
-export default async function Header() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+import Link from 'next/link'
+import { usePathname } from 'next/navigation'
+import { createClient } from '@/lib/supabase/client'
+import SignOutButton from './SignOutButton'
+import { useEffect, useState } from 'react'
+import { User } from '@supabase/supabase-js'
+
+export default function Header() {
+  const pathname = usePathname()
+  const [user, setUser] = useState<User | null>(null)
+  const supabase = createClient()
+  
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      setUser(user)
+    })
+  }, [])
+  
+  const isDashboard = pathname === '/dashboard'
+  const isHomePage = pathname === '/'
 
   return (
     <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
@@ -16,13 +31,17 @@ export default async function Header() {
           <nav className="flex items-center gap-2 sm:gap-4">
             {user ? (
               <>
-                <Link
-                  href="/dashboard"
-                  className="text-xs sm:text-sm text-gray-600 hover:text-gray-900 px-2 sm:px-0"
-                >
-                  Dashboard
-                </Link>
-                <SignOutButton />
+                {/* Hide Dashboard link when already on dashboard page */}
+                {!isDashboard && (
+                  <Link
+                    href="/dashboard"
+                    className="text-xs sm:text-sm text-gray-600 hover:text-gray-900 px-2 sm:px-0"
+                  >
+                    Dashboard
+                  </Link>
+                )}
+                {/* Hide Sign out in header when on home page (hero section has it) */}
+                {!isHomePage && <SignOutButton />}
               </>
             ) : (
               <>

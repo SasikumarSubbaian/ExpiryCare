@@ -1,12 +1,18 @@
 import { redirect } from 'next/navigation'
+import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { differenceInDays, isPast, isToday } from 'date-fns'
+import { revalidatePath } from 'next/cache'
 import DashboardHeader from '@/components/DashboardHeader'
 import ItemsSection from '@/components/ItemsSection'
 import DashboardWithModal from '@/components/DashboardWithModal'
 import FamilyMembersSection from '@/components/FamilyMembersSection'
 import PlanDisplay from '@/components/PlanDisplay'
 import { getUserPlan, getItemCount, getFamilyMemberCount } from '@/lib/supabase/plans'
+
+// Revalidate this page every time it's accessed (for fresh data after adds)
+export const revalidate = 0
+export const dynamic = 'force-dynamic'
 
 type LifeItem = {
   id: string
@@ -30,35 +36,109 @@ export default async function DashboardPage() {
     redirect('/login')
   }
 
-  // Get user plan and counts
-  const userPlan = await getUserPlan(user.id)
-  const itemCount = await getItemCount(user.id)
-  const familyMemberCount = await getFamilyMemberCount(user.id)
-
-  // Fetch user's items
-  // RLS policies should filter items to only show the user's own items (and shared items if family plan)
-  // We'll also filter by user_id in code to separate own vs shared items
-  const { data: items, error } = await supabase
-    .from('life_items')
-    .select('*')
-    .order('expiry_date', { ascending: true })
-
-  if (error) {
-    console.error('Error fetching items:', error)
-    // Log error details for debugging
-    console.error('Error details:', JSON.stringify(error, null, 2))
+  // Get user profile for name display
+  let userName = user.email?.split('@')[0] || 'User'
+  try {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('full_name')
+      .eq('id', user.id)
+      .single()
+    
+    if (profile?.full_name) {
+      userName = profile.full_name
+    } else if (user.user_metadata?.full_name) {
+      userName = user.user_metadata.full_name
+    } else if (user.user_metadata?.name) {
+      userName = user.user_metadata.name
+    }
+  } catch (err) {
+    console.error('Error fetching user profile:', err)
+    // Fallback to email or metadata
+    if (user.user_metadata?.full_name) {
+      userName = user.user_metadata.full_name
+    } else if (user.user_metadata?.name) {
+      userName = user.user_metadata.name
+    }
   }
 
-  const lifeItems: LifeItem[] = items || []
+  // Get user plan and counts (with error handling)
+  let userPlan: 'free' | 'pro' | 'family' = 'free'
+  let itemCount = 0
+  let familyMemberCount = 0
+  
+  try {
+    userPlan = await getUserPlan(user.id)
+  } catch (err) {
+    console.error('Error getting user plan:', err)
+  }
+  
+  try {
+    itemCount = await getItemCount(user.id)
+  } catch (err) {
+    console.error('Error getting item count:', err)
+  }
+  
+  try {
+    familyMemberCount = await getFamilyMemberCount(user.id)
+  } catch (err) {
+    console.error('Error getting family member count:', err)
+  }
+
+  // Fetch user's items
+  // Try without explicit user_id filter first (RLS should handle it)
+  // If that fails, try with explicit filter
+  let items: any[] = []
+  let error: any = null
+  
+  // First try: Let RLS handle the filtering
+  let result = await supabase
+    .from('life_items')
+    .select('id, user_id, title, category, expiry_date, reminder_days, notes, document_url, person_name, created_at, updated_at')
+    .order('expiry_date', { ascending: true })
+  
+  if (result.error) {
+    console.error('[Dashboard] Error with RLS-only query:', result.error)
+    // Second try: Explicit user_id filter
+    result = await supabase
+      .from('life_items')
+      .select('id, user_id, title, category, expiry_date, reminder_days, notes, document_url, person_name, created_at, updated_at')
+      .eq('user_id', user.id)
+      .order('expiry_date', { ascending: true })
+  }
+  
+  items = result.data || []
+  error = result.error
+
+  if (error) {
+    console.error('[Dashboard] Error fetching items:', error)
+    console.error('[Dashboard] Error code:', error.code)
+    console.error('[Dashboard] Error message:', error.message)
+    console.error('[Dashboard] Error details:', JSON.stringify(error, null, 2))
+    // If it's a permission error, show helpful message
+    if (error.code === '42501') {
+      console.error('[Dashboard] RLS Policy Issue: Check that life_items table has proper RLS policies')
+    }
+  }
+
+  // Filter items by user_id in code as well (double safety)
+  const lifeItems: LifeItem[] = (items || []).filter(item => String(item.user_id) === String(user.id))
   
   // Debug logging to help troubleshoot
   console.log(`[Dashboard] User ID: ${user.id} (type: ${typeof user.id})`)
+  console.log(`[Dashboard] User Plan: ${userPlan}`)
   console.log(`[Dashboard] Item count from getItemCount: ${itemCount}`)
   console.log(`[Dashboard] Total items fetched from query: ${lifeItems.length}`)
+  console.log(`[Dashboard] Items:`, lifeItems.map(item => ({ id: item.id, title: item.title, category: item.category })))
   
   if (itemCount > 0 && lifeItems.length === 0) {
     console.error('[Dashboard] ERROR: getItemCount shows items exist but query returned none!')
     console.error('[Dashboard] This suggests a query or RLS policy issue')
+    console.error('[Dashboard] Try checking RLS policies in Supabase')
+  }
+  
+  if (lifeItems.length > 0) {
+    console.log(`[Dashboard] Successfully loaded ${lifeItems.length} items`)
   }
   
   if (lifeItems.length > 0) {
@@ -72,10 +152,10 @@ export default async function DashboardPage() {
     })))
   }
 
-  // Since we're already filtering by user_id in the query, all items should be own items
-  // But we'll still filter to be safe and handle any edge cases
-  const ownItems = lifeItems.filter(item => String(item.user_id) === String(user.id))
-  const sharedItems = lifeItems.filter(item => String(item.user_id) !== String(user.id))
+  // All items from the query should be the user's own items since we filtered by user_id
+  // For family plan, we might have shared items, but for now, all items are own items
+  const ownItems = lifeItems
+  const sharedItems: LifeItem[] = [] // Will be populated when family sharing is implemented
   
   // Debug: Check if items are being filtered out incorrectly
   if (lifeItems.length > 0 && ownItems.length === 0) {
@@ -132,7 +212,7 @@ export default async function DashboardPage() {
 
   return (
     <DashboardWithModal userPlan={userPlan} currentItemCount={itemCount}>
-      <DashboardHeader user={user} />
+      <DashboardHeader user={user} userName={userName} />
 
       {/* Plan Display */}
       <div className="mb-6 sm:mb-8">
@@ -222,6 +302,16 @@ export default async function DashboardPage() {
           />
         </div>
       )}
+
+      {/* Back to Home Button at Bottom */}
+      <div className="mt-12 pt-8 border-t border-gray-200 text-center">
+        <Link
+          href="/"
+          className="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 px-4 py-2 rounded-md hover:bg-gray-100 font-medium transition-colors"
+        >
+          ← Back to Home
+        </Link>
+      </div>
     </DashboardWithModal>
   )
 }

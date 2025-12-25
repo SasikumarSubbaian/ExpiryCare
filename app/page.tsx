@@ -1,19 +1,81 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
+import Image from 'next/image'
 import { PLAN_PRICES } from '@/lib/plans'
 
 export default async function LandingPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
-  // Redirect authenticated users to dashboard
+  // Get user name for authenticated users
+  let userName = user?.email?.split('@')[0] || 'User'
   if (user) {
-    redirect('/dashboard')
+    try {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('full_name')
+        .eq('id', user.id)
+        .single()
+      
+      if (profile?.full_name) {
+        userName = profile.full_name
+      } else if (user.user_metadata?.full_name) {
+        userName = user.user_metadata.full_name
+      } else if (user.user_metadata?.name) {
+        userName = user.user_metadata.name
+      }
+    } catch (err) {
+      // Fallback to email or metadata
+      if (user.user_metadata?.full_name) {
+        userName = user.user_metadata.full_name
+      } else if (user.user_metadata?.name) {
+        userName = user.user_metadata.name
+      }
+    }
   }
 
   return (
     <div className="min-h-screen bg-white">
+      {/* Header with Logo and Navigation - Not sticky, scrolls with content */}
+      <header className="bg-white border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
+            <Link href="/" className="flex items-center gap-3">
+              <Image 
+                src="/logo.png" 
+                alt="ExpiryCare Logo" 
+                width={40}
+                height={40}
+                className="h-10 w-auto"
+              />
+              <span className="text-lg sm:text-xl font-bold text-gray-900">ExpiryCare</span>
+            </Link>
+            <nav className="flex items-center gap-2 sm:gap-4">
+              {user ? (
+                // When logged in, show nothing in header (logout is in hero section)
+                null
+              ) : (
+                <>
+                  <Link
+                    href="/login"
+                    className="text-xs sm:text-sm text-gray-600 hover:text-gray-900 px-2 sm:px-0"
+                  >
+                    Log in
+                  </Link>
+                  <Link
+                    href="/signup"
+                    className="text-xs sm:text-sm text-white bg-primary-600 hover:bg-primary-700 px-3 sm:px-4 py-1.5 sm:py-2 rounded-md"
+                  >
+                    Sign up
+                  </Link>
+                </>
+              )}
+            </nav>
+          </div>
+        </div>
+      </header>
+
       {/* Hero Section */}
       <section className="bg-gradient-to-b from-primary-50 to-white py-16 sm:py-24">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -25,21 +87,41 @@ export default async function LandingPage() {
               Track warranties, insurance, medicines, and subscriptions with timely reminders. 
               Built for Indian families who value peace of mind.
             </p>
-            <div className="mt-10 flex flex-col sm:flex-row gap-4 justify-center">
-              <Link
-                href="/signup"
-                className="inline-flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 shadow-sm"
-              >
-                Start Free
-              </Link>
-              <Link
-                href="/login"
-                className="inline-flex items-center justify-center px-8 py-3 border border-gray-300 text-base font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
-              >
-                Sign In
-              </Link>
-            </div>
-            <p className="mt-4 text-sm text-gray-500">No credit card required • Free forever plan available</p>
+            {user ? (
+              <div className="mt-10">
+                <p className="text-lg text-gray-700 mb-4">
+                  Welcome back, {userName}!
+                </p>
+                <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                  <Link
+                    href="/dashboard"
+                    className="inline-flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 shadow-sm"
+                  >
+                    Go to Dashboard
+                  </Link>
+                  <form action="/auth/signout" method="post" className="inline">
+                    <button
+                      type="submit"
+                      className="inline-flex items-center justify-center px-8 py-3 border border-gray-300 text-base font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                    >
+                      Logout
+                    </button>
+                  </form>
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="mt-10 flex flex-col sm:flex-row gap-4 justify-center">
+                  <Link
+                    href="/login"
+                    className="inline-flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 shadow-sm"
+                  >
+                    Start Free
+                  </Link>
+                </div>
+                <p className="mt-4 text-sm text-gray-500">No credit card required • Free forever plan available</p>
+              </>
+            )}
           </div>
         </div>
       </section>
@@ -303,3 +385,4 @@ export default async function LandingPage() {
     </div>
   )
 }
+

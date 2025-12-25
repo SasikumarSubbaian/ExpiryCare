@@ -31,11 +31,71 @@ export default function AddItemModal({ isOpen, onClose, onSuccess, userPlan = 'f
   // Document upload
   const [documentFile, setDocumentFile] = useState<File | null>(null)
   const [uploading, setUploading] = useState(false)
+  const [processingOCR, setProcessingOCR] = useState(false)
+  const [ocrExtracted, setOcrExtracted] = useState(false)
   
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const router = useRouter()
   const supabase = createClient()
+
+  // Process OCR when document is uploaded (Pro/Family plans only)
+  const processOCR = async (file: File) => {
+    if (userPlan === 'free') return
+    
+    setProcessingOCR(true)
+    setError(null)
+    
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      
+      const response = await fetch('/api/ocr/extract', {
+        method: 'POST',
+        body: formData,
+      })
+      
+      const result = await response.json()
+      
+      if (result.success && result.extractedData) {
+        const data = result.extractedData
+        
+        // Auto-fill form fields from OCR
+        if (data.title && !title) {
+          setTitle(data.title)
+        }
+        if (data.expiryDate && !expiryDate) {
+          // Convert date format if needed (DD-MM-YYYY or DD/MM/YYYY to YYYY-MM-DD)
+          let dateStr = data.expiryDate.replace(/\//g, '-')
+          // Try to convert to YYYY-MM-DD format
+          const parts = dateStr.split('-')
+          if (parts.length === 3) {
+            // If format is DD-MM-YYYY, convert to YYYY-MM-DD
+            if (parts[0].length === 2 && parts[2].length === 4) {
+              dateStr = `${parts[2]}-${parts[1]}-${parts[0]}`
+            }
+          }
+          setExpiryDate(dateStr)
+        }
+        if (data.category && !category) {
+          setCategory(data.category as Category)
+        }
+        if (data.notes && !notes) {
+          setNotes(data.notes)
+        }
+        
+        setOcrExtracted(true)
+      } else {
+        console.warn('OCR completed but no data extracted:', result)
+      }
+    } catch (err: any) {
+      console.error('OCR processing error:', err)
+      // Don't show error to user - OCR is optional enhancement
+      setError('Could not extract details from document, but you can still add the item manually.')
+    } finally {
+      setProcessingOCR(false)
+    }
+  }
 
   // Reset reminder days when category changes to Medicine
   useEffect(() => {
@@ -97,11 +157,13 @@ export default function AddItemModal({ isOpen, onClose, onSuccess, userPlan = 'f
         throw uploadError
       }
 
-      // Get public URL
+      // Get public URL (for private buckets, we'll use signed URLs via API route)
+      // Store the path (user_id/filename) so we can generate signed URLs later
       const { data } = supabase.storage
         .from('documents')
         .getPublicUrl(filePath)
 
+      // Return the full URL - the download route will handle converting to signed URL if needed
       return data.publicUrl
     } catch (err: any) {
       console.error('Error uploading file:', err)
@@ -123,6 +185,14 @@ export default function AddItemModal({ isOpen, onClose, onSuccess, userPlan = 'f
         return
       }
 
+      // Check plan limits before adding
+      const canAdd = canAddItem(userPlan, currentItemCount)
+      if (!canAdd.allowed) {
+        setError(canAdd.reason || 'Cannot add more items. Please upgrade your plan.')
+        setLoading(false)
+        return
+      }
+
       // For medicine, use medicine name as title if provided, otherwise use title
       const finalTitle = category === 'medicine' && medicineName 
         ? medicineName 
@@ -135,6 +205,39 @@ export default function AddItemModal({ isOpen, onClose, onSuccess, userPlan = 'f
       }
 
       const personName = getPersonName()
+
+      // Document is required for Pro/Family plans
+      if (userPlan !== 'free' && !documentFile) {
+        setError('Document upload is required for Pro and Family plans')
+        setLoading(false)
+        return
+      }
+
+      // Reminder Days is required for Pro/Family plans
+      if ((userPlan === 'pro' || userPlan === 'family') && reminderDays.length === 0) {
+        setError('Please select at least one reminder day')
+        setLoading(false)
+        return
+      }
+
+      // For Free plan, basic fields are required
+      if (userPlan === 'free') {
+        if (!title && !isMedicine) {
+          setError('Title is required')
+          setLoading(false)
+          return
+        }
+        if (!expiryDate) {
+          setError('Expiry date is required')
+          setLoading(false)
+          return
+        }
+        if (reminderDays.length === 0) {
+          setError('Please select at least one reminder day')
+          setLoading(false)
+          return
+        }
+      }
 
       // Upload document if provided
       let documentUrl: string | null = null
@@ -151,23 +254,72 @@ export default function AddItemModal({ isOpen, onClose, onSuccess, userPlan = 'f
         setUploading(false)
       }
 
+      // Insert the item - don't fetch it back to avoid RLS permission issues
       const { error: insertError } = await supabase
         .from('life_items')
-        .insert([
-          {
-            user_id: user.id,
-            title: finalTitle,
-            category,
-            expiry_date: expiryDate,
-            reminder_days: reminderDays,
-            notes: notes || null,
-            person_name: personName,
-            document_url: documentUrl,
-          },
-        ])
+        .insert({
+          user_id: user.id,
+          title: finalTitle,
+          category,
+          expiry_date: expiryDate,
+          reminder_days: reminderDays,
+          notes: notes || null,
+          person_name: personName,
+          document_url: documentUrl,
+        })
 
       if (insertError) {
-        throw insertError
+        console.error('Insert error details:', insertError)
+        console.error('User ID:', user.id)
+        console.error('User authenticated:', !!user)
+        
+        // Provide more helpful error messages
+        if (insertError.code === '42501') {
+          throw new Error('Permission denied. Please run migration 008_fix_rls_policies_final.sql in Supabase to fix RLS policies.')
+        } else if (insertError.code === '23503') {
+          throw new Error('Foreign key constraint violation. Please check your database constraints.')
+        } else if (insertError.message?.includes('users') || insertError.message?.includes('permission denied')) {
+          throw new Error('Database permission error. Please run migration 008_fix_rls_policies_final.sql to fix RLS policies.')
+        }
+        throw new Error(insertError.message || 'Failed to add item. Please try again.')
+      }
+
+      // Insert succeeded - create a temporary object for reminder check
+      // We don't fetch the item back to avoid RLS permission issues
+      const insertedItem = {
+        id: 'temp-id', // Not used for reminder
+        title: finalTitle,
+        category,
+        expiry_date: expiryDate,
+        reminder_days: reminderDays,
+        person_name: personName,
+      }
+
+      // Check if reminder should be sent immediately (if item expires within reminder days)
+      if (insertedItem) {
+        const expiryDateObj = new Date(expiryDate)
+        expiryDateObj.setHours(0, 0, 0, 0)
+        const today = new Date()
+        today.setHours(0, 0, 0, 0)
+        const daysUntil = Math.ceil((expiryDateObj.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+        
+        // Check if any reminder day matches (item expires within reminder period)
+        const shouldSendNow = reminderDays.some(day => {
+          if (day === 0) {
+            // Send if expires today or already expired
+            return daysUntil <= 0
+          }
+          // Send if days until expiry matches reminder day
+          return daysUntil === day || (daysUntil <= day && daysUntil >= 0)
+        })
+
+        // Send reminder immediately if within reminder period
+        // Note: We skip this for now since we don't have the item ID
+        // Reminders will be sent by the scheduled cron job
+        if (shouldSendNow) {
+          console.log('Item expires within reminder period - reminder will be sent by scheduled job')
+          // TODO: Once we have the item ID from insert, we can send reminder here
+        }
       }
 
       // Reset form
@@ -187,7 +339,9 @@ export default function AddItemModal({ isOpen, onClose, onSuccess, userPlan = 'f
       if (onSuccess) {
         onSuccess()
       }
-      router.refresh()
+      // Refresh the page to show new items
+      // Force a full page reload to ensure fresh data
+      window.location.reload()
     } catch (err: any) {
       // Provide helpful, calm error messages
       let errorMessage = 'Something went wrong. Please try again.'
@@ -250,14 +404,14 @@ export default function AddItemModal({ isOpen, onClose, onSuccess, userPlan = 'f
           {/* Category */}
           <div>
             <label htmlFor="category" className="block text-sm font-medium text-gray-700 mb-1">
-              Category <span className="text-red-500">*</span>
+              Category {userPlan === 'free' && <span className="text-red-500">*</span>}
             </label>
             <select
               id="category"
-              required
+              required={userPlan === 'free'}
               value={category}
               onChange={(e) => setCategory(e.target.value as Category)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+              className="w-full px-3 py-2 text-base text-gray-900 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
             >
               <option value="warranty">Warranty</option>
               <option value="insurance">Insurance</option>
@@ -286,7 +440,7 @@ export default function AddItemModal({ isOpen, onClose, onSuccess, userPlan = 'f
                 value={medicineName}
                 onChange={(e) => setMedicineName(e.target.value)}
                 placeholder="e.g., Paracetamol 500mg"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+                className="w-full px-3 py-2 text-base text-gray-900 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
               />
             </div>
           )}
@@ -295,16 +449,16 @@ export default function AddItemModal({ isOpen, onClose, onSuccess, userPlan = 'f
           {!isMedicine && (
             <div>
               <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">
-                Title <span className="text-red-500">*</span>
+                Title {userPlan === 'free' && <span className="text-red-500">*</span>}
               </label>
               <input
                 id="title"
                 type="text"
-                required
+                required={userPlan === 'free'}
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="e.g., iPhone 14 Warranty"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+                className="w-full px-3 py-2 text-base text-gray-900 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
               />
             </div>
           )}
@@ -349,7 +503,7 @@ export default function AddItemModal({ isOpen, onClose, onSuccess, userPlan = 'f
                     value={customPersonName}
                     onChange={(e) => setCustomPersonName(e.target.value)}
                     placeholder="Enter person name"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+                    className="w-full px-3 py-2 text-base text-gray-900 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
                   />
                 )}
               </div>
@@ -359,23 +513,23 @@ export default function AddItemModal({ isOpen, onClose, onSuccess, userPlan = 'f
           {/* Expiry Date */}
           <div>
             <label htmlFor="expiryDate" className="block text-sm font-medium text-gray-700 mb-1">
-              Expiry Date <span className="text-red-500">*</span>
+              Expiry Date {userPlan === 'free' && <span className="text-red-500">*</span>}
             </label>
             <input
               id="expiryDate"
               type="date"
-              required
+              required={userPlan === 'free'}
               value={expiryDate}
               onChange={(e) => setExpiryDate(e.target.value)}
               min={new Date().toISOString().split('T')[0]}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+              className="w-full px-3 py-2 text-base text-gray-900 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
             />
           </div>
 
           {/* Reminder Days */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Reminder Days <span className="text-red-500">*</span>
+              Reminder Days {(userPlan === 'pro' || userPlan === 'family') && <span className="text-red-500">*</span>}
             </label>
             <p className="text-xs text-gray-500 mb-2">
               {isMedicine 
@@ -414,23 +568,26 @@ export default function AddItemModal({ isOpen, onClose, onSuccess, userPlan = 'f
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               placeholder="Additional details..."
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+              className="w-full px-3 py-2 text-base text-gray-900 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
             />
           </div>
 
-          {/* Document Upload */}
+          {/* Document Upload - Required for Pro/Family plans */}
           {canUploadDocuments(userPlan) && (
             <div>
               <label htmlFor="document" className="block text-sm font-medium text-gray-700 mb-1">
-                Document (optional)
+                Document {userPlan !== 'free' ? '*' : '(optional)'}
               </label>
-              <p className="text-xs text-gray-500 mb-2">Upload image or PDF (max 10MB)</p>
+              <p className="text-xs text-gray-500 mb-2">
+                Upload image or PDF (max 10MB). {userPlan !== 'free' && 'We\'ll automatically extract details from your document.'}
+              </p>
             <div className="flex items-center gap-2">
               <input
                 id="document"
                 type="file"
                 accept="image/*,.pdf"
-                onChange={(e) => {
+                required={userPlan !== 'free'}
+                onChange={async (e) => {
                   const file = e.target.files?.[0]
                   if (file) {
                     if (file.size > 10 * 1024 * 1024) {
@@ -439,17 +596,34 @@ export default function AddItemModal({ isOpen, onClose, onSuccess, userPlan = 'f
                     }
                     setDocumentFile(file)
                     setError(null)
+                    
+                    // Process OCR for Pro/Family plans
+                    if (userPlan !== 'free') {
+                      await processOCR(file)
+                    }
                   }
                 }}
                 className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100"
               />
             </div>
-            {documentFile && (
+            {processingOCR && (
+              <div className="mt-2 text-sm text-blue-600 flex items-center gap-2">
+                <span className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                Processing document and extracting details...
+              </div>
+            )}
+            {documentFile && !processingOCR && (
               <div className="mt-2 flex items-center gap-2 text-sm text-gray-600">
                 <span>📄 {documentFile.name}</span>
+                {ocrExtracted && (
+                  <span className="text-green-600 text-xs">✓ Details extracted</span>
+                )}
                 <button
                   type="button"
-                  onClick={() => setDocumentFile(null)}
+                  onClick={() => {
+                    setDocumentFile(null)
+                    setOcrExtracted(false)
+                  }}
                   className="text-red-600 hover:text-red-800 text-xs"
                 >
                   Remove
@@ -476,7 +650,10 @@ export default function AddItemModal({ isOpen, onClose, onSuccess, userPlan = 'f
             </button>
             <button
               type="submit"
-              disabled={loading || uploading || reminderDays.length === 0 || (isMedicine && !medicineName)}
+              disabled={loading || uploading || 
+                ((userPlan === 'pro' || userPlan === 'family') && reminderDays.length === 0) || 
+                (userPlan === 'free' && reminderDays.length === 0) ||
+                (isMedicine && !medicineName)}
               className="flex-1 px-4 py-2 border border-transparent rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               {uploading ? (
