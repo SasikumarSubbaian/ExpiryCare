@@ -57,8 +57,8 @@ export async function POST(request: Request) {
     const daysUntil = differenceInDays(expiryDate, today)
 
     // Check if reminder should be sent (within reminder days or expired)
-    const reminderDays = item.reminder_days || [7]
-    const shouldSend = reminderDays.some(day => {
+    const reminderDays: number[] = item.reminder_days || [7]
+    const shouldSend = reminderDays.some((day: number) => {
       if (day === 0) {
         // Send on expiry day or if expired
         return isToday(expiryDate) || daysUntil < 0
@@ -89,7 +89,7 @@ export async function POST(request: Request) {
 
       // Log the reminder (if reminder_logs table exists)
       try {
-        const reminderDay = daysUntil <= 0 ? 0 : Math.min(...reminderDays.filter(d => d >= daysUntil))
+        const reminderDay = daysUntil <= 0 ? 0 : Math.min(...reminderDays.filter((d: number) => d >= daysUntil))
         await supabase.from('reminder_logs').insert({
           life_item_id: item.id,
           user_id: userId,
