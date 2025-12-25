@@ -35,7 +35,15 @@ export default function ExpiryForm({ expiry, onClose }: ExpiryFormProps) {
     setError(null)
 
     try {
+      // Get current user
+      const { data: { user }, error: userError } = await supabase.auth.getUser()
+      
+      if (userError || !user) {
+        throw new Error('You must be logged in to add items')
+      }
+
       const data = {
+        user_id: user.id, // Explicitly set user_id
         category,
         name,
         expiry_date: expiryDate,
@@ -60,7 +68,8 @@ export default function ExpiryForm({ expiry, onClose }: ExpiryFormProps) {
 
       onClose()
     } catch (err: any) {
-      setError(err.message)
+      setError(err.message || 'Failed to save expiry. Please try again.')
+      console.error('Error saving expiry:', err)
     } finally {
       setLoading(false)
     }

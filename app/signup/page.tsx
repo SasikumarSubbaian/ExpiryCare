@@ -81,15 +81,27 @@ export default function SignUpPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4 py-12 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
-        <div>
-          <h1 className="text-3xl font-bold text-center text-gray-900">Sign Up</h1>
-          <p className="mt-2 text-center text-sm text-gray-600">
-            Create your ExpiryCare account
-          </p>
+    <div className="min-h-screen bg-gray-50">
+      {/* Header with Brand Name */}
+      <header className="bg-white border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-start h-16">
+            <Link href="/" className="text-lg sm:text-xl font-bold text-gray-900 hover:text-primary-600 transition-colors">
+              ExpiryCare
+            </Link>
+          </div>
         </div>
-        <form className="mt-8 bg-white py-8 px-6 shadow rounded-lg space-y-6" onSubmit={handleSignUp}>
+      </header>
+
+      <div className="flex items-center justify-center px-4 py-12 sm:px-6 lg:px-8">
+        <div className="max-w-md w-full space-y-8">
+          <div>
+            <h1 className="text-3xl font-bold text-center text-gray-900">Sign Up</h1>
+            <p className="mt-2 text-center text-sm text-gray-600">
+              Create your ExpiryCare account
+            </p>
+          </div>
+          <form className="mt-8 bg-white py-8 px-6 shadow rounded-lg space-y-6" onSubmit={handleSignUp}>
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md text-sm flex items-start gap-2">
               <span className="text-red-600">⚠️</span>
@@ -111,7 +123,7 @@ export default function SignUpPage() {
               required
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+              className="w-full px-3 py-2 text-base text-gray-900 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
               placeholder="Your name"
             />
           </div>
@@ -127,7 +139,7 @@ export default function SignUpPage() {
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+              className="w-full px-3 py-2 text-base text-gray-900 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
               placeholder="you@example.com"
             />
           </div>
@@ -143,7 +155,7 @@ export default function SignUpPage() {
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+              className="w-full px-3 py-2 text-base text-gray-900 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
               placeholder="••••••••"
             />
             <p className="mt-1 text-xs text-gray-500">Must be at least 6 characters</p>
@@ -219,7 +231,8 @@ export default function SignUpPage() {
               )}
             </button>
           </div>
-        </form>
+          </form>
+        </div>
       </div>
     </div>
   )

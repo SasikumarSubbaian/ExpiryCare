@@ -8,7 +8,8 @@
     "build:prod": "NODE_ENV=production next build",
     "start": "next start",
     "lint": "next lint",
-    "postinstall": "patch-package"
+    "postinstall": "patch-package",
+    "cron": "node scripts/setup-local-cron.js"
   },
   "dependencies": {
     "@supabase/ssr": "^0.5.1",
@@ -17,7 +18,8 @@
     "next": "14.0.4",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "resend": "^3.5.0"
+    "resend": "^3.5.0",
+    "tesseract.js": "^5.0.4"
   },
   "devDependencies": {
     "@types/node": "^20",

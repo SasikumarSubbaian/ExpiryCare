@@ -13,6 +13,7 @@ export default function PlanDisplay({ plan, itemCount, familyMemberCount }: Plan
   const limits = getPlanLimits(plan)
   const maxItems = limits.maxItems === -1 ? 'Unlimited' : limits.maxItems
   const maxFamily = limits.maxFamilyMembers === -1 ? 'Unlimited' : limits.maxFamilyMembers
+  const isDevelopment = process.env.NODE_ENV !== 'production'
 
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6">
@@ -25,14 +26,25 @@ export default function PlanDisplay({ plan, itemCount, familyMemberCount }: Plan
             {plan === 'free' ? 'Free forever' : `₹${PLAN_PRICES[plan]}/year`}
           </p>
         </div>
-        {plan !== 'family' && (
-          <Link
-            href="/upgrade"
-            className="px-4 py-2 text-sm font-medium text-primary-600 border border-primary-600 rounded-md hover:bg-primary-50"
-          >
-            Upgrade
-          </Link>
-        )}
+        <div className="flex gap-2">
+          {isDevelopment && (
+            <Link
+              href="/settings/plans"
+              className="px-3 py-2 text-xs font-medium text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50"
+              title="Test Plans (Dev Only)"
+            >
+              Test Plans
+            </Link>
+          )}
+          {plan !== 'family' && (
+            <Link
+              href="/upgrade"
+              className="px-4 py-2 text-sm font-medium text-primary-600 border border-primary-600 rounded-md hover:bg-primary-50"
+            >
+              Upgrade
+            </Link>
+          )}
+        </div>
       </div>
 
       <div className="space-y-2 text-sm">

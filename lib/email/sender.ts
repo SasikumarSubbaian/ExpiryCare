@@ -16,8 +16,14 @@ export async function sendEmail({ to, subject, html, text }: SendEmailParams) {
   const resendApiKey = process.env.RESEND_API_KEY
   
   if (!resendApiKey) {
-    console.error('RESEND_API_KEY is not configured')
-    throw new Error('Email service not configured')
+    console.warn('RESEND_API_KEY is not configured - email will not be sent')
+    throw new Error('Email service not configured. Please set RESEND_API_KEY in environment variables.')
+  }
+
+  // Validate API key format (Resend keys start with 're_')
+  if (!resendApiKey.startsWith('re_')) {
+    console.warn('RESEND_API_KEY format appears invalid - should start with "re_"')
+    throw new Error('Invalid Resend API key format. Please check your RESEND_API_KEY.')
   }
 
   try {
@@ -37,12 +43,20 @@ export async function sendEmail({ to, subject, html, text }: SendEmailParams) {
 
     if (result.error) {
       console.error('Error sending email:', result.error)
+      // Provide more helpful error message
+      if (result.error.message?.includes('invalid') || result.error.message?.includes('401')) {
+        throw new Error('Invalid Resend API key. Please check your RESEND_API_KEY in environment variables.')
+      }
       throw result.error
     }
 
     return result.data
   } catch (err: any) {
     console.error('Failed to send email:', err)
+    // Re-throw with more context
+    if (err.message?.includes('Cannot find module')) {
+      throw new Error('Resend package not installed. Run: npm install resend')
+    }
     throw err
   }
 }

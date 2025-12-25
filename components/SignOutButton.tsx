@@ -10,7 +10,7 @@ export default function SignOutButton() {
   const [loading, setLoading] = useState(false)
 
   const handleSignOut = async () => {
-    if (!confirm('Are you sure you want to sign out?')) return
+    if (!confirm('Are you sure you want to logout?')) return
     
     setLoading(true)
     try {
@@ -32,10 +32,10 @@ export default function SignOutButton() {
       {loading ? (
         <>
           <span className="w-3 h-3 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
-          Signing out...
+          Logging out...
         </>
       ) : (
-        'Sign out'
+        'Logout'
       )}
     </button>
   )

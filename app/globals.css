@@ -22,6 +22,34 @@ body {
     sans-serif;
 }
 
+/* Mobile text visibility fixes */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="date"],
+input[type="number"],
+textarea,
+select {
+  font-size: 16px !important; /* Prevents iOS zoom on focus */
+  color: #111827 !important; /* text-gray-900 - ensures text is visible */
+  -webkit-text-fill-color: #111827 !important; /* For iOS Safari */
+}
+
+/* Ensure text remains visible on mobile */
+@media (max-width: 640px) {
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="date"],
+  input[type="number"],
+  textarea,
+  select {
+    font-size: 16px !important;
+    color: #111827 !important;
+    -webkit-text-fill-color: #111827 !important;
+  }
+}
+
 @layer utilities {
   .text-balance {
     text-wrap: balance;

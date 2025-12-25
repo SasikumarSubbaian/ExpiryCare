@@ -30,7 +30,7 @@ export default function LoginPage() {
         console.error('Supabase auth error:', error)
         
         // Provide helpful, calm error messages
-        let errorMessage = 'Unable to sign in. Please check your credentials and try again.'
+        let errorMessage = 'Unable to log in. Please check your credentials and try again.'
         
         if (error.message.includes('Invalid login') || error.message.includes('Invalid credentials')) {
           errorMessage = 'Email or password is incorrect. Please try again.'
@@ -72,7 +72,7 @@ export default function LoginPage() {
       })
 
       if (error) {
-        setError('Unable to sign in with Google. Please try again.')
+        setError('Unable to log in with Google. Please try again.')
         setGoogleLoading(false)
       }
       // OAuth will redirect, so we don't need to handle success here
@@ -83,20 +83,32 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4 py-12 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
-        <div>
-          <h1 className="text-3xl font-bold text-center text-gray-900">Sign In</h1>
-          <p className="mt-2 text-center text-sm text-gray-600">
-            Sign in to your ExpiryCare account
-          </p>
+    <div className="min-h-screen bg-gray-50">
+      {/* Header with Brand Name */}
+      <header className="bg-white border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-start h-16">
+            <Link href="/" className="text-lg sm:text-xl font-bold text-gray-900 hover:text-primary-600 transition-colors">
+              ExpiryCare
+            </Link>
+          </div>
         </div>
-        <form className="mt-8 bg-white py-8 px-6 shadow rounded-lg space-y-6" onSubmit={handleSignIn}>
+      </header>
+
+      <div className="flex items-center justify-center px-4 py-12 sm:px-6 lg:px-8">
+        <div className="max-w-md w-full space-y-8">
+          <div>
+            <h1 className="text-3xl font-bold text-center text-gray-900">Log in</h1>
+            <p className="mt-2 text-center text-sm text-gray-600">
+              Log in to your ExpiryCare account
+            </p>
+          </div>
+          <form className="mt-8 bg-white py-8 px-6 shadow rounded-lg space-y-6" onSubmit={handleSignIn}>
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md text-sm flex items-start gap-2">
               <span className="text-red-600">⚠️</span>
               <div>
-                <p className="font-medium">Unable to sign in</p>
+                <p className="font-medium">Unable to log in</p>
                 <p className="text-red-600 mt-1">{error}</p>
               </div>
             </div>
@@ -113,7 +125,7 @@ export default function LoginPage() {
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+              className="w-full px-3 py-2 text-base text-gray-900 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
               placeholder="you@example.com"
             />
           </div>
@@ -129,7 +141,7 @@ export default function LoginPage() {
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+              className="w-full px-3 py-2 text-base text-gray-900 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
               placeholder="••••••••"
             />
           </div>
@@ -142,10 +154,10 @@ export default function LoginPage() {
               {loading ? (
                 <>
                   <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  Signing in...
+                  Logging in...
                 </>
               ) : (
-                'Sign in'
+                'Log in'
               )}
             </button>
           </div>
@@ -199,12 +211,13 @@ export default function LoginPage() {
                       d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
                     />
                   </svg>
-                  Sign in with Google
+                  Log in with Google
                 </>
               )}
             </button>
           </div>
-        </form>
+          </form>
+        </div>
       </div>
     </div>
   )
