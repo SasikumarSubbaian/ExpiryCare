@@ -68,12 +68,23 @@ Resend will show you **3 DNS records** to add. You need to add these to your dom
 
 ### Step 4: Add DNS Records in Your Domain Provider
 
-**Example for GoDaddy:**
-1. Log in to GoDaddy
-2. Go to **My Products** → **Domains** → **expirycare.com** → **DNS**
-3. Click **"Add"** or **"Add Record"**
-4. Add each of the 3 TXT records above
-5. **Save** each record
+**⚠️ IMPORTANT: DNS records must be added in GoDaddy (your domain provider), NOT in Vercel!**
+
+**Detailed Instructions for GoDaddy:**
+1. Log in to GoDaddy: https://www.godaddy.com
+2. Go to **My Products** → **Domains** → **expirycare.com**
+3. Click on **expirycare.com** or click the **"DNS"** button
+4. Make sure you're on the **"DNS Records"** tab
+5. Click **"Add New Record"** button
+6. For each of the 3 records:
+   - **Type:** Select `TXT` from dropdown
+   - **Name:** Enter the name (see table below)
+   - **Value:** Paste the value from Resend
+   - **TTL:** `600` (or leave default)
+   - Click **"Save"**
+7. Repeat for all 3 records
+
+**If you can't add records in GoDaddy, see `GODADDY_DNS_RECORDS_SETUP.md` for detailed troubleshooting.**
 
 **Example for Namecheap:**
 1. Log in to Namecheap
