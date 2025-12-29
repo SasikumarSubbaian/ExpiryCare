@@ -8,7 +8,7 @@ import { promisify } from 'util'
 import { writeFile, unlink } from 'fs/promises'
 import { join } from 'path'
 import { tmpdir } from 'os'
-import { extractTextWithMLKit, isMLKitConfigured } from '@/lib/ocr'
+import { extractTextWithMLKit, isMLKitConfigured } from '@/lib/ocr/index'
 
 const execFileAsync = promisify(execFile)
 
