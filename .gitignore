@@ -37,3 +37,17 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# Google Cloud Vision credentials (sensitive)
+config/gcp-vision.json
+
+# Benchmark testing (local only)
+benchmark/
+test-images/
+
+# Test data files
+*.traineddata
+eng.traineddata
+
+# Local test documentation (keep only production docs)
+# Keep main README and production docs, ignore test-specific docs
+
