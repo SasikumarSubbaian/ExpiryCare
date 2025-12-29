@@ -44,6 +44,13 @@ const categoryConfig = {
     icon: '📱',
     label: 'Subscription'
   },
+  amc: { 
+    color: 'from-teal-500 to-teal-600', 
+    bg: 'bg-teal-50', 
+    text: 'text-teal-700',
+    icon: '🔧',
+    label: 'AMC'
+  },
   other: { 
     color: 'from-gray-500 to-gray-600', 
     bg: 'bg-gray-50', 

@@ -96,8 +96,10 @@ export default function Dashboard() {
     { value: 'all' as const, label: 'All', count: expiries.length, icon: '📋' },
     { value: 'warranty' as const, label: 'Warranty', count: expiries.filter(e => e.category === 'warranty').length, icon: '🛡️' },
     { value: 'insurance' as const, label: 'Insurance', count: expiries.filter(e => e.category === 'insurance').length, icon: '📄' },
+    { value: 'amc' as const, label: 'AMC', count: expiries.filter(e => e.category === 'amc').length, icon: '🔧' },
     { value: 'medicine' as const, label: 'Medicine', count: expiries.filter(e => e.category === 'medicine').length, icon: '💊' },
     { value: 'subscription' as const, label: 'Subscription', count: expiries.filter(e => e.category === 'subscription').length, icon: '📱' },
+    { value: 'other' as const, label: 'Other', count: expiries.filter(e => e.category === 'other').length, icon: '📝' },
   ]
 
   // Calculate stats
