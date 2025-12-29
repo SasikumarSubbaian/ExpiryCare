@@ -7,6 +7,7 @@
     "benchmark:custom": "tsx benchmark/run-benchmark.ts",
     "benchmark:production": "tsx benchmark/run-production-benchmark.ts",
     "dev": "next dev",
+    "prebuild": "node scripts/assert-ocr.js",
     "build": "next build",
     "build:prod": "NODE_ENV=production next build",
     "start": "next start",
