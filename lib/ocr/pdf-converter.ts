@@ -39,7 +39,8 @@ export async function convertPdfToImage(
     const page = await pdf.getPage(1)
     const viewport = page.getViewport({ scale: 2.0 }) // 2x scale for quality
 
-    // Import canvas dynamically
+    // Import canvas dynamically (optional dependency)
+    // @ts-ignore - canvas is optional dependency
     const canvasModule = await import('canvas')
     const createCanvas = canvasModule.createCanvas
     
