@@ -46,11 +46,8 @@ export async function preprocessForHandwriting(
     processed = processed.normalize()
 
     // Step 4: Apply sharpening to enhance text edges
-    processed = processed.sharpen({
-      sigma: 1.5,
-      flat: 1,
-      jagged: 2,
-    })
+    // Note: sharpen uses positional parameters: sigma, flat, jagged
+    processed = processed.sharpen(1.5, 1, 2)
 
     // Step 5: Increase contrast further
     // Use linear contrast adjustment
@@ -69,11 +66,7 @@ export async function preprocessForHandwriting(
     // Use blur + sharpen to reduce noise while maintaining edges
     processed = processed
       .blur(0.5) // Light blur for noise reduction
-      .sharpen({
-        sigma: 1,
-        flat: 1,
-        jagged: 2,
-      })
+      .sharpen(1, 1, 2) // sigma, flat, jagged
 
     // Step 8: Stroke thickening (dilate operation simulation)
     // Use slight blur + threshold to thicken strokes
@@ -142,11 +135,7 @@ export async function preprocessForHandwritingAlternative(
     })
 
     // Minimal noise removal (preserve more detail)
-    processed = processed.sharpen({
-      sigma: 2,
-      flat: 1,
-      jagged: 3,
-    })
+    processed = processed.sharpen(2, 1, 3) // sigma, flat, jagged
 
     // Slight stroke thickening
     processed = processed.blur(0.2).threshold(115, {
