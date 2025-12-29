@@ -28,19 +28,36 @@ type LifeItem = {
 }
 
 export default async function DashboardPage() {
-  // Handle Supabase client creation gracefully
-  const supabase = await createClient()
+  // Handle Supabase client creation gracefully with comprehensive error handling
+  let supabase
+  try {
+    supabase = await createClient()
+  } catch (error: any) {
+    console.error('[Dashboard] Error creating Supabase client:', {
+      message: error?.message || error,
+      stack: error?.stack,
+    })
+    redirect('/login')
+  }
+
   if (!supabase) {
-    console.error('Failed to create Supabase client')
+    console.error('[Dashboard] Supabase client is null - redirecting to login')
     redirect('/login')
   }
 
   let user = null
   try {
-    const { data } = await supabase.auth.getUser()
+    const { data, error: authError } = await supabase.auth.getUser()
+    if (authError) {
+      console.error('[Dashboard] Auth error:', authError.message)
+      redirect('/login')
+    }
     user = data?.user || null
-  } catch (error) {
-    console.error('Error fetching user:', error)
+  } catch (error: any) {
+    console.error('[Dashboard] Error fetching user:', {
+      message: error?.message || error,
+      stack: error?.stack,
+    })
     redirect('/login')
   }
 
@@ -52,21 +69,28 @@ export default async function DashboardPage() {
   // Get user profile for name display
   let userName = user.email?.split('@')[0] || 'User'
   try {
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('full_name')
-      .eq('id', user.id)
-      .single()
-    
-    if (profile?.full_name) {
-      userName = profile.full_name
-    } else if (user.user_metadata?.full_name) {
-      userName = user.user_metadata.full_name
-    } else if (user.user_metadata?.name) {
-      userName = user.user_metadata.name
+    if (supabase) {
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('full_name')
+        .eq('id', user.id)
+        .single()
+      
+      if (profileError) {
+        console.warn('[Dashboard] Profile fetch error:', profileError.message)
+      } else if (profile?.full_name) {
+        userName = profile.full_name
+      } else if (user.user_metadata?.full_name) {
+        userName = user.user_metadata.full_name
+      } else if (user.user_metadata?.name) {
+        userName = user.user_metadata.name
+      }
     }
-  } catch (err) {
-    console.error('Error fetching user profile:', err)
+  } catch (err: any) {
+    console.error('[Dashboard] Error fetching user profile:', {
+      message: err?.message || err,
+      stack: err?.stack,
+    })
     // Fallback to email or metadata
     if (user.user_metadata?.full_name) {
       userName = user.user_metadata.full_name
@@ -111,15 +135,26 @@ export default async function DashboardPage() {
   let items: any[] = []
   let error: any = null
   
-  // Use explicit user_id filter - more reliable than relying solely on RLS
-  const result = await supabase
-    .from('life_items')
-    .select('id, user_id, title, category, expiry_date, reminder_days, notes, document_url, person_name, created_at, updated_at')
-    .eq('user_id', user.id)
-    .order('expiry_date', { ascending: true })
-  
-  items = result.data || []
-  error = result.error
+  try {
+    if (supabase) {
+      // Use explicit user_id filter - more reliable than relying solely on RLS
+      const result = await supabase
+        .from('life_items')
+        .select('id, user_id, title, category, expiry_date, reminder_days, notes, document_url, person_name, created_at, updated_at')
+        .eq('user_id', user.id)
+        .order('expiry_date', { ascending: true })
+      
+      items = result.data || []
+      error = result.error
+    }
+  } catch (err: any) {
+    console.error('[Dashboard] Error fetching items:', {
+      message: err?.message || err,
+      stack: err?.stack,
+    })
+    error = err
+    items = []
+  }
 
   if (error) {
     console.error('[Dashboard] Error fetching items:', error)

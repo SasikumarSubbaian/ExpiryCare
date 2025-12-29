@@ -9,48 +9,67 @@ export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
 export default async function LandingPage() {
-  // Handle Supabase client creation gracefully
+  // Handle Supabase client creation gracefully with comprehensive error handling
   let user = null
+  let userName = 'User'
+  
   try {
     const supabase = await createClient()
-    if (supabase) {
-      const { data } = await supabase.auth.getUser()
-      user = data?.user || null
-    }
-  } catch (error) {
-    console.error('Error fetching user:', error)
-    // Continue rendering as guest user
-    user = null
-  }
-
-  // Get user name for authenticated users
-  let userName = user?.email?.split('@')[0] || 'User'
-  if (user) {
-    try {
-      const supabase = await createClient()
-      if (supabase) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('full_name')
-          .eq('id', user.id)
-          .single()
-        
-        if (profile?.full_name) {
-          userName = profile.full_name
-        } else if (user.user_metadata?.full_name) {
-          userName = user.user_metadata.full_name
-        } else if (user.user_metadata?.name) {
-          userName = user.user_metadata.name
+    if (!supabase) {
+      // Supabase client is null (missing env vars or cookie access error)
+      // Continue rendering as guest - this is expected behavior
+      console.log('[LandingPage] Rendering as guest (Supabase client unavailable)')
+    } else {
+      try {
+        const { data, error: authError } = await supabase.auth.getUser()
+        if (authError) {
+          console.error('[LandingPage] Auth error:', authError.message)
+          // Continue as guest
+        } else {
+          user = data?.user || null
+          
+          // Get user name for authenticated users
+          if (user) {
+            userName = user.email?.split('@')[0] || 'User'
+            
+            try {
+              const { data: profile } = await supabase
+                .from('profiles')
+                .select('full_name')
+                .eq('id', user.id)
+                .single()
+              
+              if (profile?.full_name) {
+                userName = profile.full_name
+              } else if (user.user_metadata?.full_name) {
+                userName = user.user_metadata.full_name
+              } else if (user.user_metadata?.name) {
+                userName = user.user_metadata.name
+              }
+            } catch (profileError: any) {
+              // Profile fetch failed - use metadata as fallback
+              console.warn('[LandingPage] Profile fetch failed:', profileError?.message)
+              if (user.user_metadata?.full_name) {
+                userName = user.user_metadata.full_name
+              } else if (user.user_metadata?.name) {
+                userName = user.user_metadata.name
+              }
+            }
+          }
         }
-      }
-    } catch (err) {
-      // Fallback to email or metadata
-      if (user.user_metadata?.full_name) {
-        userName = user.user_metadata.full_name
-      } else if (user.user_metadata?.name) {
-        userName = user.user_metadata.name
+      } catch (authError: any) {
+        console.error('[LandingPage] Error in auth.getUser():', authError?.message || authError)
+        // Continue rendering as guest
       }
     }
+  } catch (error: any) {
+    // Catch any unexpected errors during client creation or user fetching
+    console.error('[LandingPage] Unexpected error:', {
+      message: error?.message || error,
+      stack: error?.stack,
+    })
+    // Continue rendering as guest - never throw to prevent 500 error
+    user = null
   }
 
   return (

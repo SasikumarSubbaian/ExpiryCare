@@ -9,19 +9,36 @@ export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
 export default async function UpgradePage() {
-  // Handle Supabase client creation gracefully
-  const supabase = await createClient()
+  // Handle Supabase client creation gracefully with comprehensive error handling
+  let supabase
+  try {
+    supabase = await createClient()
+  } catch (error: any) {
+    console.error('[Upgrade] Error creating Supabase client:', {
+      message: error?.message || error,
+      stack: error?.stack,
+    })
+    redirect('/login')
+  }
+
   if (!supabase) {
-    console.error('Failed to create Supabase client')
+    console.error('[Upgrade] Supabase client is null - redirecting to login')
     redirect('/login')
   }
 
   let user = null
   try {
-    const { data } = await supabase.auth.getUser()
+    const { data, error: authError } = await supabase.auth.getUser()
+    if (authError) {
+      console.error('[Upgrade] Auth error:', authError.message)
+      redirect('/login')
+    }
     user = data?.user || null
-  } catch (error) {
-    console.error('Error fetching user:', error)
+  } catch (error: any) {
+    console.error('[Upgrade] Error fetching user:', {
+      message: error?.message || error,
+      stack: error?.stack,
+    })
     redirect('/login')
   }
 
