@@ -1,78 +1,93 @@
-// Removed unused import
+'use client'
+
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { PLAN_PRICES } from '@/lib/plans'
+import { createClient } from '@/lib/supabase/client'
 
-// Force dynamic rendering and disable caching
-export const dynamic = 'force-dynamic'
-export const revalidate = 0
-export const fetchCache = 'force-no-store'
+export default function LandingPage() {
+  const [user, setUser] = useState<any>(null)
+  const [userName, setUserName] = useState<string>('User')
+  const [loading, setLoading] = useState(true)
 
-// Safe Supabase user fetching - never throws, always returns valid data
-async function getSupabaseUser() {
-  // Return guest user immediately if anything fails
-  // This ensures the page always renders
-  try {
-    // Use static import - dynamic import can cause RSC issues
-    const { createClient } = await import('@/lib/supabase/server')
-    const supabase = await createClient()
-    
-    // If client creation failed, return guest user
-    if (!supabase || typeof supabase.auth !== 'object' || typeof supabase.auth.getUser !== 'function') {
-      return { user: null, userName: 'User' }
-    }
-    
-    try {
-      const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
-      
-      // If auth fails or no user, return guest user
-      if (authError || !authUser) {
-        return { user: null, userName: 'User' }
-      }
-      
-      let userName = authUser.email?.split('@')[0] || 'User'
-      
-      // Try to get user profile, but don't fail if it doesn't exist
-      if (supabase.from && typeof supabase.from === 'function') {
-        try {
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('full_name')
-            .eq('id', authUser.id)
-            .single()
-          
-          if (profile?.full_name) {
-            userName = profile.full_name
-          } else if (authUser.user_metadata?.full_name) {
-            userName = authUser.user_metadata.full_name
-          } else if (authUser.user_metadata?.name) {
-            userName = authUser.user_metadata.name
-          }
-        } catch (profileError) {
-          // Fallback to email or metadata if profile query fails
-          if (authUser.user_metadata?.full_name) {
-            userName = authUser.user_metadata.full_name
-          } else if (authUser.user_metadata?.name) {
-            userName = authUser.user_metadata.name
+  // Fetch user data on client side only
+  useEffect(() => {
+    async function fetchUser() {
+      try {
+        // Guard against missing env variables
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+        const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+        if (!supabaseUrl || !supabaseAnonKey) {
+          // Env variables missing - render as guest
+          setUser(null)
+          setUserName('User')
+          setLoading(false)
+          return
+        }
+
+        // Create Supabase client (client-side only)
+        const supabase = createClient()
+
+        if (!supabase || typeof supabase.auth !== 'object' || typeof supabase.auth.getUser !== 'function') {
+          setUser(null)
+          setUserName('User')
+          setLoading(false)
+          return
+        }
+
+        // Get user
+        const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
+
+        if (authError || !authUser) {
+          setUser(null)
+          setUserName('User')
+          setLoading(false)
+          return
+        }
+
+        setUser(authUser)
+        let name = authUser.email?.split('@')[0] || 'User'
+
+        // Try to get user profile
+        if (supabase.from && typeof supabase.from === 'function') {
+          try {
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('full_name')
+              .eq('id', authUser.id)
+              .single()
+
+            if (profile?.full_name) {
+              name = profile.full_name
+            } else if (authUser.user_metadata?.full_name) {
+              name = authUser.user_metadata.full_name
+            } else if (authUser.user_metadata?.name) {
+              name = authUser.user_metadata.name
+            }
+          } catch (profileError) {
+            // Fallback to email or metadata
+            if (authUser.user_metadata?.full_name) {
+              name = authUser.user_metadata.full_name
+            } else if (authUser.user_metadata?.name) {
+              name = authUser.user_metadata.name
+            }
           }
         }
-      }
-      
-      return { user: authUser, userName }
-    } catch (authError) {
-      // Auth error - return guest user
-      return { user: null, userName: 'User' }
-    }
-  } catch (error) {
-    // Any error - return guest user
-    // Never throw - always return valid data
-    return { user: null, userName: 'User' }
-  }
-}
 
-export default async function LandingPage() {
-  // Get user data - this will never throw, always returns valid data
-  const { user, userName } = await getSupabaseUser()
+        setUserName(name)
+      } catch (error) {
+        // Any error - render as guest
+        setUser(null)
+        setUserName('User')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchUser()
+  }, [])
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 via-white to-gray-50">
@@ -95,14 +110,14 @@ export default async function LandingPage() {
               </span>
             </Link>
             <nav className="flex items-center gap-3 sm:gap-4">
-              {user ? (
+              {!loading && user ? (
                 <Link
                   href="/dashboard"
                   className="hidden sm:inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 hover:text-primary-600 transition-colors"
                 >
                   Dashboard
                 </Link>
-              ) : (
+              ) : !loading ? (
                 <>
                   <Link
                     href="/login"
@@ -117,7 +132,7 @@ export default async function LandingPage() {
                     Get Started
                   </Link>
                 </>
-              )}
+              ) : null}
             </nav>
           </div>
         </div>
@@ -147,7 +162,7 @@ export default async function LandingPage() {
               </span>
             </p>
             
-            {user ? (
+            {!loading && user ? (
               <div className="mt-10 animate-scale-in">
                 <div className="inline-flex items-center gap-3 px-6 py-3 bg-white/80 backdrop-blur-sm rounded-full shadow-soft mb-6">
                   <div className="w-2 h-2 bg-success-500 rounded-full animate-pulse"></div>
@@ -175,7 +190,7 @@ export default async function LandingPage() {
                   </form>
                 </div>
               </div>
-            ) : (
+            ) : !loading ? (
               <div className="mt-10 animate-scale-in">
                 <div className="flex flex-col sm:flex-row gap-4 justify-center">
                   <Link
@@ -209,7 +224,7 @@ export default async function LandingPage() {
                   </div>
                 </div>
               </div>
-            )}
+            ) : null}
           </div>
         </div>
       </section>
@@ -516,7 +531,7 @@ export default async function LandingPage() {
           </div>
           <div className="border-t border-gray-800 pt-8 flex flex-col sm:flex-row justify-between items-center gap-4">
             <p className="text-gray-400 text-sm">
-              © {new Date().getFullYear()} ExpiryCare. All rights reserved.
+              © {typeof window !== 'undefined' ? new Date().getFullYear() : 2024} ExpiryCare. All rights reserved.
             </p>
             <p className="text-gray-400 text-sm">
               Made with ❤️ for Indian families
