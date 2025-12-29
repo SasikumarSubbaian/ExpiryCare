@@ -96,7 +96,7 @@ export function extractBySchema(
     result.productName = null
     result.brand = null
     // Note: companyName is not part of SchemaExtractedData interface
-    // It's mapped to category-specific fields (brand, provider, manufacturer, etc.)
+    // It's only used as a source from regexResult and mapped to category-specific fields
   }
 
   // Step 3: Sanitize - remove any forbidden data
