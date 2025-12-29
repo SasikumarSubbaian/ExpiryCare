@@ -4,6 +4,9 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { PLAN_PRICES } from '@/lib/plans'
 
+// Force dynamic rendering since we use cookies for authentication
+export const dynamic = 'force-dynamic'
+
 export default async function LandingPage() {
   // Gracefully handle Supabase connection errors
   let user = null

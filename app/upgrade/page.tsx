@@ -4,9 +4,33 @@ import { getUserPlan } from '@/lib/supabase/plans'
 import { PLAN_PRICES } from '@/lib/plans'
 import Link from 'next/link'
 
+// Force dynamic rendering since we use cookies for authentication
+export const dynamic = 'force-dynamic'
+
 export default async function UpgradePage() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  let user = null
+  
+  try {
+    const supabase = await createClient()
+    
+    // Check if supabase client was created successfully
+    if (!supabase) {
+      // Environment variables missing or client creation failed
+      redirect('/login')
+    }
+    
+    const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
+    
+    if (authError || !authUser) {
+      redirect('/login')
+    }
+    
+    user = authUser
+  } catch (error) {
+    // If Supabase connection fails, redirect to login
+    console.error('[UpgradePage] Supabase connection error:', error)
+    redirect('/login')
+  }
 
   if (!user) {
     redirect('/login')
