@@ -9,9 +9,20 @@ const nextConfig = {
         'pdfjs-dist': false, // PDF.js is server-side only (optional)
       }
     } else {
-      // Server-side: make canvas and pdfjs-dist optional
+      // Server-side: externalize canvas and pdfjs-dist to prevent build errors
+      // These are optional dependencies that may not be installed
       config.externals = config.externals || []
-      // These are optional dependencies - code handles their absence
+      config.externals.push({
+        'canvas': 'commonjs canvas',
+        'pdfjs-dist': 'commonjs pdfjs-dist',
+      })
+    }
+    
+    // Ignore these modules during build to prevent resolution errors
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      'canvas': false,
+      'pdfjs-dist': false,
     }
     
     // Fix for Supabase ESM module resolution - handle .mjs files
