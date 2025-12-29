@@ -1,76 +1,71 @@
 // Removed unused import
-import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import Image from 'next/image'
 import { PLAN_PRICES } from '@/lib/plans'
 
-// Force dynamic rendering since we use cookies for authentication
+// Force dynamic rendering and disable caching
 export const dynamic = 'force-dynamic'
+export const revalidate = 0
+export const fetchCache = 'force-no-store'
 
-export default async function LandingPage() {
-  // Gracefully handle Supabase connection errors
-  // Always render the page, even if Supabase fails completely
-  let user = null
-  let userName = 'User'
-  
+// Safe Supabase client creation - returns null if anything fails
+async function getSupabaseUser() {
   try {
+    // Dynamic import to avoid issues during build
+    const { createClient } = await import('@/lib/supabase/server')
     const supabase = await createClient()
     
-    // Check if supabase client was created successfully
     if (!supabase) {
-      // Environment variables missing or client creation failed
-      // Render page as guest user - this is OK
-      user = null
-      userName = 'User'
-    } else {
-      try {
-        const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
-        
-        if (!authError && authUser) {
-          user = authUser
-          userName = authUser.email?.split('@')[0] || 'User'
-          
-          // Try to get user profile, but don't fail if it doesn't exist
-          try {
-            const { data: profile } = await supabase
-              .from('profiles')
-              .select('full_name')
-              .eq('id', user.id)
-              .single()
-            
-            if (profile?.full_name) {
-              userName = profile.full_name
-            } else if (user.user_metadata?.full_name) {
-              userName = user.user_metadata.full_name
-            } else if (user.user_metadata?.name) {
-              userName = user.user_metadata.name
-            }
-          } catch (profileError) {
-            // Fallback to email or metadata if profile query fails
-            if (user.user_metadata?.full_name) {
-              userName = user.user_metadata.full_name
-            } else if (user.user_metadata?.name) {
-              userName = user.user_metadata.name
-            }
-          }
-        }
-      } catch (authError) {
-        // If auth.getUser() fails, just render as guest
-        console.error('[LandingPage] Auth error:', authError)
-        user = null
-        userName = 'User'
+      return { user: null, userName: 'User' }
+    }
+    
+    try {
+      const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
+      
+      if (authError || !authUser) {
+        return { user: null, userName: 'User' }
       }
+      
+      let userName = authUser.email?.split('@')[0] || 'User'
+      
+      // Try to get user profile, but don't fail if it doesn't exist
+      try {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('full_name')
+          .eq('id', authUser.id)
+          .single()
+        
+        if (profile?.full_name) {
+          userName = profile.full_name
+        } else if (authUser.user_metadata?.full_name) {
+          userName = authUser.user_metadata.full_name
+        } else if (authUser.user_metadata?.name) {
+          userName = authUser.user_metadata.name
+        }
+      } catch (profileError) {
+        // Fallback to email or metadata if profile query fails
+        if (authUser.user_metadata?.full_name) {
+          userName = authUser.user_metadata.full_name
+        } else if (authUser.user_metadata?.name) {
+          userName = authUser.user_metadata.name
+        }
+      }
+      
+      return { user: authUser, userName }
+    } catch (authError) {
+      return { user: null, userName: 'User' }
     }
   } catch (error) {
-    // If ANY Supabase operation fails, render page without user data
-    // This prevents 500 errors in production
-    // Don't log to console in production to avoid exposing errors
-    if (process.env.NODE_ENV === 'development') {
-      console.error('[LandingPage] Supabase connection error:', error)
-    }
-    user = null
-    userName = 'User'
+    // If ANY Supabase operation fails, return guest user
+    // Never throw - always return a valid user object
+    return { user: null, userName: 'User' }
   }
+}
+
+export default async function LandingPage() {
+  // Get user data - this will never throw, always returns valid data
+  const { user, userName } = await getSupabaseUser()
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 via-white to-gray-50">

@@ -1,8 +1,9 @@
 -- Create storage bucket for documents
--- Note: Buckets must be created via Supabase Storage API or Dashboard
--- This SQL creates the bucket via the storage API
+-- Note: In Supabase, buckets should be created via Dashboard or Storage API
+-- This migration creates the bucket if it doesn't exist and sets up RLS policies
+-- IMPORTANT: Run this as the postgres role (default in Supabase SQL Editor)
 
--- Insert bucket into storage.buckets table
+-- Insert bucket into storage.buckets table (if it doesn't exist)
 INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 VALUES (
   'documents',
@@ -13,15 +14,16 @@ VALUES (
 )
 ON CONFLICT (id) DO NOTHING;
 
--- Ensure RLS is enabled on storage.objects
-ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
+-- Note: RLS is already enabled on storage.objects by default in Supabase
+-- We don't need to ALTER the table - just create policies
 
--- Drop existing policies if they exist
+-- Drop existing policies if they exist (safe to run multiple times)
 DROP POLICY IF EXISTS "Users can upload their own documents" ON storage.objects;
 DROP POLICY IF EXISTS "Users can view their own documents" ON storage.objects;
 DROP POLICY IF EXISTS "Users can delete their own documents" ON storage.objects;
 
 -- Storage bucket policy: Users can upload their own documents
+-- Files must be in a folder named with the user's UUID
 CREATE POLICY "Users can upload their own documents"
 ON storage.objects FOR INSERT
 TO authenticated
