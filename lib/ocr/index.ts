@@ -17,6 +17,10 @@ export * from './handwriting-detection'
 export * from './handwriting-preprocessing'
 export * from './handwriting-ocr'
 
+// Export expiry detection (used by API routes)
+export { detectExpiryDate, type ExpiryDetectionResult } from './expiryDetection'
+
 // pdf-converter is optional (requires canvas/pdfjs-dist) - not exported to avoid build errors
 // Import directly from './pdf-converter' if needed (with dynamic import)
+// handwriting-detection is also available via dynamic import for optional usage
 
