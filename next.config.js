@@ -76,6 +76,12 @@ const nextConfig = {
       path.resolve(__dirname, 'node_modules/@supabase/supabase-js/dist'),
     ]
     
+    // Ensure @ alias resolves correctly (for Vercel build environment)
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      '@': path.resolve(__dirname, '.'),
+    }
+    
     return config
   },
   transpilePackages: ['@supabase/ssr'],

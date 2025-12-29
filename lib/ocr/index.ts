@@ -1,10 +1,18 @@
 // OCR Service - Main exports
 // Only export modules that are required for Google Vision OCR
+
+// Export types first
 export * from './types'
+
+// Export core OCR services
 export * from './image-preprocessing'
 export * from './tesseract-service'
 export * from './mlkit-service'
-export * from './regexExtractor'
+
+// Export regex extractor (used by API routes)
+export { regexExtract, type ExtractedData } from './regexExtractor'
+
+// Export handwriting services
 export * from './handwriting-detection'
 export * from './handwriting-preprocessing'
 export * from './handwriting-ocr'

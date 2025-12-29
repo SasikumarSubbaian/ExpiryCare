@@ -48,8 +48,9 @@ USING (
   (storage.foldername(name))[1] = auth.uid()::text
 );
 
--- Verify bucket was created
-SELECT id, name, public, file_size_limit 
-FROM storage.buckets 
-WHERE id = 'documents';
+-- Verify bucket was created (optional - may require elevated permissions)
+-- If you get permission errors, you can verify via Supabase Dashboard > Storage
+-- SELECT id, name, public, file_size_limit 
+-- FROM storage.buckets 
+-- WHERE id = 'documents';
 
