@@ -8,41 +8,30 @@ import { PLAN_PRICES } from '@/lib/plans'
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
-export default async function LandingPage() {
-  // CRITICAL: This function must NEVER throw an error to prevent 500 errors
-  // All operations are wrapped in try-catch blocks with fallbacks
-  
+// Wrapper to catch any rendering errors
+async function SafeLandingPageContent() {
   let user = null
   let userName = 'User'
-  let proPlanPrice = '299' // Default fallback price from PLAN_PRICES
+  let proPlanPrice = '299' // Default fallback
   
-  // Safely get PLAN_PRICES with fallback - use the imported value
+  // Safely get PLAN_PRICES
   try {
-    if (PLAN_PRICES?.pro) {
+    if (PLAN_PRICES && typeof PLAN_PRICES === 'object' && 'pro' in PLAN_PRICES) {
       proPlanPrice = String(PLAN_PRICES.pro)
     }
-  } catch (error: any) {
-    // If PLAN_PRICES import failed, use default
-    console.warn('[LandingPage] Could not access PLAN_PRICES, using default:', error?.message)
+  } catch {
+    // Use default
   }
   
-  // Safely get user information - all errors are caught and handled
+  // Safely get user - all errors caught
   try {
     const supabase = await createClient()
-    if (!supabase) {
-      // Supabase client is null (missing env vars or cookie access error)
-      // This is OK - continue rendering as guest
-      // Don't log in production to avoid noise
-    } else {
+    if (supabase) {
       try {
-        const { data, error: authError } = await supabase.auth.getUser()
-        if (authError) {
-          // Auth error - continue as guest (this is expected for non-authenticated users)
-          // Don't log in production
-        } else {
-          user = data?.user || null
+        const { data, error } = await supabase.auth.getUser()
+        if (!error && data) {
+          user = data.user || null
           
-          // Get user name for authenticated users
           if (user) {
             userName = user.email?.split('@')[0] || 'User'
             
@@ -60,9 +49,8 @@ export default async function LandingPage() {
               } else if (user.user_metadata?.name) {
                 userName = user.user_metadata.name
               }
-            } catch (profileError: any) {
-              // Profile fetch failed - use metadata as fallback
-              // This is OK - not all users have profiles
+            } catch {
+              // Profile fetch failed - use metadata
               if (user.user_metadata?.full_name) {
                 userName = user.user_metadata.full_name
               } else if (user.user_metadata?.name) {
@@ -71,20 +59,35 @@ export default async function LandingPage() {
             }
           }
         }
-      } catch (authError: any) {
-        // Error in auth.getUser() - continue as guest
-        // This is OK - not all requests have valid auth
+      } catch {
+        // Auth failed - continue as guest
       }
     }
-  } catch (error: any) {
-    // Catch ANY unexpected errors - never throw to prevent 500 error
-    // Log error details for debugging but continue rendering
-    console.error('[LandingPage] Error (handled gracefully):', {
-      message: error?.message || String(error),
-      name: error?.name,
-    })
-    // Continue rendering as guest - never throw
+  } catch {
+    // Any error - continue as guest
     user = null
+  }
+
+  return { user, userName, proPlanPrice }
+}
+
+export default async function LandingPage() {
+  // CRITICAL: This function must NEVER throw an error
+  // Wrap everything in try-catch and use safe defaults
+  
+  let user = null
+  let userName = 'User'
+  let proPlanPrice = '299'
+  
+  try {
+    const result = await SafeLandingPageContent()
+    user = result.user
+    userName = result.userName
+    proPlanPrice = result.proPlanPrice
+  } catch (error: any) {
+    // If anything fails, use safe defaults
+    console.error('[LandingPage] Error in SafeLandingPageContent:', error?.message || String(error))
+    // Continue with defaults - never throw
   }
 
   return (

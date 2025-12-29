@@ -32,49 +32,68 @@ export async function middleware(request: NextRequest) {
     {
       cookies: {
         get(name: string) {
-          return request.cookies.get(name)?.value
+          try {
+            return request.cookies.get(name)?.value
+          } catch {
+            return undefined
+          }
         },
         set(name: string, value: string, options: CookieOptions) {
-          request.cookies.set({
-            name,
-            value,
-            ...options,
-          })
-          response = NextResponse.next({
-            request: {
-              headers: request.headers,
-            },
-          })
-          response.cookies.set({
-            name,
-            value,
-            ...options,
-          })
+          try {
+            request.cookies.set({
+              name,
+              value,
+              ...options,
+            })
+            response = NextResponse.next({
+              request: {
+                headers: request.headers,
+              },
+            })
+            response.cookies.set({
+              name,
+              value,
+              ...options,
+            })
+          } catch {
+            // Cookie set failed - continue anyway
+          }
         },
         remove(name: string, options: CookieOptions) {
-          request.cookies.set({
-            name,
-            value: '',
-            ...options,
-          })
-          response = NextResponse.next({
-            request: {
-              headers: request.headers,
-            },
-          })
-          response.cookies.set({
-            name,
-            value: '',
-            ...options,
-          })
+          try {
+            request.cookies.set({
+              name,
+              value: '',
+              ...options,
+            })
+            response = NextResponse.next({
+              request: {
+                headers: request.headers,
+              },
+            })
+            response.cookies.set({
+              name,
+              value: '',
+              ...options,
+            })
+          } catch {
+            // Cookie remove failed - continue anyway
+          }
         },
       },
     }
     )
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
+    let user = null
+    try {
+      const { data, error } = await supabase.auth.getUser()
+      if (!error && data) {
+        user = data.user
+      }
+    } catch (authError) {
+      // Auth check failed - continue without user
+      // This is OK for public pages
+    }
 
     // Protected routes - redirect to login if not authenticated
     const protectedRoutes = ['/dashboard']
@@ -84,16 +103,21 @@ export async function middleware(request: NextRequest) {
     const authRoutes = ['/login', '/signup']
     const isAuthRoute = authRoutes.includes(pathname)
 
-    if (isProtectedRoute && !user) {
-      const url = request.nextUrl.clone()
-      url.pathname = '/login'
-      return NextResponse.redirect(url)
-    }
+    try {
+      if (isProtectedRoute && !user) {
+        const url = request.nextUrl.clone()
+        url.pathname = '/login'
+        return NextResponse.redirect(url)
+      }
 
-    if (isAuthRoute && user) {
-      const url = request.nextUrl.clone()
-      url.pathname = '/dashboard'
-      return NextResponse.redirect(url)
+      if (isAuthRoute && user) {
+        const url = request.nextUrl.clone()
+        url.pathname = '/dashboard'
+        return NextResponse.redirect(url)
+      }
+    } catch (redirectError) {
+      // Redirect failed - continue with normal response
+      console.error('[Middleware] Redirect error:', redirectError)
     }
 
     return response
