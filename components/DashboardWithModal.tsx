@@ -10,9 +10,10 @@ type DashboardWithModalProps = {
   children: React.ReactNode
   userPlan?: PlanType
   currentItemCount?: number
+  documentCount?: number
 }
 
-export default function DashboardWithModal({ children, userPlan = 'free', currentItemCount = 0 }: DashboardWithModalProps) {
+export default function DashboardWithModal({ children, userPlan = 'free', currentItemCount = 0, documentCount = 0 }: DashboardWithModalProps) {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const { showToast, removeToast, toasts } = useToast()
 
@@ -37,6 +38,7 @@ export default function DashboardWithModal({ children, userPlan = 'free', curren
         onSuccess={handleItemAdded}
         userPlan={userPlan}
         currentItemCount={currentItemCount}
+        documentCount={documentCount}
       />
       <ToastContainer toasts={toasts} onRemove={removeToast} />
     </>

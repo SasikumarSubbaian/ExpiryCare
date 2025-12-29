@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { canAddItem, canUseMedicine, canUploadDocuments, type PlanType } from '@/lib/plans'
+import { canAddItem, canUseMedicine, canUploadDocuments, canUploadDocument, type PlanType } from '@/lib/plans'
 
 type AddItemModalProps = {
   isOpen: boolean
@@ -11,12 +11,13 @@ type AddItemModalProps = {
   onSuccess?: () => void
   userPlan?: PlanType
   currentItemCount?: number
+  documentCount?: number
 }
 
 type Category = 'warranty' | 'insurance' | 'amc' | 'subscription' | 'medicine' | 'other'
 type PersonOption = 'self' | 'dad' | 'mom' | 'custom'
 
-export default function AddItemModal({ isOpen, onClose, onSuccess, userPlan = 'free', currentItemCount = 0 }: AddItemModalProps) {
+export default function AddItemModal({ isOpen, onClose, onSuccess, userPlan = 'free', currentItemCount = 0, documentCount = 0 }: AddItemModalProps) {
   const [title, setTitle] = useState('')
   const [category, setCategory] = useState<Category>('warranty')
   const [expiryDate, setExpiryDate] = useState('')
@@ -242,6 +243,14 @@ export default function AddItemModal({ isOpen, onClose, onSuccess, userPlan = 'f
       // Upload document if provided
       let documentUrl: string | null = null
       if (documentFile) {
+        // Check document upload limit before uploading
+        const canUpload = canUploadDocument(userPlan, documentCount)
+        if (!canUpload.allowed) {
+          setError(canUpload.reason || 'Document upload limit reached. Upgrade to Pro for unlimited uploads.')
+          setLoading(false)
+          return
+        }
+
         setUploading(true)
         try {
           documentUrl = await uploadDocument(documentFile, user.id)
@@ -572,7 +581,7 @@ export default function AddItemModal({ isOpen, onClose, onSuccess, userPlan = 'f
             />
           </div>
 
-          {/* Document Upload - Required for Pro/Family plans */}
+          {/* Document Upload - Available for all plans (with limits for free) */}
           {canUploadDocuments(userPlan) && (
             <div>
               <label htmlFor="document" className="block text-sm font-medium text-gray-700 mb-1">
@@ -580,7 +589,28 @@ export default function AddItemModal({ isOpen, onClose, onSuccess, userPlan = 'f
               </label>
               <p className="text-xs text-gray-500 mb-2">
                 Upload image or PDF (max 10MB). {userPlan !== 'free' && 'We\'ll automatically extract details from your document.'}
+                {userPlan === 'free' && (
+                  <span className="block mt-1 text-primary-600 font-medium">
+                    Free plan: {documentCount}/5 documents used
+                  </span>
+                )}
               </p>
+              {userPlan === 'free' && documentCount >= 5 && (
+                <div className="mb-2 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+                  <p className="text-sm text-yellow-800 font-medium mb-1">
+                    📊 Document upload limit reached
+                  </p>
+                  <p className="text-xs text-yellow-700 mb-2">
+                    You've used all 5 free document uploads. Upgrade to Pro for unlimited uploads & WhatsApp reminders.
+                  </p>
+                  <a
+                    href="/upgrade"
+                    className="inline-block text-xs font-medium text-yellow-900 bg-yellow-100 hover:bg-yellow-200 px-3 py-1.5 rounded-md transition-colors"
+                  >
+                    Upgrade to Pro →
+                  </a>
+                </div>
+              )}
             <div className="flex items-center gap-2">
               <input
                 id="document"
@@ -590,14 +620,26 @@ export default function AddItemModal({ isOpen, onClose, onSuccess, userPlan = 'f
                 onChange={async (e) => {
                   const file = e.target.files?.[0]
                   if (file) {
+                    // Check file size
                     if (file.size > 10 * 1024 * 1024) {
                       setError('File size must be less than 10MB')
                       return
                     }
+
+                    // Check document upload limit for free plan
+                    if (userPlan === 'free') {
+                      const canUpload = canUploadDocument(userPlan, documentCount)
+                      if (!canUpload.allowed) {
+                        setError(canUpload.reason || 'Document upload limit reached. Upgrade to Pro for unlimited uploads.')
+                        e.target.value = '' // Clear file input
+                        return
+                      }
+                    }
+
                     setDocumentFile(file)
                     setError(null)
                     
-                    // Process OCR for Pro/Family plans
+                    // Process OCR for Pro/Family plans (free plan can upload but won't get OCR processing)
                     if (userPlan !== 'free') {
                       await processOCR(file)
                     }
@@ -630,11 +672,6 @@ export default function AddItemModal({ isOpen, onClose, onSuccess, userPlan = 'f
                 </button>
               </div>
             )}
-            </div>
-          )}
-          {!canUploadDocuments(userPlan) && (
-            <div className="text-xs text-gray-500 p-2 bg-gray-50 rounded">
-              Document upload requires Pro or Family plan
             </div>
           )}
 

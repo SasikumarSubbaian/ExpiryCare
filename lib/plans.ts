@@ -3,6 +3,7 @@ export type PlanType = 'free' | 'pro' | 'family'
 export interface PlanLimits {
   maxItems: number
   maxFamilyMembers: number
+  maxOcrUploads: number // -1 for unlimited
   allowsMedicine: boolean
   allowsDocuments: boolean
   allowsSharing: boolean
@@ -10,15 +11,17 @@ export interface PlanLimits {
 
 export const PLAN_LIMITS: Record<PlanType, PlanLimits> = {
   free: {
-    maxItems: 5,
+    maxItems: 10,
     maxFamilyMembers: 0,
+    maxOcrUploads: 5, // Free plan: 5 document uploads
     allowsMedicine: false,
-    allowsDocuments: false,
+    allowsDocuments: true, // Free plan can upload documents (with limit)
     allowsSharing: false,
   },
   pro: {
     maxItems: -1, // Unlimited
     maxFamilyMembers: 0,
+    maxOcrUploads: -1, // Unlimited
     allowsMedicine: true,
     allowsDocuments: true,
     allowsSharing: false,
@@ -26,6 +29,7 @@ export const PLAN_LIMITS: Record<PlanType, PlanLimits> = {
   family: {
     maxItems: -1, // Unlimited
     maxFamilyMembers: 5,
+    maxOcrUploads: -1, // Unlimited
     allowsMedicine: true,
     allowsDocuments: true,
     allowsSharing: true,
@@ -89,5 +93,29 @@ export function canUseMedicine(plan: PlanType): boolean {
 
 export function canUploadDocuments(plan: PlanType): boolean {
   return getPlanLimits(plan).allowsDocuments
+}
+
+export function canUploadDocument(plan: PlanType, currentDocumentCount: number): { allowed: boolean; reason?: string } {
+  const limits = getPlanLimits(plan)
+  
+  if (!limits.allowsDocuments) {
+    return {
+      allowed: false,
+      reason: 'Document uploads are not available for your plan. Upgrade to Pro for document uploads.',
+    }
+  }
+  
+  if (limits.maxOcrUploads === -1) {
+    return { allowed: true }
+  }
+  
+  if (currentDocumentCount >= limits.maxOcrUploads) {
+    return {
+      allowed: false,
+      reason: `Free plan allows only ${limits.maxOcrUploads} document uploads. Upgrade to Pro for unlimited document uploads & WhatsApp reminders.`,
+    }
+  }
+  
+  return { allowed: true }
 }
 

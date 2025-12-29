@@ -66,6 +66,7 @@ export default async function DashboardPage() {
   let userPlan: 'free' | 'pro' | 'family' = 'free'
   let itemCount = 0
   let familyMemberCount = 0
+  let documentCount = 0
   
   try {
     userPlan = await getUserPlan(user.id)
@@ -83,6 +84,19 @@ export default async function DashboardPage() {
     familyMemberCount = await getFamilyMemberCount(user.id)
   } catch (err) {
     console.error('Error getting family member count:', err)
+  }
+
+  // Count documents with document_url for free plan limit check
+  try {
+    const { count } = await supabase
+      .from('life_items')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .not('document_url', 'is', null)
+    
+    documentCount = count || 0
+  } catch (err) {
+    console.error('Error counting documents:', err)
   }
 
   // Fetch user's items
@@ -205,7 +219,7 @@ export default async function DashboardPage() {
   console.log(`[Dashboard] Categorized items - Expired: ${ownCategorized.expired.length}, Expiring Soon: ${ownCategorized.expiringSoon.length}, Active: ${ownCategorized.active.length}`)
 
   return (
-    <DashboardWithModal userPlan={userPlan} currentItemCount={itemCount}>
+    <DashboardWithModal userPlan={userPlan} currentItemCount={itemCount} documentCount={documentCount}>
       <DashboardHeader user={user} userName={userName} />
 
       {/* Plan Display */}
