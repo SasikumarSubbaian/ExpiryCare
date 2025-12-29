@@ -8,20 +8,24 @@ export const dynamic = 'force-dynamic'
 export const revalidate = 0
 export const fetchCache = 'force-no-store'
 
-// Safe Supabase client creation - returns null if anything fails
+// Safe Supabase user fetching - never throws, always returns valid data
 async function getSupabaseUser() {
+  // Return guest user immediately if anything fails
+  // This ensures the page always renders
   try {
-    // Dynamic import to avoid issues during build
+    // Use static import - dynamic import can cause RSC issues
     const { createClient } = await import('@/lib/supabase/server')
     const supabase = await createClient()
     
-    if (!supabase) {
+    // If client creation failed, return guest user
+    if (!supabase || typeof supabase.auth !== 'object' || typeof supabase.auth.getUser !== 'function') {
       return { user: null, userName: 'User' }
     }
     
     try {
       const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
       
+      // If auth fails or no user, return guest user
       if (authError || !authUser) {
         return { user: null, userName: 'User' }
       }
@@ -29,36 +33,39 @@ async function getSupabaseUser() {
       let userName = authUser.email?.split('@')[0] || 'User'
       
       // Try to get user profile, but don't fail if it doesn't exist
-      try {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('full_name')
-          .eq('id', authUser.id)
-          .single()
-        
-        if (profile?.full_name) {
-          userName = profile.full_name
-        } else if (authUser.user_metadata?.full_name) {
-          userName = authUser.user_metadata.full_name
-        } else if (authUser.user_metadata?.name) {
-          userName = authUser.user_metadata.name
-        }
-      } catch (profileError) {
-        // Fallback to email or metadata if profile query fails
-        if (authUser.user_metadata?.full_name) {
-          userName = authUser.user_metadata.full_name
-        } else if (authUser.user_metadata?.name) {
-          userName = authUser.user_metadata.name
+      if (supabase.from && typeof supabase.from === 'function') {
+        try {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('full_name')
+            .eq('id', authUser.id)
+            .single()
+          
+          if (profile?.full_name) {
+            userName = profile.full_name
+          } else if (authUser.user_metadata?.full_name) {
+            userName = authUser.user_metadata.full_name
+          } else if (authUser.user_metadata?.name) {
+            userName = authUser.user_metadata.name
+          }
+        } catch (profileError) {
+          // Fallback to email or metadata if profile query fails
+          if (authUser.user_metadata?.full_name) {
+            userName = authUser.user_metadata.full_name
+          } else if (authUser.user_metadata?.name) {
+            userName = authUser.user_metadata.name
+          }
         }
       }
       
       return { user: authUser, userName }
     } catch (authError) {
+      // Auth error - return guest user
       return { user: null, userName: 'User' }
     }
   } catch (error) {
-    // If ANY Supabase operation fails, return guest user
-    // Never throw - always return a valid user object
+    // Any error - return guest user
+    // Never throw - always return valid data
     return { user: null, userName: 'User' }
   }
 }

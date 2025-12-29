@@ -28,11 +28,36 @@ type LifeItem = {
 }
 
 export default async function DashboardPage() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  let user = null
+  
+  try {
+    const supabase = await createClient()
+    
+    // Check if supabase client was created successfully
+    if (!supabase || typeof supabase.auth !== 'object' || typeof supabase.auth.getUser !== 'function') {
+      redirect('/login')
+    }
+    
+    const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
+    
+    if (authError || !authUser) {
+      redirect('/login')
+    }
+    
+    user = authUser
+  } catch (error) {
+    // If Supabase connection fails, redirect to login
+    redirect('/login')
+  }
 
   // Redirect unauthenticated users to login
   if (!user) {
+    redirect('/login')
+  }
+
+  // Get Supabase client again for queries (we know it's valid at this point)
+  const supabase = await createClient()
+  if (!supabase || typeof supabase.from !== 'function') {
     redirect('/login')
   }
 
@@ -90,15 +115,21 @@ export default async function DashboardPage() {
   let items: any[] = []
   let error: any = null
   
-  // Use explicit user_id filter - more reliable than relying solely on RLS
-  const result = await supabase
-    .from('life_items')
-    .select('id, user_id, title, category, expiry_date, reminder_days, notes, document_url, person_name, created_at, updated_at')
-    .eq('user_id', user.id)
-    .order('expiry_date', { ascending: true })
-  
-  items = result.data || []
-  error = result.error
+  try {
+    // Use explicit user_id filter - more reliable than relying solely on RLS
+    const result = await supabase
+      .from('life_items')
+      .select('id, user_id, title, category, expiry_date, reminder_days, notes, document_url, person_name, created_at, updated_at')
+      .eq('user_id', user.id)
+      .order('expiry_date', { ascending: true })
+    
+    items = result.data || []
+    error = result.error
+  } catch (queryError) {
+    console.error('[Dashboard] Error in query:', queryError)
+    items = []
+    error = queryError
+  }
 
   if (error) {
     console.error('[Dashboard] Error fetching items:', error)

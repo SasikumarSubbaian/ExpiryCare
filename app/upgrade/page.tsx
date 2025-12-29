@@ -14,8 +14,7 @@ export default async function UpgradePage() {
     const supabase = await createClient()
     
     // Check if supabase client was created successfully
-    if (!supabase) {
-      // Environment variables missing or client creation failed
+    if (!supabase || typeof supabase.auth !== 'object' || typeof supabase.auth.getUser !== 'function') {
       redirect('/login')
     }
     
@@ -28,7 +27,6 @@ export default async function UpgradePage() {
     user = authUser
   } catch (error) {
     // If Supabase connection fails, redirect to login
-    console.error('[UpgradePage] Supabase connection error:', error)
     redirect('/login')
   }
 
