@@ -35,10 +35,8 @@ const nextConfig = {
   // Disable output file tracing to prevent micromatch recursion errors
   // Vercel handles dependencies automatically, so this is safe
   outputFileTracing: false,
-  // Ensure NODE_ENV is set correctly in production
-  env: {
-    NODE_ENV: process.env.NODE_ENV || 'production',
-  },
+  // Note: NODE_ENV is automatically set by Next.js/Vercel
+  // Do NOT define it in the env section - Next.js doesn't allow it
 }
 
 module.exports = nextConfig
