@@ -51,14 +51,6 @@ const nextConfig = {
       })
     }
     
-    // Ignore these modules during build to prevent resolution errors
-    // Consolidate alias assignment to avoid duplication
-    config.resolve.alias = {
-      ...config.resolve.alias,
-      'canvas': false,
-      'pdfjs-dist': false,
-    }
-    
     // Fix for Supabase ESM module resolution - handle .mjs files
     config.module.rules.push({
       test: /\.mjs$/,
@@ -76,10 +68,13 @@ const nextConfig = {
       path.resolve(__dirname, 'node_modules/@supabase/supabase-js/dist'),
     ]
     
-    // Ensure @ alias resolves correctly (for Vercel build environment)
+    // CRITICAL: Set all aliases in ONE assignment to prevent overwriting
+    // The @ alias MUST be set for Vercel build environment
     config.resolve.alias = {
       ...config.resolve.alias,
-      '@': path.resolve(__dirname, '.'),
+      '@': path.resolve(__dirname, '.'), // Must be set FIRST for path resolution
+      'canvas': false,
+      'pdfjs-dist': false,
     }
     
     return config

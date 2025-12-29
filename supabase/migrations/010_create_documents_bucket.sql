@@ -48,9 +48,9 @@ USING (
   (storage.foldername(name))[1] = auth.uid()::text
 );
 
--- Verify bucket was created (optional - may require elevated permissions)
--- If you get permission errors, you can verify via Supabase Dashboard > Storage
--- SELECT id, name, public, file_size_limit 
--- FROM storage.buckets 
--- WHERE id = 'documents';
+-- Note: Verification query removed to avoid permission errors
+-- To verify bucket creation:
+-- 1. Go to Supabase Dashboard > Storage
+-- 2. Check if 'documents' bucket exists
+-- 3. Or use: SELECT * FROM storage.buckets WHERE id = 'documents'; (requires service_role)
 
