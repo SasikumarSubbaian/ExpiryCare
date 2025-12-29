@@ -101,7 +101,7 @@ export function extractBySchema(
 
   // Step 3: Sanitize - remove any forbidden data
   const sanitized = sanitizeExtractedData(
-    result as Record<string, string | null>,
+    result as unknown as Record<string, string | null>,
     category
   )
 
