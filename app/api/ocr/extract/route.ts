@@ -74,7 +74,21 @@ export async function POST(request: NextRequest) {
 
         // Convert PDF first page to image using pdfjs-dist
         console.log('[OCR] Loading PDF.js library...')
-        const pdfjsLib = await import('pdfjs-dist')
+        let pdfjsLib: any
+        try {
+          pdfjsLib = await import('pdfjs-dist')
+        } catch (pdfjsError: any) {
+          console.error('[OCR] PDF.js import failed:', pdfjsError)
+          return NextResponse.json(
+            { 
+              success: false,
+              error: 'PDF processing is not available in this environment. Please upload an image (PNG, JPG) of your document instead.',
+              suggestion: 'Take a screenshot or photo of your PDF document and upload that.',
+              details: pdfjsError.message
+            },
+            { status: 400 }
+          )
+        }
         
         // For Node.js, configure worker (optional but recommended)
         try {

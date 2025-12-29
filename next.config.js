@@ -5,13 +5,13 @@ const nextConfig = {
       config.resolve.fallback = {
         ...config.resolve.fallback,
         fs: false,
-        canvas: false, // Canvas is server-side only
-        'pdfjs-dist': false, // PDF.js is server-side only
+        canvas: false, // Canvas is server-side only (optional)
+        'pdfjs-dist': false, // PDF.js is server-side only (optional)
       }
     } else {
-      // Server-side: allow canvas and pdfjs-dist
+      // Server-side: make canvas and pdfjs-dist optional
       config.externals = config.externals || []
-      // Don't externalize canvas or pdfjs-dist on server
+      // These are optional dependencies - code handles their absence
     }
     
     // Fix for Supabase ESM module resolution - handle .mjs files
