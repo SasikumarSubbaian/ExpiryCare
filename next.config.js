@@ -59,8 +59,6 @@ const nextConfig = {
     return config
   },
   transpilePackages: ['@supabase/ssr'],
-  // Exclude benchmark and test directories from page generation
-  pageExtensions: ['ts', 'tsx', 'js', 'jsx', 'md', 'mdx'],
 }
 
 module.exports = nextConfig
