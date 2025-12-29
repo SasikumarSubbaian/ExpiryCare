@@ -5,34 +5,48 @@ import Image from 'next/image'
 import { PLAN_PRICES } from '@/lib/plans'
 
 export default async function LandingPage() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-
-  // Get user name for authenticated users
-  let userName = user?.email?.split('@')[0] || 'User'
-  if (user) {
-    try {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('full_name')
-        .eq('id', user.id)
-        .single()
+  // Gracefully handle Supabase connection errors
+  let user = null
+  let userName = 'User'
+  
+  try {
+    const supabase = await createClient()
+    const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
+    
+    if (!authError && authUser) {
+      user = authUser
+      userName = authUser.email?.split('@')[0] || 'User'
       
-      if (profile?.full_name) {
-        userName = profile.full_name
-      } else if (user.user_metadata?.full_name) {
-        userName = user.user_metadata.full_name
-      } else if (user.user_metadata?.name) {
-        userName = user.user_metadata.name
-      }
-    } catch (err) {
-      // Fallback to email or metadata
-      if (user.user_metadata?.full_name) {
-        userName = user.user_metadata.full_name
-      } else if (user.user_metadata?.name) {
-        userName = user.user_metadata.name
+      // Try to get user profile, but don't fail if it doesn't exist
+      try {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('full_name')
+          .eq('id', user.id)
+          .single()
+        
+        if (profile?.full_name) {
+          userName = profile.full_name
+        } else if (user.user_metadata?.full_name) {
+          userName = user.user_metadata.full_name
+        } else if (user.user_metadata?.name) {
+          userName = user.user_metadata.name
+        }
+      } catch (profileError) {
+        // Fallback to email or metadata if profile query fails
+        if (user.user_metadata?.full_name) {
+          userName = user.user_metadata.full_name
+        } else if (user.user_metadata?.name) {
+          userName = user.user_metadata.name
+        }
       }
     }
+  } catch (error) {
+    // If Supabase connection fails, render page without user data
+    // This prevents 500 errors in production
+    console.error('[LandingPage] Supabase connection error:', error)
+    user = null
+    userName = 'User'
   }
 
   return (
