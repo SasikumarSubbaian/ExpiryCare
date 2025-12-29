@@ -11,7 +11,7 @@ import Image from 'next/image'
 
 export type Expiry = {
   id: string
-  category: 'warranty' | 'insurance' | 'medicine' | 'subscription'
+  category: 'warranty' | 'insurance' | 'amc' | 'medicine' | 'subscription' | 'other'
   name: string
   expiry_date: string
   reminder_days: number
