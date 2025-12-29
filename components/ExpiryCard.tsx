@@ -58,13 +58,6 @@ const categoryConfig = {
     icon: '📋',
     label: 'Other'
   },
-  amc: { 
-    color: 'from-indigo-500 to-indigo-600', 
-    bg: 'bg-indigo-50', 
-    text: 'text-indigo-700',
-    icon: '🔧',
-    label: 'AMC'
-  },
 }
 
 const statusConfig = {
