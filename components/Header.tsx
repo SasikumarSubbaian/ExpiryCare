@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import SignOutButton from './SignOutButton'
 import { useEffect, useState } from 'react'
-import { User } from '@supabase/supabase-js'
+import type { User } from '@supabase/supabase-js'
 
 export default function Header() {
   const pathname = usePathname()
@@ -13,8 +13,8 @@ export default function Header() {
   const supabase = createClient()
   
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      setUser(user)
+    supabase.auth.getUser().then(({ data }) => {
+      setUser(data.user)
     })
   }, [])
   
