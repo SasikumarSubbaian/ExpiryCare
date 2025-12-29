@@ -1,0 +1,54 @@
+# Vercel ignore file to prevent micromatch recursion errors
+# Exclude large dependencies and unnecessary files from build
+
+# Dependencies that cause issues
+node_modules/@google-cloud/**
+node_modules/google-gax/**
+node_modules/protobufjs/**
+node_modules/@grpc/**
+node_modules/google-auth-library/**
+node_modules/sharp/**
+node_modules/tesseract.js/**
+
+# Documentation and test files
+**/*.md
+**/*.test.*
+**/*.spec.*
+**/README*
+**/CHANGELOG*
+**/LICENSE*
+
+# Git and editor files
+.git
+.gitignore
+.cursor
+.vscode
+.idea
+
+# Environment files (should be set in Vercel dashboard)
+.env*
+!.env*.example
+
+# Build artifacts
+.next
+out
+dist
+build
+coverage
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Benchmark and test directories
+benchmark
+**/__tests__/**
+**/test/**
+**/tests/**
+

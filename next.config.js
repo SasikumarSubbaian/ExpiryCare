@@ -32,6 +32,9 @@ const nextConfig = {
     return config
   },
   transpilePackages: ['@supabase/ssr'],
+  // Disable output file tracing to prevent micromatch recursion errors
+  // Vercel handles dependencies automatically, so this is safe
+  outputFileTracing: false,
 }
 
 module.exports = nextConfig
