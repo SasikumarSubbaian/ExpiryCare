@@ -4,10 +4,16 @@ const nextConfig = {
   // These directories contain many files that can cause micromatch issues
   webpack: (config, { isServer }) => {
     // Exclude benchmark and test directories from webpack processing
+    // Ensure ignored is always an array
+    const existingIgnored = config.watchOptions?.ignored
+    const ignoredArray = Array.isArray(existingIgnored) 
+      ? existingIgnored 
+      : (existingIgnored ? [existingIgnored] : [])
+    
     config.watchOptions = {
       ...config.watchOptions,
       ignored: [
-        ...(config.watchOptions?.ignored || []),
+        ...ignoredArray,
         '**/benchmark/**',
         '**/test-images/**',
         '**/ocr/**',
