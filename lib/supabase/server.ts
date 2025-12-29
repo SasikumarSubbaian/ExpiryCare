@@ -21,7 +21,15 @@ export async function createClient() {
   }
 
   try {
-    const cookieStore = await cookies()
+    // Try to get cookies - this can fail in certain build contexts
+    let cookieStore
+    try {
+      cookieStore = await cookies()
+    } catch (cookieError) {
+      console.error('[Supabase] Error accessing cookies:', cookieError)
+      // Return null if cookies can't be accessed
+      return null as any
+    }
 
     return createServerClient(
       supabaseUrl,
@@ -29,7 +37,11 @@ export async function createClient() {
       {
         cookies: {
           get(name: string) {
-            return cookieStore.get(name)?.value
+            try {
+              return cookieStore.get(name)?.value
+            } catch (error) {
+              return undefined
+            }
           },
           set(name: string, value: string, options: CookieOptions) {
             try {
