@@ -9,7 +9,8 @@ export async function convertPdfToImage(
   pdfBuffer: Buffer
 ): Promise<Buffer> {
   try {
-    // Import pdfjs-dist
+    // Import pdfjs-dist (optional dependency)
+    // @ts-ignore - pdfjs-dist is optional dependency
     const pdfjsLib = await import('pdfjs-dist')
 
     // Configure worker for Node.js

@@ -54,8 +54,10 @@ export async function POST(request: NextRequest) {
       console.log('[OCR] Processing PDF file...')
       try {
         // Import canvas first to check availability
+        // Note: canvas is an optional dependency that may not be installed
         let createCanvas: any
         try {
+          // @ts-ignore - canvas is optional dependency
           const canvasModule = await import('canvas')
           createCanvas = canvasModule.createCanvas
           console.log('[OCR] Canvas module loaded successfully')
@@ -73,9 +75,11 @@ export async function POST(request: NextRequest) {
         }
 
         // Convert PDF first page to image using pdfjs-dist
+        // Note: pdfjs-dist is an optional dependency that may not be installed
         console.log('[OCR] Loading PDF.js library...')
         let pdfjsLib: any
         try {
+          // @ts-ignore - pdfjs-dist is optional dependency
           pdfjsLib = await import('pdfjs-dist')
         } catch (pdfjsError: any) {
           console.error('[OCR] PDF.js import failed:', pdfjsError)
