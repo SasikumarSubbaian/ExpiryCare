@@ -4,6 +4,10 @@ import { createClient } from '@/lib/supabase/server'
 // OCR API endpoint to extract text from uploaded documents
 // Uses Tesseract.js for free OCR processing
 // Optimized for performance with faster settings
+
+export const runtime = 'nodejs'
+export const maxDuration = 30
+
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient()
