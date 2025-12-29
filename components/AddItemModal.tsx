@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { canAddItem, canUseMedicine, canUploadDocuments, canUploadDocument, type PlanType } from '@/lib/plans'
+import OCRConfirmationModal from './OCRConfirmationModal'
 
 type AddItemModalProps = {
   isOpen: boolean
@@ -34,22 +35,23 @@ export default function AddItemModal({ isOpen, onClose, onSuccess, userPlan = 'f
   const [uploading, setUploading] = useState(false)
   const [processingOCR, setProcessingOCR] = useState(false)
   const [ocrExtracted, setOcrExtracted] = useState(false)
+  const [showOCRConfirmation, setShowOCRConfirmation] = useState(false)
+  const [ocrExtractedData, setOcrExtractedData] = useState<any>(null)
   
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const router = useRouter()
   const supabase = createClient()
 
-  // Process OCR when document is uploaded (Pro/Family plans only)
+  // Process OCR when document is uploaded (all plans, with limits)
   const processOCR = async (file: File) => {
-    if (userPlan === 'free') return
-    
     setProcessingOCR(true)
     setError(null)
     
     try {
       const formData = new FormData()
       formData.append('file', file)
+      formData.append('category', category) // Send current category as hint
       
       const response = await fetch('/api/ocr/extract', {
         method: 'POST',
@@ -61,41 +63,98 @@ export default function AddItemModal({ isOpen, onClose, onSuccess, userPlan = 'f
       if (result.success && result.extractedData) {
         const data = result.extractedData
         
-        // Auto-fill form fields from OCR
-        if (data.title && !title) {
-          setTitle(data.title)
-        }
-        if (data.expiryDate && !expiryDate) {
-          // Convert date format if needed (DD-MM-YYYY or DD/MM/YYYY to YYYY-MM-DD)
-          let dateStr = data.expiryDate.replace(/\//g, '-')
-          // Try to convert to YYYY-MM-DD format
-          const parts = dateStr.split('-')
-          if (parts.length === 3) {
-            // If format is DD-MM-YYYY, convert to YYYY-MM-DD
-            if (parts[0].length === 2 && parts[2].length === 4) {
-              dateStr = `${parts[2]}-${parts[1]}-${parts[0]}`
-            }
-          }
-          setExpiryDate(dateStr)
-        }
-        if (data.category && !category) {
-          setCategory(data.category as Category)
-        }
-        if (data.notes && !notes) {
-          setNotes(data.notes)
-        }
-        
+        // Show confirmation modal instead of auto-filling
+        setOcrExtractedData(data)
+        setShowOCRConfirmation(true)
         setOcrExtracted(true)
       } else {
-        console.warn('OCR completed but no data extracted:', result)
+        // Handle errors gracefully
+        if (result.error) {
+          if (result.error.includes('limit') || result.error.includes('Upgrade')) {
+            setError(result.error)
+          } else {
+            setError('Could not extract details from document. You can still add the item manually.')
+          }
+        } else {
+          setError('Could not extract details from document. You can still add the item manually.')
+        }
       }
     } catch (err: any) {
       console.error('OCR processing error:', err)
-      // Don't show error to user - OCR is optional enhancement
       setError('Could not extract details from document, but you can still add the item manually.')
     } finally {
       setProcessingOCR(false)
     }
+  }
+
+  // Handle OCR confirmation
+  const handleOCRConfirm = (data: any) => {
+    // Fill form fields from confirmed OCR data
+    if (data.expiryDate?.value) {
+      setExpiryDate(data.expiryDate.value)
+    }
+    
+    if (data.category && !category) {
+      setCategory(data.category as Category)
+    }
+
+    // Category-specific fields
+    if (data.category === 'warranty') {
+      if (data.productName && !title) {
+        setTitle(data.productName)
+      }
+      if (data.companyName && !notes) {
+        setNotes(`Company: ${data.companyName}`)
+      }
+    } else if (data.category === 'insurance') {
+      if (data.policyType && !title) {
+        setTitle(`${data.policyType} Insurance`)
+      }
+      if (data.insurerName && !notes) {
+        setNotes(`Insurer: ${data.insurerName}`)
+      }
+    } else if (data.category === 'amc') {
+      if (data.serviceType && !title) {
+        setTitle(data.serviceType)
+      }
+      if (data.providerName && !notes) {
+        setNotes(`Provider: ${data.providerName}`)
+      }
+    } else if (data.category === 'subscription') {
+      if (data.serviceName && !title) {
+        setTitle(data.serviceName)
+      }
+      if (data.planType && !notes) {
+        setNotes(`Plan: ${data.planType}`)
+      }
+    } else if (data.category === 'medicine') {
+      if (data.medicineName && !medicineName) {
+        setMedicineName(data.medicineName)
+      }
+      if (data.brandName && !notes) {
+        setNotes(`Brand: ${data.brandName}`)
+      }
+    }
+
+    setShowOCRConfirmation(false)
+    setOcrExtractedData(null)
+  }
+
+  const handleOCRCancel = () => {
+    setShowOCRConfirmation(false)
+    setOcrExtractedData(null)
+  }
+
+  const handleOCREdit = (field: string, value: string) => {
+    if (!ocrExtractedData) return
+    
+    const updated = { ...ocrExtractedData }
+    if (field === 'expiryDate') {
+      updated.expiryDate = { ...updated.expiryDate, value }
+    } else {
+      updated[field] = value
+    }
+    setOcrExtractedData(updated)
   }
 
   // Reset reminder days when category changes to Medicine
@@ -243,12 +302,17 @@ export default function AddItemModal({ isOpen, onClose, onSuccess, userPlan = 'f
       // Upload document if provided
       let documentUrl: string | null = null
       if (documentFile) {
-        // Check document upload limit before uploading
-        const canUpload = canUploadDocument(userPlan, documentCount)
-        if (!canUpload.allowed) {
-          setError(canUpload.reason || 'Document upload limit reached. Upgrade to Pro for unlimited uploads.')
-          setLoading(false)
-          return
+        // Check document upload limit before uploading (for free plan only)
+        if (userPlan === 'free') {
+          const canUpload = canUploadDocument(userPlan, documentCount)
+          if (!canUpload.allowed) {
+            setError(
+              canUpload.reason || 
+              `You've reached the free plan limit of 5 document uploads. Upgrade to Pro for unlimited document uploads & WhatsApp reminders.`
+            )
+            setLoading(false)
+            return
+          }
         }
 
         setUploading(true)
@@ -590,25 +654,39 @@ export default function AddItemModal({ isOpen, onClose, onSuccess, userPlan = 'f
               <p className="text-xs text-gray-500 mb-2">
                 Upload image or PDF (max 10MB). {userPlan !== 'free' && 'We\'ll automatically extract details from your document.'}
                 {userPlan === 'free' && (
-                  <span className="block mt-1 text-primary-600 font-medium">
+                  <span className={`block mt-1 font-medium ${
+                    documentCount >= 5 
+                      ? 'text-yellow-700' 
+                      : documentCount >= 3 
+                      ? 'text-orange-600' 
+                      : 'text-primary-600'
+                  }`}>
                     Free plan: {documentCount}/5 documents used
+                    {documentCount >= 3 && documentCount < 5 && (
+                      <span className="ml-1 text-xs">(Almost at limit)</span>
+                    )}
                   </span>
                 )}
               </p>
               {userPlan === 'free' && documentCount >= 5 && (
-                <div className="mb-2 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
-                  <p className="text-sm text-yellow-800 font-medium mb-1">
-                    📊 Document upload limit reached
-                  </p>
-                  <p className="text-xs text-yellow-700 mb-2">
-                    You've used all 5 free document uploads. Upgrade to Pro for unlimited uploads & WhatsApp reminders.
-                  </p>
-                  <a
-                    href="/upgrade"
-                    className="inline-block text-xs font-medium text-yellow-900 bg-yellow-100 hover:bg-yellow-200 px-3 py-1.5 rounded-md transition-colors"
-                  >
-                    Upgrade to Pro →
-                  </a>
+                <div className="mb-2 p-3 bg-yellow-50 border-2 border-yellow-300 rounded-md">
+                  <div className="flex items-start gap-2">
+                    <span className="text-lg">📊</span>
+                    <div className="flex-1">
+                      <p className="text-sm text-yellow-900 font-semibold mb-1">
+                        Document Upload Limit Reached
+                      </p>
+                      <p className="text-xs text-yellow-800 mb-3">
+                        You've used all {documentCount} of your 5 free document uploads. Upgrade to Pro for unlimited document uploads & WhatsApp reminders.
+                      </p>
+                      <a
+                        href="/upgrade"
+                        className="inline-flex items-center gap-1 text-xs font-semibold text-yellow-900 bg-yellow-200 hover:bg-yellow-300 px-4 py-2 rounded-md transition-colors"
+                      >
+                        Upgrade to Pro →
+                      </a>
+                    </div>
+                  </div>
                 </div>
               )}
             <div className="flex items-center gap-2">
@@ -626,12 +704,16 @@ export default function AddItemModal({ isOpen, onClose, onSuccess, userPlan = 'f
                       return
                     }
 
-                    // Check document upload limit for free plan
+                    // Check document upload limit for free plan BEFORE setting the file
                     if (userPlan === 'free') {
                       const canUpload = canUploadDocument(userPlan, documentCount)
                       if (!canUpload.allowed) {
-                        setError(canUpload.reason || 'Document upload limit reached. Upgrade to Pro for unlimited uploads.')
+                        setError(
+                          canUpload.reason || 
+                          `You've reached the free plan limit of 5 document uploads. Upgrade to Pro for unlimited document uploads & WhatsApp reminders.`
+                        )
                         e.target.value = '' // Clear file input
+                        setDocumentFile(null) // Clear any previous file selection
                         return
                       }
                     }
@@ -639,10 +721,8 @@ export default function AddItemModal({ isOpen, onClose, onSuccess, userPlan = 'f
                     setDocumentFile(file)
                     setError(null)
                     
-                    // Process OCR for Pro/Family plans (free plan can upload but won't get OCR processing)
-                    if (userPlan !== 'free') {
-                      await processOCR(file)
-                    }
+                    // Process OCR for all plans (with limits enforced in API)
+                    await processOCR(file)
                   }
                 }}
                 className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100"
@@ -710,6 +790,15 @@ export default function AddItemModal({ isOpen, onClose, onSuccess, userPlan = 'f
           </div>
         </form>
       </div>
+
+      {/* OCR Confirmation Modal */}
+      <OCRConfirmationModal
+        isOpen={showOCRConfirmation}
+        extractedData={ocrExtractedData}
+        onConfirm={handleOCRConfirm}
+        onCancel={handleOCRCancel}
+        onEdit={handleOCREdit}
+      />
     </div>
   )
 }

@@ -8,7 +8,7 @@ import ItemsSection from '@/components/ItemsSection'
 import DashboardWithModal from '@/components/DashboardWithModal'
 import FamilyMembersSection from '@/components/FamilyMembersSection'
 import PlanDisplay from '@/components/PlanDisplay'
-import { getUserPlan, getItemCount, getFamilyMemberCount } from '@/lib/supabase/plans'
+import { getUserPlan, getItemCount, getFamilyMemberCount, getDocumentCount } from '@/lib/supabase/plans'
 
 // Revalidate this page every time it's accessed (for fresh data after adds)
 export const revalidate = 0
@@ -88,13 +88,7 @@ export default async function DashboardPage() {
 
   // Count documents with document_url for free plan limit check
   try {
-    const { count } = await supabase
-      .from('life_items')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', user.id)
-      .not('document_url', 'is', null)
-    
-    documentCount = count || 0
+    documentCount = await getDocumentCount(user.id)
   } catch (err) {
     console.error('Error counting documents:', err)
   }
