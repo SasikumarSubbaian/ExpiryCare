@@ -1,6 +1,19 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Exclude benchmark and test directories from build to prevent stack overflow
+  // These directories contain many files that can cause micromatch issues
   webpack: (config, { isServer }) => {
+    // Exclude benchmark and test directories from webpack processing
+    config.watchOptions = {
+      ...config.watchOptions,
+      ignored: [
+        ...(config.watchOptions?.ignored || []),
+        '**/benchmark/**',
+        '**/test-images/**',
+        '**/ocr/**',
+      ],
+    }
+
     if (!isServer) {
       config.resolve.fallback = {
         ...config.resolve.fallback,
@@ -19,6 +32,7 @@ const nextConfig = {
     }
     
     // Ignore these modules during build to prevent resolution errors
+    // Consolidate alias assignment to avoid duplication
     config.resolve.alias = {
       ...config.resolve.alias,
       'canvas': false,
@@ -35,12 +49,8 @@ const nextConfig = {
       },
     })
     
-    // Fix the broken import path in wrapper.mjs
-    const path = require('path')
-    config.resolve.alias = {
-      ...config.resolve.alias,
-    }
     // Add resolver to handle the relative import
+    const path = require('path')
     config.resolve.modules = [
       ...(config.resolve.modules || []),
       path.resolve(__dirname, 'node_modules/@supabase/supabase-js/dist'),
@@ -49,6 +59,8 @@ const nextConfig = {
     return config
   },
   transpilePackages: ['@supabase/ssr'],
+  // Exclude benchmark and test directories from page generation
+  pageExtensions: ['ts', 'tsx', 'js', 'jsx', 'md', 'mdx'],
 }
 
 module.exports = nextConfig
