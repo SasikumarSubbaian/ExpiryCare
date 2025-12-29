@@ -1,4 +1,4 @@
-import { redirect } from 'next/navigation'
+// Removed unused import
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -11,33 +11,42 @@ export default async function LandingPage() {
   
   try {
     const supabase = await createClient()
-    const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
     
-    if (!authError && authUser) {
-      user = authUser
-      userName = authUser.email?.split('@')[0] || 'User'
+    // Check if supabase client was created successfully
+    if (!supabase) {
+      // Environment variables missing or client creation failed
+      // Render page as guest user
+      user = null
+      userName = 'User'
+    } else {
+      const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
       
-      // Try to get user profile, but don't fail if it doesn't exist
-      try {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('full_name')
-          .eq('id', user.id)
-          .single()
+      if (!authError && authUser) {
+        user = authUser
+        userName = authUser.email?.split('@')[0] || 'User'
         
-        if (profile?.full_name) {
-          userName = profile.full_name
-        } else if (user.user_metadata?.full_name) {
-          userName = user.user_metadata.full_name
-        } else if (user.user_metadata?.name) {
-          userName = user.user_metadata.name
-        }
-      } catch (profileError) {
-        // Fallback to email or metadata if profile query fails
-        if (user.user_metadata?.full_name) {
-          userName = user.user_metadata.full_name
-        } else if (user.user_metadata?.name) {
-          userName = user.user_metadata.name
+        // Try to get user profile, but don't fail if it doesn't exist
+        try {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('full_name')
+            .eq('id', user.id)
+            .single()
+          
+          if (profile?.full_name) {
+            userName = profile.full_name
+          } else if (user.user_metadata?.full_name) {
+            userName = user.user_metadata.full_name
+          } else if (user.user_metadata?.name) {
+            userName = user.user_metadata.name
+          }
+        } catch (profileError) {
+          // Fallback to email or metadata if profile query fails
+          if (user.user_metadata?.full_name) {
+            userName = user.user_metadata.full_name
+          } else if (user.user_metadata?.name) {
+            userName = user.user_metadata.name
+          }
         }
       }
     }
