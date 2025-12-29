@@ -1,0 +1,35 @@
+# Vercel ignore file - prevents scanning of unnecessary directories
+node_modules
+.next
+.git
+.gitignore
+.vercel
+dist
+build
+coverage
+*.log
+*.tsbuildinfo
+
+# Test and benchmark directories
+benchmark
+test-images
+ocr
+
+# Documentation files (not needed for build)
+*.md
+!README.md
+
+# Environment files
+.env*.local
+.env
+
+# IDE files
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+

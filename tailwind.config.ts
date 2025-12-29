@@ -2,10 +2,13 @@ import type { Config } from 'tailwindcss'
 
 const config: Config = {
   content: [
+    './app/**/*.{js,ts,jsx,tsx,mdx}',
     './pages/**/*.{js,ts,jsx,tsx,mdx}',
     './components/**/*.{js,ts,jsx,tsx,mdx}',
-    './app/**/*.{js,ts,jsx,tsx,mdx}',
   ],
+  // Explicitly exclude directories that can cause infinite recursion
+  // This prevents Tailwind from scanning build outputs, node_modules, etc.
+  safelist: [],
   theme: {
     extend: {
       colors: {

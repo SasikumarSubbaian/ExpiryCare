@@ -3,7 +3,7 @@ const nextConfig = {
   // Exclude benchmark and test directories from build to prevent stack overflow
   // These directories contain many files that can cause micromatch issues
   webpack: (config, { isServer }) => {
-    // Exclude benchmark and test directories from webpack processing
+    // Exclude directories from webpack processing to prevent stack overflow
     // Ensure ignored is always an array of non-empty strings
     const existingIgnored = config.watchOptions?.ignored
     let ignoredArray = []
@@ -17,10 +17,16 @@ const nextConfig = {
     }
     
     // Add our exclusions (all non-empty strings)
+    // Exclude build outputs, test directories, and node_modules to prevent recursion
     const additionalIgnored = [
+      '**/node_modules/**',
+      '**/.next/**',
       '**/benchmark/**',
       '**/test-images/**',
       '**/ocr/**',
+      '**/dist/**',
+      '**/build/**',
+      '**/coverage/**',
     ]
     
     config.watchOptions = {
