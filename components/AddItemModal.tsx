@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { canAddItem, canUseMedicine, canUploadDocuments, type PlanType } from '@/lib/plans'
+import { canAddItem, canUseMedicine, canUploadDocuments, canChooseFile, type PlanType } from '@/lib/plans'
 
 type AddItemModalProps = {
   isOpen: boolean
@@ -11,12 +11,13 @@ type AddItemModalProps = {
   onSuccess?: () => void
   userPlan?: PlanType
   currentItemCount?: number
+  fileCount?: number
 }
 
 type Category = 'warranty' | 'insurance' | 'amc' | 'subscription' | 'medicine' | 'other'
 type PersonOption = 'self' | 'dad' | 'mom' | 'custom'
 
-export default function AddItemModal({ isOpen, onClose, onSuccess, userPlan = 'free', currentItemCount = 0 }: AddItemModalProps) {
+export default function AddItemModal({ isOpen, onClose, onSuccess, userPlan = 'free', currentItemCount = 0, fileCount = 0 }: AddItemModalProps) {
   const [title, setTitle] = useState('')
   const [category, setCategory] = useState<Category>('warranty')
   const [expiryDate, setExpiryDate] = useState('')
@@ -33,65 +34,128 @@ export default function AddItemModal({ isOpen, onClose, onSuccess, userPlan = 'f
   const [uploading, setUploading] = useState(false)
   const [processingOCR, setProcessingOCR] = useState(false)
   const [ocrExtracted, setOcrExtracted] = useState(false)
+  const [ocrProgress, setOcrProgress] = useState<string>('')
   
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const router = useRouter()
   const supabase = createClient()
 
-  // Process OCR when document is uploaded (Pro/Family plans only)
+  // Process OCR when document is uploaded (all plans, but free plan has limit)
   const processOCR = async (file: File) => {
-    if (userPlan === 'free') return
+    // For free plan, check limit before processing
+    if (userPlan === 'free') {
+      const canChoose = canChooseFile(userPlan, fileCount)
+      if (!canChoose.allowed) {
+        setError(canChoose.reason || 'You\'ve used all free scans. Upgrade to Pro for unlimited document uploads & WhatsApp reminders')
+        return
+      }
+    }
     
     setProcessingOCR(true)
     setError(null)
+    setOcrProgress('Uploading document...')
     
     try {
       const formData = new FormData()
       formData.append('file', file)
+      
+      setOcrProgress('Processing document with OCR...')
       
       const response = await fetch('/api/ocr/extract', {
         method: 'POST',
         body: formData,
       })
       
+      setOcrProgress('Extracting details...')
+      
       const result = await response.json()
+      
+      if (!response.ok) {
+        // Handle API errors
+        const errorMsg = result.error || result.details || 'Failed to process document'
+        console.warn('OCR API error:', errorMsg)
+        setOcrProgress('')
+        setProcessingOCR(false)
+        // Don't show error to user - OCR is optional, they can still fill manually
+        return
+      }
+      
+      setOcrProgress('Finalizing extraction...')
       
       if (result.success && result.extractedData) {
         const data = result.extractedData
+        let extractedAny = false
         
         // Auto-fill form fields from OCR
         if (data.title && !title) {
           setTitle(data.title)
-        }
-        if (data.expiryDate && !expiryDate) {
-          // Convert date format if needed (DD-MM-YYYY or DD/MM/YYYY to YYYY-MM-DD)
-          let dateStr = data.expiryDate.replace(/\//g, '-')
-          // Try to convert to YYYY-MM-DD format
-          const parts = dateStr.split('-')
-          if (parts.length === 3) {
-            // If format is DD-MM-YYYY, convert to YYYY-MM-DD
-            if (parts[0].length === 2 && parts[2].length === 4) {
-              dateStr = `${parts[2]}-${parts[1]}-${parts[0]}`
-            }
-          }
-          setExpiryDate(dateStr)
-        }
-        if (data.category && !category) {
-          setCategory(data.category as Category)
-        }
-        if (data.notes && !notes) {
-          setNotes(data.notes)
+          extractedAny = true
         }
         
-        setOcrExtracted(true)
+        if (data.expiryDate && !expiryDate) {
+          // The OCR API now returns dates in YYYY-MM-DD format
+          // Validate the date before setting it
+          const dateStr = data.expiryDate.trim()
+          
+          // Check if it's a valid date format (YYYY-MM-DD)
+          if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+            // Validate it's a real date
+            const date = new Date(dateStr)
+            if (!isNaN(date.getTime())) {
+              // Check if date components match (prevents invalid dates like 2024-02-30)
+              const [year, month, day] = dateStr.split('-').map(Number)
+              if (date.getFullYear() === year && 
+                  date.getMonth() + 1 === month && 
+                  date.getDate() === day) {
+                setExpiryDate(dateStr)
+                extractedAny = true
+              } else {
+                console.warn('Invalid date extracted from OCR:', dateStr)
+              }
+            } else {
+              console.warn('Invalid date format from OCR:', dateStr)
+            }
+          } else {
+            console.warn('Date format not recognized from OCR:', dateStr)
+          }
+        }
+        
+        if (data.category && !category) {
+          // Validate category is one of the allowed values
+          const validCategories: Category[] = ['warranty', 'insurance', 'amc', 'subscription', 'medicine', 'other']
+          if (validCategories.includes(data.category as Category)) {
+            setCategory(data.category as Category)
+            extractedAny = true
+          }
+        }
+        
+        if (data.notes && !notes) {
+          setNotes(data.notes)
+          extractedAny = true
+        }
+        
+        if (extractedAny) {
+          setOcrExtracted(true)
+          setOcrProgress('Details extracted successfully!')
+          // Clear progress message after a moment
+          setTimeout(() => setOcrProgress(''), 2000)
+        } else {
+          console.warn('OCR completed but no valid data extracted:', result)
+          setOcrProgress('No details found - please fill manually')
+          setTimeout(() => setOcrProgress(''), 3000)
+        }
       } else {
         console.warn('OCR completed but no data extracted:', result)
+        setOcrProgress('No text found - please fill manually')
+        setTimeout(() => setOcrProgress(''), 3000)
       }
     } catch (err: any) {
       console.error('OCR processing error:', err)
+      setOcrProgress('Processing failed - please fill manually')
+      setTimeout(() => setOcrProgress(''), 3000)
       // Don't show error to user - OCR is optional enhancement
-      setError('Could not extract details from document, but you can still add the item manually.')
+      // They can still fill the form manually
     } finally {
       setProcessingOCR(false)
     }
@@ -220,15 +284,42 @@ export default function AddItemModal({ isOpen, onClose, onSuccess, userPlan = 'f
         return
       }
 
+      // Validate expiry date is not empty and is valid
+      if (!expiryDate || expiryDate.trim() === '') {
+        setError('Expiry date is required')
+        setLoading(false)
+        return
+      }
+
+      // Validate date format (YYYY-MM-DD)
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(expiryDate)) {
+        setError('Invalid date format. Please enter a valid date.')
+        setLoading(false)
+        return
+      }
+
+      // Validate it's a real date
+      const dateObj = new Date(expiryDate)
+      if (isNaN(dateObj.getTime())) {
+        setError('Invalid date. Please enter a valid date.')
+        setLoading(false)
+        return
+      }
+
+      // Check if date components match (prevents invalid dates like 2024-02-30)
+      const [year, month, day] = expiryDate.split('-').map(Number)
+      if (dateObj.getFullYear() !== year || 
+          dateObj.getMonth() + 1 !== month || 
+          dateObj.getDate() !== day) {
+        setError('Invalid date. Please enter a valid date.')
+        setLoading(false)
+        return
+      }
+
       // For Free plan, basic fields are required
       if (userPlan === 'free') {
         if (!title && !isMedicine) {
           setError('Title is required')
-          setLoading(false)
-          return
-        }
-        if (!expiryDate) {
-          setError('Expiry date is required')
           setLoading(false)
           return
         }
@@ -513,17 +604,30 @@ export default function AddItemModal({ isOpen, onClose, onSuccess, userPlan = 'f
           {/* Expiry Date */}
           <div>
             <label htmlFor="expiryDate" className="block text-sm font-medium text-gray-700 mb-1">
-              Expiry Date {userPlan === 'free' && <span className="text-red-500">*</span>}
+              Expiry Date {(userPlan === 'free' || userPlan === 'pro' || userPlan === 'family') && <span className="text-red-500">*</span>}
             </label>
             <input
               id="expiryDate"
               type="date"
-              required={userPlan === 'free'}
+              required={userPlan === 'free' || userPlan === 'pro' || userPlan === 'family'}
               value={expiryDate}
-              onChange={(e) => setExpiryDate(e.target.value)}
+              onChange={(e) => {
+                const value = e.target.value
+                // Only set if it's a valid date string (YYYY-MM-DD format)
+                if (value === '' || /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+                  setExpiryDate(value)
+                }
+              }}
               min={new Date().toISOString().split('T')[0]}
-              className="w-full px-3 py-2 text-base text-gray-900 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+              className={`w-full px-3 py-2 text-base text-gray-900 border rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500 ${
+                expiryDate && expiryDate.trim() !== '' && !/^\d{4}-\d{2}-\d{2}$/.test(expiryDate)
+                  ? 'border-red-500'
+                  : 'border-gray-300'
+              }`}
             />
+            {expiryDate && expiryDate.trim() !== '' && !/^\d{4}-\d{2}-\d{2}$/.test(expiryDate) && (
+              <p className="mt-1 text-xs text-red-500">Please enter a valid date in YYYY-MM-DD format</p>
+            )}
           </div>
 
           {/* Reminder Days */}
@@ -572,21 +676,37 @@ export default function AddItemModal({ isOpen, onClose, onSuccess, userPlan = 'f
             />
           </div>
 
-          {/* Document Upload - Required for Pro/Family plans */}
-          {canUploadDocuments(userPlan) && (
-            <div>
-              <label htmlFor="document" className="block text-sm font-medium text-gray-700 mb-1">
-                Document {userPlan !== 'free' ? '*' : '(optional)'}
-              </label>
-              <p className="text-xs text-gray-500 mb-2">
-                Upload image or PDF (max 10MB). {userPlan !== 'free' && 'We\'ll automatically extract details from your document.'}
-              </p>
+          {/* Document Upload - Available for all plans (Free: 5 uploads limit) */}
+          <div>
+            <label htmlFor="document" className="block text-sm font-medium text-gray-700 mb-1">
+              Document {userPlan !== 'free' ? '*' : '(optional)'}
+            </label>
+            <p className="text-xs text-gray-500 mb-2">
+              Upload image or PDF (max 10MB). {userPlan !== 'free' ? 'We\'ll automatically extract details from your document.' : `Free plan: ${fileCount}/5 uploads used.`}
+            </p>
+            
+            {/* Upgrade Banner for Free Plan when limit reached */}
+            {userPlan === 'free' && fileCount >= 5 && (
+              <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-sm text-blue-900 mb-2">
+                  🔓 You've used all free scans. Upgrade to Pro for unlimited document uploads & WhatsApp reminders
+                </p>
+                <a
+                  href="/settings/plans"
+                  className="text-sm font-medium text-blue-700 hover:text-blue-900 underline"
+                >
+                  Upgrade to Pro →
+                </a>
+              </div>
+            )}
+            
             <div className="flex items-center gap-2">
               <input
                 id="document"
                 type="file"
                 accept="image/*,.pdf"
                 required={userPlan !== 'free'}
+                disabled={userPlan === 'free' && fileCount >= 5}
                 onChange={async (e) => {
                   const file = e.target.files?.[0]
                   if (file) {
@@ -594,35 +714,52 @@ export default function AddItemModal({ isOpen, onClose, onSuccess, userPlan = 'f
                       setError('File size must be less than 10MB')
                       return
                     }
+                    
+                    // Check if free plan user can upload
+                    if (userPlan === 'free') {
+                      const canChoose = canChooseFile(userPlan, fileCount)
+                      if (!canChoose.allowed) {
+                        setError(canChoose.reason || 'You\'ve used all free scans. Upgrade to Pro for unlimited document uploads & WhatsApp reminders')
+                        return
+                      }
+                    }
+                    
                     setDocumentFile(file)
                     setError(null)
                     
-                    // Process OCR for Pro/Family plans
-                    if (userPlan !== 'free') {
-                      await processOCR(file)
-                    }
+                    // Process OCR for all plans (Free plan has limit check above)
+                    await processOCR(file)
                   }
                 }}
-                className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100"
+                className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100 disabled:opacity-50 disabled:cursor-not-allowed"
               />
             </div>
             {processingOCR && (
               <div className="mt-2 text-sm text-blue-600 flex items-center gap-2">
                 <span className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
-                Processing document and extracting details...
+                <span>{ocrProgress || 'Processing document and extracting details...'}</span>
               </div>
             )}
             {documentFile && !processingOCR && (
               <div className="mt-2 flex items-center gap-2 text-sm text-gray-600">
                 <span>📄 {documentFile.name}</span>
                 {ocrExtracted && (
-                  <span className="text-green-600 text-xs">✓ Details extracted</span>
+                  <span className="text-green-600 text-xs">✓ Details extracted - Please review and complete any missing fields</span>
+                )}
+                {!ocrExtracted && userPlan !== 'free' && (
+                  <span className="text-gray-500 text-xs">No details extracted - Please fill the form manually</span>
                 )}
                 <button
                   type="button"
                   onClick={() => {
                     setDocumentFile(null)
                     setOcrExtracted(false)
+                    // Reset form fields if they were auto-filled
+                    if (ocrExtracted) {
+                      setTitle('')
+                      setExpiryDate('')
+                      setNotes('')
+                    }
                   }}
                   className="text-red-600 hover:text-red-800 text-xs"
                 >
@@ -630,13 +767,7 @@ export default function AddItemModal({ isOpen, onClose, onSuccess, userPlan = 'f
                 </button>
               </div>
             )}
-            </div>
-          )}
-          {!canUploadDocuments(userPlan) && (
-            <div className="text-xs text-gray-500 p-2 bg-gray-50 rounded">
-              Document upload requires Pro or Family plan
-            </div>
-          )}
+          </div>
 
           {/* Submit Buttons */}
           <div className="flex gap-3 pt-4">

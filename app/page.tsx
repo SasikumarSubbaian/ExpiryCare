@@ -94,12 +94,6 @@ export default async function LandingPage() {
         
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           <div className="text-center animate-fade-in">
-            {/* Trust Badge */}
-            <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/80 backdrop-blur-sm rounded-full shadow-soft mb-6 animate-slide-down">
-              <span className="text-success-500">✓</span>
-              <span className="text-sm font-medium text-gray-700">Trusted by 10,000+ Indian families</span>
-            </div>
-            
             <h1 className="text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-extrabold text-gray-900 leading-tight mb-6 animate-slide-up">
               Never miss an important{' '}
               <span className="bg-gradient-to-r from-primary-600 via-primary-500 to-primary-600 bg-clip-text text-transparent">
