@@ -13,9 +13,14 @@ export default function Header() {
   const supabase = createClient()
   
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      setUser(data.user)
-    })
+    const fetchUser = async () => {
+      const { data, error } = await supabase.auth.getUser()
+      if (!error) {
+        setUser(data.user)
+      }
+    }
+
+    fetchUser()
   }, [])
   
   const isDashboard = pathname === '/dashboard'
