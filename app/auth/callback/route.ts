@@ -9,6 +9,11 @@ export async function GET(request: NextRequest) {
 
   if (code) {
     const supabase = await createClient()
+    if (!supabase) {
+      console.error('Failed to create Supabase client')
+      return NextResponse.redirect(new URL('/login?error=config_error', request.url))
+    }
+
     const { data, error } = await supabase.auth.exchangeCodeForSession(code)
     
     if (!error && data?.user) {

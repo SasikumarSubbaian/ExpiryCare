@@ -16,6 +16,12 @@ export async function POST(request: Request) {
     }
 
     const supabase = await createClient()
+    if (!supabase) {
+      return NextResponse.json(
+        { error: 'Service configuration error' },
+        { status: 500 }
+      )
+    }
     
     // Get the item
     const { data: item, error: itemError } = await supabase

@@ -28,8 +28,21 @@ type LifeItem = {
 }
 
 export default async function DashboardPage() {
+  // Handle Supabase client creation gracefully
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  if (!supabase) {
+    console.error('Failed to create Supabase client')
+    redirect('/login')
+  }
+
+  let user = null
+  try {
+    const { data } = await supabase.auth.getUser()
+    user = data?.user || null
+  } catch (error) {
+    console.error('Error fetching user:', error)
+    redirect('/login')
+  }
 
   // Redirect unauthenticated users to login
   if (!user) {

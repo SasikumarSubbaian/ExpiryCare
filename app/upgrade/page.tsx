@@ -4,9 +4,26 @@ import { getUserPlan } from '@/lib/supabase/plans'
 import { PLAN_PRICES } from '@/lib/plans'
 import Link from 'next/link'
 
+// Force dynamic rendering to ensure cookies are accessible
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 export default async function UpgradePage() {
+  // Handle Supabase client creation gracefully
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  if (!supabase) {
+    console.error('Failed to create Supabase client')
+    redirect('/login')
+  }
+
+  let user = null
+  try {
+    const { data } = await supabase.auth.getUser()
+    user = data?.user || null
+  } catch (error) {
+    console.error('Error fetching user:', error)
+    redirect('/login')
+  }
 
   if (!user) {
     redirect('/login')

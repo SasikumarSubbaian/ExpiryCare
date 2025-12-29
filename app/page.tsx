@@ -4,26 +4,44 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { PLAN_PRICES } from '@/lib/plans'
 
+// Force dynamic rendering to ensure cookies are accessible
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 export default async function LandingPage() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  // Handle Supabase client creation gracefully
+  let user = null
+  try {
+    const supabase = await createClient()
+    if (supabase) {
+      const { data } = await supabase.auth.getUser()
+      user = data?.user || null
+    }
+  } catch (error) {
+    console.error('Error fetching user:', error)
+    // Continue rendering as guest user
+    user = null
+  }
 
   // Get user name for authenticated users
   let userName = user?.email?.split('@')[0] || 'User'
   if (user) {
     try {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('full_name')
-        .eq('id', user.id)
-        .single()
-      
-      if (profile?.full_name) {
-        userName = profile.full_name
-      } else if (user.user_metadata?.full_name) {
-        userName = user.user_metadata.full_name
-      } else if (user.user_metadata?.name) {
-        userName = user.user_metadata.name
+      const supabase = await createClient()
+      if (supabase) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('full_name')
+          .eq('id', user.id)
+          .single()
+        
+        if (profile?.full_name) {
+          userName = profile.full_name
+        } else if (user.user_metadata?.full_name) {
+          userName = user.user_metadata.full_name
+        } else if (user.user_metadata?.name) {
+          userName = user.user_metadata.name
+        }
       }
     } catch (err) {
       // Fallback to email or metadata
