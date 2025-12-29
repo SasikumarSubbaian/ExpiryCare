@@ -4,7 +4,7 @@
 // Falls back to regex extraction if AI fails
 
 import { NextResponse } from 'next/server'
-import { regexExtract } from '@/lib/ocr/regexExtractor'
+import { regexExtract } from '@/lib/ocr'
 
 export async function POST(req: Request) {
   let ocrText = ''

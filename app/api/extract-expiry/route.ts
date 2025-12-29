@@ -8,7 +8,7 @@ import { promisify } from 'util'
 import { writeFile, unlink } from 'fs/promises'
 import { join } from 'path'
 import { tmpdir } from 'os'
-import { extractTextWithMLKit, isMLKitConfigured } from '@/lib/ocr/mlkit-service'
+import { extractTextWithMLKit, isMLKitConfigured } from '@/lib/ocr'
 
 const execFileAsync = promisify(execFile)
 
@@ -598,7 +598,10 @@ async function runOCR(file: File): Promise<{
   
   try {
     // Import utilities for preprocessing and handwriting detection
+    // Dynamic imports for optional dependencies (with error handling)
+    // @ts-ignore - pdf-converter is optional dependency
     const { convertPdfToImage } = await import('@/lib/ocr/pdf-converter')
+    // @ts-ignore - handwriting-detection is optional
     const { detectHandwriting } = await import('@/lib/ocr/handwriting-detection')
     const sharp = (await import('sharp')).default
 
