@@ -72,12 +72,20 @@ async function SafeLandingPageContent() {
 }
 
 export default async function LandingPage() {
-  // CRITICAL: This function must NEVER throw an error
-  // Wrap everything in try-catch and use safe defaults
+  // CRITICAL: This function must NEVER throw an error during SSR
+  // All operations are wrapped in try-catch with safe fallbacks
+  // No browser APIs (window, document, localStorage, navigator) are used
+  
+  // SSR Guard: Ensure we're in server context
+  if (typeof window !== 'undefined') {
+    // This should never happen in a server component, but guard anyway
+    console.error('[LandingPage] Unexpected browser context in server component')
+  }
   
   let user = null
   let userName = 'User'
   let proPlanPrice = '299'
+  let currentYear = new Date().getFullYear() // Safe for SSR - Date works on server
   
   try {
     const result = await SafeLandingPageContent()
@@ -86,8 +94,20 @@ export default async function LandingPage() {
     proPlanPrice = result.proPlanPrice
   } catch (error: any) {
     // If anything fails, use safe defaults
-    console.error('[LandingPage] Error in SafeLandingPageContent:', error?.message || String(error))
+    // Log error but never throw to prevent 500 error
+    console.error('[LandingPage] Error in SafeLandingPageContent:', {
+      message: error?.message || String(error),
+      name: error?.name,
+    })
     // Continue with defaults - never throw
+  }
+  
+  // Additional safety: Ensure all values are safe for rendering
+  if (typeof userName !== 'string') userName = 'User'
+  if (typeof proPlanPrice !== 'string') proPlanPrice = '299'
+  if (typeof currentYear !== 'number' || isNaN(currentYear)) {
+    // Fallback to current year if Date fails
+    currentYear = 2024
   }
 
   return (
@@ -538,7 +558,7 @@ export default async function LandingPage() {
           </div>
           <div className="border-t border-gray-800 pt-8 flex flex-col sm:flex-row justify-between items-center gap-4">
             <p className="text-gray-400 text-sm">
-              © {new Date().getFullYear()} ExpiryCare. All rights reserved.
+              © {currentYear} ExpiryCare. All rights reserved.
             </p>
             <p className="text-gray-400 text-sm">
               Made with ❤️ for Indian families
