@@ -531,7 +531,7 @@ export default function LandingPage() {
           </div>
           <div className="border-t border-gray-800 pt-8 flex flex-col sm:flex-row justify-between items-center gap-4">
             <p className="text-gray-400 text-sm">
-              © {typeof window !== 'undefined' ? new Date().getFullYear() : 2024} ExpiryCare. All rights reserved.
+              © {new Date().getFullYear()} ExpiryCare. All rights reserved.
             </p>
             <p className="text-gray-400 text-sm">
               Made with ❤️ for Indian families
