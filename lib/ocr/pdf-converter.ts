@@ -59,6 +59,7 @@ export async function convertPdfToImage(
     const renderContext = {
       canvasContext: context as any,
       viewport: viewport,
+      canvas: canvas as any, // Add canvas property for pdfjs-dist compatibility
     }
 
     await page.render(renderContext).promise

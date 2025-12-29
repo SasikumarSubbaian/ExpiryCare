@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import { differenceInDays, format, isToday } from 'date-fns'
 import { sendExpiryReminder } from '@/lib/email/sender'
+import { canSendEmailReminder, canSendItemReminder } from '@/lib/abuse/reminderLimits'
 
 // Use service role key to bypass RLS for checking all users' items
 async function getServiceRoleClient() {
@@ -172,12 +173,28 @@ export async function GET(request: Request) {
       }
     }
 
-    // Send emails and log reminders
+    // Send emails and log reminders (with abuse protection)
     let sentCount = 0
     const errors: string[] = []
+    const skippedCount = 0
 
     for (const reminder of remindersToSend) {
       try {
+        // Check item reminder limit (max 3 per item)
+        const itemLimit = await canSendItemReminder(reminder.itemId)
+        if (!itemLimit.allowed) {
+          console.log(`Skipping reminder for item ${reminder.itemId}: ${itemLimit.reason}`)
+          continue
+        }
+
+        // Check user daily email limit (max 5/day)
+        const emailLimit = await canSendEmailReminder(reminder.userId)
+        if (!emailLimit.allowed) {
+          console.log(`Skipping email for user ${reminder.userId}: ${emailLimit.reason}`)
+          errors.push(`Daily email limit reached for ${reminder.title}`)
+          continue
+        }
+
         await sendExpiryReminder(
           reminder.userEmail,
           reminder.title,
@@ -191,13 +208,15 @@ export async function GET(request: Request) {
         await supabase.from('reminder_logs').insert({
           life_item_id: reminder.itemId,
           user_id: reminder.userId,
+          reminder_type: 'email',
           reminder_day: reminder.reminderDay,
+          sent_at: new Date().toISOString(),
         })
 
         sentCount++
       } catch (error: any) {
         console.error(`Failed to send reminder for item ${reminder.itemId}:`, error)
-        errors.push(`Item ${reminder.title}: ${error.message}`)
+        errors.push(`Item ${reminder.title}: Could not send reminder`)
       }
     }
 

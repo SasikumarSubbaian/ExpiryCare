@@ -153,7 +153,7 @@ export default function PlanSettingsPage() {
               <div className="mb-6">
                 <p className="text-sm font-medium text-gray-700 mb-3">Current Plan: <span className="font-bold text-primary-600">{currentPlan.toUpperCase()}</span></p>
                 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 max-w-2xl">
                   <button
                     onClick={() => setPlan('free')}
                     disabled={loading || currentPlan === 'free'}
@@ -176,17 +176,6 @@ export default function PlanSettingsPage() {
                   >
                     Pro Plan
                   </button>
-                  <button
-                    onClick={() => setPlan('family')}
-                    disabled={loading || currentPlan === 'family'}
-                    className={`px-4 py-3 rounded-lg border-2 font-medium transition-colors ${
-                      currentPlan === 'family'
-                        ? 'bg-primary-600 text-white border-primary-600'
-                        : 'bg-white text-gray-700 border-gray-300 hover:border-primary-500 hover:bg-primary-50'
-                    } disabled:opacity-50 disabled:cursor-not-allowed`}
-                  >
-                    Family Plan
-                  </button>
                 </div>
 
                 {message && (
@@ -203,9 +192,18 @@ export default function PlanSettingsPage() {
                   <h3 className="font-semibold text-gray-900 mb-2">Current Plan Limits:</h3>
                   <ul className="space-y-1 text-sm text-gray-700">
                     <li>Max Items: {limits.maxItems === -1 ? 'Unlimited' : limits.maxItems}</li>
+                    <li>Max OCR Uploads: {limits.maxOcrUploads === -1 ? 'Unlimited' : limits.maxOcrUploads}</li>
+                    {limits.maxOcrPerDay > 0 && (
+                      <li>Max OCR/Day: {limits.maxOcrPerDay}</li>
+                    )}
+                    {limits.maxOcrPerMonth > 0 && (
+                      <li>Max OCR/Month: {limits.maxOcrPerMonth}</li>
+                    )}
                     <li>Max Family Members: {limits.maxFamilyMembers === -1 ? 'Unlimited' : limits.maxFamilyMembers}</li>
                     <li>Medicine Tracking: {limits.allowsMedicine ? '✓ Enabled' : '✗ Disabled'}</li>
                     <li>Document Upload: {limits.allowsDocuments ? '✓ Enabled' : '✗ Disabled'}</li>
+                    <li>Email Reminders: {limits.allowsEmailReminders ? '✓ Enabled' : '✗ Disabled'}</li>
+                    <li>WhatsApp Reminders: {limits.allowsWhatsAppReminders ? '✓ Enabled' : '✗ Disabled'}</li>
                     <li>Family Sharing: {limits.allowsSharing ? '✓ Enabled' : '✗ Disabled'}</li>
                   </ul>
                 </div>
@@ -257,9 +255,8 @@ CREATE POLICY "Users can insert their own plan"
               <ul className="list-disc list-inside space-y-1 ml-4">
                 <li>Click on a plan button above to set your plan</li>
                 <li>Go to Dashboard to see plan limits in action</li>
-                <li>Try adding items to test Free plan limit (5 items)</li>
-                <li>Test Pro plan features (medicine tracking, documents)</li>
-                <li>Test Family plan features (family sharing)</li>
+                <li>Try adding items to test Free plan limit (10 items)</li>
+                <li>Test Pro plan features (medicine tracking, documents, family sharing)</li>
               </ul>
             </div>
 

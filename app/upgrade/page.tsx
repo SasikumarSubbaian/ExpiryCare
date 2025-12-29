@@ -28,7 +28,7 @@ export default async function UpgradePage() {
           <p className="text-gray-600">Choose the plan that's right for you</p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
           {/* Free Plan */}
           <div className={`bg-white rounded-lg shadow-sm border-2 p-6 ${currentPlan === 'free' ? 'border-primary-500' : 'border-gray-200'}`}>
             <h3 className="text-xl font-bold text-gray-900 mb-2">Free</h3>
@@ -39,11 +39,15 @@ export default async function UpgradePage() {
             <ul className="space-y-2 mb-6 text-sm">
               <li className="flex items-center">
                 <span className="text-green-600 mr-2">✓</span>
-                Up to 5 life items
+                Up to 10 life items
               </li>
               <li className="flex items-center">
                 <span className="text-green-600 mr-2">✓</span>
                 Email reminders
+              </li>
+              <li className="flex items-center">
+                <span className="text-green-600 mr-2">✓</span>
+                5 document uploads (OCR)
               </li>
               <li className="flex items-center text-gray-400">
                 <span className="mr-2">✗</span>
@@ -51,7 +55,7 @@ export default async function UpgradePage() {
               </li>
               <li className="flex items-center text-gray-400">
                 <span className="mr-2">✗</span>
-                Document uploads
+                WhatsApp reminders
               </li>
               <li className="flex items-center text-gray-400">
                 <span className="mr-2">✗</span>
@@ -92,15 +96,19 @@ export default async function UpgradePage() {
               </li>
               <li className="flex items-center">
                 <span className="text-green-600 mr-2">✓</span>
+                WhatsApp reminders
+              </li>
+              <li className="flex items-center">
+                <span className="text-green-600 mr-2">✓</span>
                 Medicine tracking
               </li>
               <li className="flex items-center">
                 <span className="text-green-600 mr-2">✓</span>
-                Document uploads
+                Unlimited document uploads
               </li>
-              <li className="flex items-center text-gray-400">
-                <span className="mr-2">✗</span>
-                Family sharing
+              <li className="flex items-center">
+                <span className="text-green-600 mr-2">✓</span>
+                Family sharing (up to 5 members)
               </li>
             </ul>
             {currentPlan === 'pro' ? (
@@ -114,50 +122,6 @@ export default async function UpgradePage() {
             )}
           </div>
 
-          {/* Family Plan */}
-          <div className={`bg-white rounded-lg shadow-sm border-2 p-6 ${currentPlan === 'family' ? 'border-primary-500' : 'border-gray-200'}`}>
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-xl font-bold text-gray-900">Family</h3>
-              {currentPlan === 'family' && (
-                <span className="text-xs bg-primary-100 text-primary-800 px-2 py-1 rounded">Current</span>
-              )}
-            </div>
-            <div className="mb-4">
-              <span className="text-3xl font-bold text-gray-900">₹{PLAN_PRICES.family}</span>
-              <span className="text-gray-600">/year</span>
-            </div>
-            <ul className="space-y-2 mb-6 text-sm">
-              <li className="flex items-center">
-                <span className="text-green-600 mr-2">✓</span>
-                Unlimited items
-              </li>
-              <li className="flex items-center">
-                <span className="text-green-600 mr-2">✓</span>
-                Email reminders
-              </li>
-              <li className="flex items-center">
-                <span className="text-green-600 mr-2">✓</span>
-                Medicine tracking
-              </li>
-              <li className="flex items-center">
-                <span className="text-green-600 mr-2">✓</span>
-                Document uploads
-              </li>
-              <li className="flex items-center">
-                <span className="text-green-600 mr-2">✓</span>
-                Up to 5 family members
-              </li>
-            </ul>
-            {currentPlan === 'family' ? (
-              <button className="w-full px-4 py-2 bg-primary-600 text-white rounded-md cursor-default">
-                Current Plan
-              </button>
-            ) : (
-              <button className="w-full px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700">
-                Upgrade to Family
-              </button>
-            )}
-          </div>
         </div>
 
         <div className="mt-8 text-center text-sm text-gray-500">
