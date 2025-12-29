@@ -51,10 +51,8 @@ export async function createClient() {
             // The `set` method was called from a Server Component.
             // This can be ignored if you have middleware refreshing
             // user sessions.
-            // Only log in development to avoid noise
-            if (process.env.NODE_ENV === 'development') {
-              console.warn('[Supabase] Cookie set failed (expected in Server Components):', name)
-            }
+            // Cookie set failed in Server Component - this is expected
+            // Don't log to avoid noise in production
           }
         },
         remove(name: string, options: CookieOptions) {
@@ -64,10 +62,8 @@ export async function createClient() {
             // The `remove` method was called from a Server Component.
             // This can be ignored if you have middleware refreshing
             // user sessions.
-            // Only log in development to avoid noise
-            if (process.env.NODE_ENV === 'development') {
-              console.warn('[Supabase] Cookie remove failed (expected in Server Components):', name)
-            }
+            // Cookie remove failed in Server Component - this is expected
+            // Don't log to avoid noise in production
           }
         },
       },

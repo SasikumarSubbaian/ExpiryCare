@@ -9,22 +9,36 @@ export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
 export default async function LandingPage() {
-  // Handle Supabase client creation gracefully with comprehensive error handling
+  // CRITICAL: This function must NEVER throw an error to prevent 500 errors
+  // All operations are wrapped in try-catch blocks with fallbacks
+  
   let user = null
   let userName = 'User'
+  let proPlanPrice = '299' // Default fallback price from PLAN_PRICES
   
+  // Safely get PLAN_PRICES with fallback - use the imported value
+  try {
+    if (PLAN_PRICES?.pro) {
+      proPlanPrice = String(PLAN_PRICES.pro)
+    }
+  } catch (error: any) {
+    // If PLAN_PRICES import failed, use default
+    console.warn('[LandingPage] Could not access PLAN_PRICES, using default:', error?.message)
+  }
+  
+  // Safely get user information - all errors are caught and handled
   try {
     const supabase = await createClient()
     if (!supabase) {
       // Supabase client is null (missing env vars or cookie access error)
-      // Continue rendering as guest - this is expected behavior
-      console.log('[LandingPage] Rendering as guest (Supabase client unavailable)')
+      // This is OK - continue rendering as guest
+      // Don't log in production to avoid noise
     } else {
       try {
         const { data, error: authError } = await supabase.auth.getUser()
         if (authError) {
-          console.error('[LandingPage] Auth error:', authError.message)
-          // Continue as guest
+          // Auth error - continue as guest (this is expected for non-authenticated users)
+          // Don't log in production
         } else {
           user = data?.user || null
           
@@ -48,7 +62,7 @@ export default async function LandingPage() {
               }
             } catch (profileError: any) {
               // Profile fetch failed - use metadata as fallback
-              console.warn('[LandingPage] Profile fetch failed:', profileError?.message)
+              // This is OK - not all users have profiles
               if (user.user_metadata?.full_name) {
                 userName = user.user_metadata.full_name
               } else if (user.user_metadata?.name) {
@@ -58,17 +72,18 @@ export default async function LandingPage() {
           }
         }
       } catch (authError: any) {
-        console.error('[LandingPage] Error in auth.getUser():', authError?.message || authError)
-        // Continue rendering as guest
+        // Error in auth.getUser() - continue as guest
+        // This is OK - not all requests have valid auth
       }
     }
   } catch (error: any) {
-    // Catch any unexpected errors during client creation or user fetching
-    console.error('[LandingPage] Unexpected error:', {
-      message: error?.message || error,
-      stack: error?.stack,
+    // Catch ANY unexpected errors - never throw to prevent 500 error
+    // Log error details for debugging but continue rendering
+    console.error('[LandingPage] Error (handled gracefully):', {
+      message: error?.message || String(error),
+      name: error?.name,
     })
-    // Continue rendering as guest - never throw to prevent 500 error
+    // Continue rendering as guest - never throw
     user = null
   }
 
@@ -367,7 +382,7 @@ export default async function LandingPage() {
               <div className="mb-6 relative z-10">
                 <h3 className="text-2xl font-bold text-white mb-2">Pro</h3>
                 <div className="flex items-baseline">
-                  <span className="text-4xl font-extrabold text-white">₹{PLAN_PRICES.pro}</span>
+                  <span className="text-4xl font-extrabold text-white">₹{proPlanPrice}</span>
                   <span className="text-primary-100 ml-2">/year</span>
                 </div>
               </div>
