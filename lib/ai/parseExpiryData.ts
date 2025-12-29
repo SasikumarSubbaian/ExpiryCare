@@ -366,9 +366,9 @@ function validateAndNormalize(data: any): ExpiryDataOutput {
   // Detected labels
   if (Array.isArray(data.detectedLabels)) {
     result.detectedLabels = data.detectedLabels
-      .filter((label) => typeof label === 'string')
-      .map((label) => label.trim().toUpperCase())
-      .filter((label) => label.length > 0)
+      .filter((label: unknown) => typeof label === 'string')
+      .map((label: string) => label.trim().toUpperCase())
+      .filter((label: string) => label.length > 0)
   }
 
   return result

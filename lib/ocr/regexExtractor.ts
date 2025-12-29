@@ -185,9 +185,10 @@ export function regexExtract(text: string): ExtractedData {
     const processedMatches = new Set<string>()
   
   for (const pattern of EXPIRY_PATTERNS) {
-    const matches = text.matchAll(new RegExp(pattern, 'gi'))
+    const regex = new RegExp(pattern, 'gi')
+    let match: RegExpExecArray | null
     
-    for (const match of matches) {
+    while ((match = regex.exec(text)) !== null) {
       const fullMatch = match[0]
       const groups = match.slice(1).filter(Boolean) // Remove undefined groups
       

@@ -336,9 +336,9 @@ function validateAndNormalize(data: any): ReasoningEngineOutput {
   // Detected keywords
   if (Array.isArray(data.detectedKeywords)) {
     result.detectedKeywords = data.detectedKeywords
-      .filter((keyword) => typeof keyword === 'string')
-      .map((keyword) => keyword.trim().toUpperCase())
-      .filter((keyword) => keyword.length > 0)
+      .filter((keyword: unknown) => typeof keyword === 'string')
+      .map((keyword: string) => keyword.trim().toUpperCase())
+      .filter((keyword: string) => keyword.length > 0)
   }
 
   return result
