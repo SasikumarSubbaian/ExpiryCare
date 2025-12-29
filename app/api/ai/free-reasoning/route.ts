@@ -6,6 +6,8 @@
 import { NextResponse } from 'next/server'
 import { regexExtract } from '@/lib/ocr/index'
 
+export const runtime = 'nodejs'
+
 export async function POST(req: Request) {
   let ocrText = ''
   try {

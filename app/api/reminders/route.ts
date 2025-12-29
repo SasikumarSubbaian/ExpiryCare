@@ -4,6 +4,8 @@ import { differenceInDays, format, isToday } from 'date-fns'
 import { sendExpiryReminder } from '@/lib/email/sender'
 import { canSendEmailReminder, canSendItemReminder } from '@/lib/abuse/reminderLimits'
 
+export const runtime = 'nodejs'
+
 // Use service role key to bypass RLS for checking all users' items
 async function getServiceRoleClient() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!

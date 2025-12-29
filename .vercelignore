@@ -1,43 +1,7 @@
-# Vercel ignore file - minimal safe version
-# Only ignore files that should never be deployed
-
-# Dependencies
-node_modules
-
-# Build outputs
-.next
-dist
-build
-coverage
-
-# Git
 .git
 .gitignore
-
-# Vercel
-.vercel
-
-# Environment files (sensitive)
-.env*.local
-.env
-
-# Editor configs
+README.md
+.cursor
 .vscode
-.idea
-*.swp
-*.swo
-
-# OS files
-.DS_Store
-Thumbs.db
-
-# Logs
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-
-# TypeScript build info
-*.tsbuildinfo
-
-# Note: lib/, app/, components/ are NOT ignored - they are needed for build
+coverage
+.env*

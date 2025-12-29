@@ -3,6 +3,8 @@ import { createClient } from '@/lib/supabase/server'
 import { correctHandwriting, createCorrectionError } from '@/lib/ai/correctHandwriting'
 import type { HandwritingCorrectionError } from '@/lib/ai/correctHandwriting'
 
+export const runtime = 'nodejs'
+
 /**
  * API endpoint for handwriting error correction
  * POST /api/ai/correct-handwriting

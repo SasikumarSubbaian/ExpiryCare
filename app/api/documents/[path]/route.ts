@@ -1,6 +1,8 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 
+export const runtime = 'nodejs'
+
 // API route to download documents securely
 // Downloads files directly from Supabase storage and streams them to the user
 // This ensures users can only download their own documents and hides Supabase URLs

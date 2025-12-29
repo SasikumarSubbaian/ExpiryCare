@@ -80,6 +80,8 @@ const nextConfig = {
     return config
   },
   transpilePackages: ['@supabase/ssr'],
+  // Disable output file tracing to prevent micromatch recursion errors in Vercel
+  outputFileTracing: false,
 }
 
 module.exports = nextConfig

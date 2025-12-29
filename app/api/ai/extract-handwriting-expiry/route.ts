@@ -6,6 +6,8 @@ import {
 } from '@/lib/ai/extractHandwritingExpiry'
 import type { HandwritingExpiryError } from '@/lib/ai/extractHandwritingExpiry'
 
+export const runtime = 'nodejs'
+
 /**
  * API endpoint for handwriting expiry extraction
  * POST /api/ai/extract-handwriting-expiry

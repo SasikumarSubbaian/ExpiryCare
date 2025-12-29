@@ -9,6 +9,8 @@ import { getCategorySchema } from '@/lib/categorySchemas'
 import { extractByCategory, type Category } from '@/lib/extractors/masterExtractor'
 import { regexExtract } from '@/lib/ocr/index'
 
+export const runtime = 'nodejs'
+
 export async function POST(req: Request) {
   let ocrText: string = ''
   try {

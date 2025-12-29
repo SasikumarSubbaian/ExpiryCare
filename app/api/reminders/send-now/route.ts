@@ -3,6 +3,8 @@ import { NextResponse } from 'next/server'
 import { differenceInDays, isToday } from 'date-fns'
 import { sendExpiryReminder } from '@/lib/email/sender'
 
+export const runtime = 'nodejs'
+
 // API endpoint to send reminder immediately for a specific item
 export async function POST(request: Request) {
   try {

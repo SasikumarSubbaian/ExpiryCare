@@ -10,6 +10,8 @@ import { join } from 'path'
 import { tmpdir } from 'os'
 import { extractTextWithMLKit, isMLKitConfigured } from '@/lib/ocr/index'
 
+export const runtime = 'nodejs'
+
 const execFileAsync = promisify(execFile)
 
 // OCR Provider Selection

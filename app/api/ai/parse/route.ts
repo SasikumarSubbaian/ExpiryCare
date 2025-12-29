@@ -3,6 +3,8 @@ import { createClient } from '@/lib/supabase/server'
 import { parseExpiryData, createParseError } from '@/lib/ai/parseExpiryData'
 import type { ExpiryDataInput, ExpiryDataOutput, ParseError } from '@/lib/ai/types'
 
+export const runtime = 'nodejs'
+
 /**
  * AI Parsing API Route
  * 
