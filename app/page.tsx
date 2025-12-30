@@ -1,14 +1,14 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { PLAN_PRICES } from '@/lib/plans'
-import dynamic from 'next/dynamic'
+import dynamicImport from 'next/dynamic'
 
 // Force static rendering to prevent SSR crashes
 export const dynamic = 'force-static'
 export const revalidate = false
 
 // Load client-only auth component with SSR disabled
-const LandingPageAuth = dynamic(
+const LandingPageAuth = dynamicImport(
   () => import('@/components/LandingPageAuth'),
   { ssr: false }
 )
