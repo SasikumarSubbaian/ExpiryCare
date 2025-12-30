@@ -1,70 +1,89 @@
-import { getUserPlan } from '@/lib/supabase/plans'
+'use client'
+
+import { useState, useEffect } from 'react'
 import { PLAN_PRICES } from '@/lib/plans'
-import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
+import type { PlanType } from '@/lib/plans'
 
-// No runtime exports needed - inherited from layout
-// No auth logic needed - handled by layout
+type PlanLimits = {
+  plan: PlanType
+  itemCount: number
+  familyMemberCount: number
+  documentCount: number
+  error?: string
+}
 
-export default async function UpgradePage() {
-  // Auth is handled by layout - user is guaranteed to be authenticated here
-  // Fetch user for this page (Supabase caches, so this is efficient)
-  const supabase = await createClient()
-  
-  if (!supabase) {
-    // This shouldn't happen if layout worked, but safe guard
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-900 mb-4">Error</h1>
-          <p className="text-gray-600">Unable to connect to database. Please try again later.</p>
-        </div>
-      </div>
-    )
-  }
+/**
+ * Upgrade Page - Client Component
+ * Fetches plan limits from API route to avoid server-side session issues
+ * NEVER throws - always renders safely
+ */
+export default function UpgradePage() {
+  const [planLimits, setPlanLimits] = useState<PlanLimits | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  // Get authenticated user
-  let user = null
-  try {
-    const { data, error } = await supabase.auth.getUser()
-    if (error || !data?.user) {
-      // This shouldn't happen if layout worked, but safe guard
-      return (
-        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-          <div className="text-center">
-            <h1 className="text-2xl font-bold text-gray-900 mb-4">Authentication Error</h1>
-            <p className="text-gray-600">Please log in again.</p>
-            <Link href="/login" className="mt-4 inline-block text-primary-600 hover:text-primary-700">
-              Go to Login
-            </Link>
-          </div>
-        </div>
-      )
+  useEffect(() => {
+    async function fetchPlanLimits() {
+      try {
+        setLoading(true)
+        setError(null)
+        
+        const response = await fetch('/api/plan/limits', {
+          credentials: 'include',
+        })
+        
+        if (!response.ok) {
+          throw new Error('Failed to fetch plan information')
+        }
+        
+        const data: PlanLimits = await response.json()
+        setPlanLimits(data)
+      } catch (err: unknown) {
+        const errorMessage = err instanceof Error ? err.message : String(err)
+        console.error('[Upgrade] Error fetching plan limits:', errorMessage)
+        setError('Failed to load plan information')
+        // Set safe fallback
+        setPlanLimits({
+          plan: 'free',
+          itemCount: 0,
+          familyMemberCount: 0,
+          documentCount: 0,
+        })
+      } finally {
+        setLoading(false)
+      }
     }
-    user = data.user
-  } catch (err: unknown) {
-    const errorMessage = err instanceof Error ? err.message : String(err)
-    console.error('[Upgrade] Error fetching user:', errorMessage)
+
+    fetchPlanLimits()
+  }, [])
+
+  // Safe fallback if still loading or error
+  const currentPlan: PlanType = planLimits?.plan || 'free'
+
+  if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-900 mb-4">Error</h1>
-          <p className="text-gray-600">An error occurred. Please try again later.</p>
+          <div className="w-8 h-8 border-4 border-primary-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-gray-600">Loading plan information...</p>
         </div>
       </div>
     )
   }
 
-  // Get user plan - safe fallback to 'free' if error
-  // CRITICAL: Wrap in try/catch to prevent 500 errors on RSC crashes
-  let currentPlan: 'free' | 'pro' | 'family' = 'free'
-  try {
-    currentPlan = await getUserPlan(user.id)
-  } catch (planError: unknown) {
-    const errorMessage = planError instanceof Error ? planError.message : String(planError)
-    console.error('[Upgrade] Error fetching user plan:', errorMessage)
-    // Safe fallback - default to 'free' plan
-    currentPlan = 'free'
+  if (error && !planLimits) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-gray-900 mb-4">Error</h1>
+          <p className="text-gray-600 mb-4">{error}</p>
+          <Link href="/dashboard" className="text-primary-600 hover:text-primary-700">
+            Back to Dashboard
+          </Link>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -220,4 +239,3 @@ export default async function UpgradePage() {
     </div>
   )
 }
-
