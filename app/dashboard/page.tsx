@@ -10,9 +10,10 @@ import PlanDisplay from '@/components/PlanDisplay'
 import { getUserPlan, getItemCount, getFamilyMemberCount, getDocumentCount } from '@/lib/supabase/plans'
 import { requireAuth } from '@/lib/auth/guard'
 
-// Revalidate this page every time it's accessed (for fresh data after adds)
-export const revalidate = 0
+// CRITICAL: Force Node.js runtime to prevent Edge runtime crashes with cookies()
+export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
+export const revalidate = 0
 
 type LifeItem = {
   id: string

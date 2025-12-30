@@ -4,7 +4,8 @@ import { PLAN_PRICES } from '@/lib/plans'
 import { requireAuth } from '@/lib/auth/guard'
 import Link from 'next/link'
 
-// Force dynamic rendering to ensure cookies are accessible
+// CRITICAL: Force Node.js runtime to prevent Edge runtime crashes with cookies()
+export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
