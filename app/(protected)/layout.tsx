@@ -15,6 +15,8 @@ export const revalidate = 0
  * - Redirects to /login if unauthenticated
  * - Never throws errors
  * - Provides user context to all child pages
+ * 
+ * This layout ensures all child pages are authenticated before rendering.
  */
 export default async function ProtectedLayout({
   children,
