@@ -266,12 +266,9 @@ export default function AddItemModal({ isOpen, onClose, onSuccess, userPlan = 'f
 
       const personName = getPersonName()
 
-      // Document is required for Pro/Family plans
-      if (userPlan !== 'free' && !documentFile) {
-        setError('Document upload is required for Pro and Family plans')
-        setLoading(false)
-        return
-      }
+      // CRITICAL: Document and OCR are OPTIONAL - users can always add items manually
+      // OCR is a convenience feature, not a requirement
+      // Add Item flow must work independently of OCR success/failure
 
       // Reminder Days is required for Pro/Family plans
       if ((userPlan === 'pro' || userPlan === 'family') && reminderDays.length === 0) {
@@ -649,10 +646,10 @@ export default function AddItemModal({ isOpen, onClose, onSuccess, userPlan = 'f
           {canUploadDocuments(userPlan) && (
             <div>
               <label htmlFor="document" className="block text-sm font-medium text-gray-700 mb-1">
-                Document {userPlan !== 'free' ? '*' : '(optional)'}
+                Document (optional)
               </label>
               <p className="text-xs text-gray-500 mb-2">
-                Upload image or PDF (max 10MB). {userPlan !== 'free' && 'We\'ll automatically extract details from your document.'}
+                Upload image or PDF (max 10MB). We'll automatically extract details from your document if OCR is available.
                 {userPlan === 'free' && (
                   <span className={`block mt-1 font-medium ${
                     documentCount >= 5 
@@ -694,7 +691,7 @@ export default function AddItemModal({ isOpen, onClose, onSuccess, userPlan = 'f
                 id="document"
                 type="file"
                 accept="image/*,.pdf"
-                required={userPlan !== 'free'}
+                required={false}
                 onChange={async (e) => {
                   const file = e.target.files?.[0]
                   if (file) {
