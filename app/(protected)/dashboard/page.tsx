@@ -1,4 +1,3 @@
-import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { differenceInDays, isPast, isToday } from 'date-fns'
@@ -8,13 +7,10 @@ import DashboardWithModal from '@/components/DashboardWithModal'
 import FamilyMembersSection from '@/components/FamilyMembersSection'
 import PlanDisplay from '@/components/PlanDisplay'
 import { getUserPlan, getItemCount, getFamilyMemberCount, getDocumentCount } from '@/lib/supabase/plans'
-import { requireAuth } from '@/lib/auth/guard'
 import { serializeArray } from '@/lib/utils/serialize'
 
-// CRITICAL: Force Node.js runtime to prevent Edge runtime crashes with cookies()
-export const runtime = 'nodejs'
-export const dynamic = 'force-dynamic'
-export const revalidate = 0
+// No runtime exports needed - inherited from layout
+// No auth logic needed - handled by layout
 
 type LifeItem = {
   id: string
@@ -30,15 +26,52 @@ type LifeItem = {
 }
 
 export default async function DashboardPage() {
-  // Server-side auth guard - redirects to login if not authenticated
-  const user = await requireAuth()
-  
-  // Get Supabase client for data fetching
+  // Auth is handled by layout - user is guaranteed to be authenticated here
+  // Fetch user for this page (Supabase caches, so this is efficient)
   const supabase = await createClient()
   
   if (!supabase) {
-    // If client is null, redirect to login (shouldn't happen after requireAuth, but safe guard)
-    redirect('/login')
+    // This shouldn't happen if layout worked, but safe guard
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-gray-900 mb-4">Error</h1>
+          <p className="text-gray-600">Unable to connect to database. Please try again later.</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Get authenticated user
+  let user = null
+  try {
+    const { data, error } = await supabase.auth.getUser()
+    if (error || !data?.user) {
+      // This shouldn't happen if layout worked, but safe guard
+      return (
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+          <div className="text-center">
+            <h1 className="text-2xl font-bold text-gray-900 mb-4">Authentication Error</h1>
+            <p className="text-gray-600">Please log in again.</p>
+            <Link href="/login" className="mt-4 inline-block text-primary-600 hover:text-primary-700">
+              Go to Login
+            </Link>
+          </div>
+        </div>
+      )
+    }
+    user = data.user
+  } catch (err: unknown) {
+    const errorMessage = err instanceof Error ? err.message : String(err)
+    console.error('[Dashboard] Error fetching user:', errorMessage)
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-gray-900 mb-4">Error</h1>
+          <p className="text-gray-600">An error occurred. Please try again later.</p>
+        </div>
+      </div>
+    )
   }
 
   // Get user profile for name display - safe fallbacks
@@ -297,3 +330,4 @@ export default async function DashboardPage() {
     </DashboardWithModal>
   )
 }
+
