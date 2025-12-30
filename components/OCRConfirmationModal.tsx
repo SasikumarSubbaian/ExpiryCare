@@ -182,7 +182,7 @@ export default function OCRConfirmationModal({
             extractedData.expiryDate.confidence
           )}
 
-          {/* Category-specific fields */}
+          {/* Category-specific fields - ONLY show allowed fields per schema */}
           {extractedData.category === 'warranty' && (
             <>
               {renderField('Product Name', 'productName', extractedData.productName)}
@@ -206,8 +206,8 @@ export default function OCRConfirmationModal({
 
           {extractedData.category === 'subscription' && (
             <>
+              {/* CRITICAL: Subscription only shows serviceName per requirements */}
               {renderField('Service Name', 'serviceName', extractedData.serviceName)}
-              {renderField('Plan Type', 'planType', extractedData.planType)}
             </>
           )}
 
@@ -220,7 +220,10 @@ export default function OCRConfirmationModal({
 
           {extractedData.category === 'other' && (
             <>
-              {renderField('Document Type', 'documentType', extractedData.documentType)}
+              {/* CRITICAL: Other category shows ONLY expiry date - no other fields */}
+              <p className="text-sm text-gray-500 italic">
+                Only expiry date is extracted for "Other" category documents to protect privacy.
+              </p>
             </>
           )}
         </div>

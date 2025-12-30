@@ -1,6 +1,7 @@
 import type { Category } from './categorySchemas'
 import { extractExpiryDate, type ExpiryDateResult } from './expiryExtractor'
 import { getAllowedFields, isFieldAllowed } from './categorySchemas'
+import { sanitizeOCRText } from './sanitizeOCRText'
 
 /**
  * Extracted data structure
@@ -138,12 +139,13 @@ function extractAMCFields(ocrText: string): Partial<ExtractedData> {
 
 /**
  * Extract subscription-specific fields
+ * CRITICAL: Per requirements, only serviceName is allowed (not planType)
  */
 function extractSubscriptionFields(ocrText: string): Partial<ExtractedData> {
   const text = ocrText.toUpperCase()
   const result: Partial<ExtractedData> = {}
 
-  // Extract service name
+  // Extract service name only (planType is forbidden per requirements)
   const servicePatterns = [
     /(?:SERVICE|PLATFORM)\s*:?\s*([A-Z0-9\s]{2,30})/,
     /(NETFLIX|SPOTIFY|AMAZON\s*PRIME|YOUTUBE\s*PREMIUM|DISNEY|HOTSTAR)/,
@@ -157,19 +159,8 @@ function extractSubscriptionFields(ocrText: string): Partial<ExtractedData> {
     }
   }
 
-  // Extract plan type
-  const planPatterns = [
-    /(?:PLAN\s*TYPE|SUBSCRIPTION\s*PLAN)\s*:?\s*([A-Z\s]{2,30})/,
-    /(BASIC|PREMIUM|STANDARD|PRO|FAMILY|INDIVIDUAL)\s*(?:PLAN|SUBSCRIPTION)/,
-  ]
-
-  for (const pattern of planPatterns) {
-    const match = text.match(pattern)
-    if (match && match[1]) {
-      result.planType = match[1].trim()
-      break
-    }
-  }
+  // CRITICAL: planType is NOT extracted for subscription (forbidden field)
+  // Removed planType extraction per requirements
 
   return result
 }
@@ -213,59 +204,52 @@ function extractMedicineFields(ocrText: string): Partial<ExtractedData> {
 }
 
 /**
- * Extract "Other" category fields (SAFE MODE - only expiry and document type)
+ * Extract "Other" category fields (SAFE MODE - ONLY expiry date)
+ * CRITICAL: For licenses, ID cards, govt documents - extract ONLY expiry date
+ * No other fields allowed per requirements
  */
 function extractOtherFields(ocrText: string): Partial<ExtractedData> {
-  const text = ocrText.toUpperCase()
-  const result: Partial<ExtractedData> = {}
-
-  // Try to identify document type (but don't extract PII)
-  const documentTypePatterns = [
-    /(?:DOCUMENT\s*TYPE|TYPE)\s*:?\s*([A-Z\s]{2,30})/,
-    /(LICENSE|PERMIT|CERTIFICATE|ID\s*CARD|PASSPORT)/,
-  ]
-
-  for (const pattern of documentTypePatterns) {
-    const match = text.match(pattern)
-    if (match && match[1]) {
-      result.documentType = match[1].trim()
-      break
-    }
-  }
-
-  return result
+  // CRITICAL: Other category extracts ONLY expiry date (handled by extractExpiryDate)
+  // No documentType, no other fields - maximum privacy protection
+  return {}
 }
 
 /**
  * Main extraction function - category-aware
+ * CRITICAL: Sanitizes OCR text to remove PII before extraction
  */
 export function extractByCategory(ocrText: string, category: Category): ExtractedData {
+  // CRITICAL: Sanitize OCR text to remove PII before processing
+  const sanitizedText = sanitizeOCRText(ocrText)
+  
   const warnings: string[] = []
   const result: ExtractedData = {
-    expiryDate: extractExpiryDate(ocrText),
+    expiryDate: extractExpiryDate(sanitizedText),
   }
 
   // Extract category-specific fields
   let categoryFields: Partial<ExtractedData> = {}
 
+  // Use sanitized text for all category-specific extractions
   switch (category) {
     case 'warranty':
-      categoryFields = extractWarrantyFields(ocrText)
+      categoryFields = extractWarrantyFields(sanitizedText)
       break
     case 'insurance':
-      categoryFields = extractInsuranceFields(ocrText)
+      categoryFields = extractInsuranceFields(sanitizedText)
       break
     case 'amc':
-      categoryFields = extractAMCFields(ocrText)
+      categoryFields = extractAMCFields(sanitizedText)
       break
     case 'subscription':
-      categoryFields = extractSubscriptionFields(ocrText)
+      categoryFields = extractSubscriptionFields(sanitizedText)
       break
     case 'medicine':
-      categoryFields = extractMedicineFields(ocrText)
+      categoryFields = extractMedicineFields(sanitizedText)
       break
     case 'other':
-      categoryFields = extractOtherFields(ocrText)
+      // CRITICAL: For "Other" category, only extract expiry date
+      categoryFields = extractOtherFields(sanitizedText)
       break
   }
 

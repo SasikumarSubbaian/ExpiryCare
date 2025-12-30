@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { canAddItem, canUseMedicine, canUploadDocuments, canUploadDocument, type PlanType } from '@/lib/plans'
-import OCRConfirmationModal from './OCRConfirmationModal'
 
 type AddItemModalProps = {
   isOpen: boolean
@@ -30,132 +29,18 @@ export default function AddItemModal({ isOpen, onClose, onSuccess, userPlan = 'f
   const [personOption, setPersonOption] = useState<PersonOption>('self')
   const [customPersonName, setCustomPersonName] = useState('')
   
-  // Document upload
+  // Document upload (optional - for manual entry, document is just stored, no OCR)
   const [documentFile, setDocumentFile] = useState<File | null>(null)
   const [uploading, setUploading] = useState(false)
-  const [processingOCR, setProcessingOCR] = useState(false)
-  const [ocrExtracted, setOcrExtracted] = useState(false)
-  const [showOCRConfirmation, setShowOCRConfirmation] = useState(false)
-  const [ocrExtractedData, setOcrExtractedData] = useState<any>(null)
   
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const router = useRouter()
   const supabase = createClient()
 
-  // Process OCR when document is uploaded (all plans, with limits)
-  const processOCR = async (file: File) => {
-    setProcessingOCR(true)
-    setError(null)
-    
-    try {
-      const formData = new FormData()
-      formData.append('file', file)
-      formData.append('category', category) // Send current category as hint
-      
-      const response = await fetch('/api/ocr/extract', {
-        method: 'POST',
-        body: formData,
-      })
-      
-      const result = await response.json()
-      
-      if (result.success && result.extractedData) {
-        const data = result.extractedData
-        
-        // Show confirmation modal instead of auto-filling
-        setOcrExtractedData(data)
-        setShowOCRConfirmation(true)
-        setOcrExtracted(true)
-      } else {
-        // Handle errors gracefully
-        if (result.error) {
-          if (result.error.includes('limit') || result.error.includes('Upgrade')) {
-            setError(result.error)
-          } else {
-            setError('Could not extract details from document. You can still add the item manually.')
-          }
-        } else {
-          setError('Could not extract details from document. You can still add the item manually.')
-        }
-      }
-    } catch (err: any) {
-      console.error('OCR processing error:', err)
-      setError('Could not extract details from document, but you can still add the item manually.')
-    } finally {
-      setProcessingOCR(false)
-    }
-  }
-
-  // Handle OCR confirmation
-  const handleOCRConfirm = (data: any) => {
-    // Fill form fields from confirmed OCR data
-    if (data.expiryDate?.value) {
-      setExpiryDate(data.expiryDate.value)
-    }
-    
-    if (data.category && !category) {
-      setCategory(data.category as Category)
-    }
-
-    // Category-specific fields
-    if (data.category === 'warranty') {
-      if (data.productName && !title) {
-        setTitle(data.productName)
-      }
-      if (data.companyName && !notes) {
-        setNotes(`Company: ${data.companyName}`)
-      }
-    } else if (data.category === 'insurance') {
-      if (data.policyType && !title) {
-        setTitle(`${data.policyType} Insurance`)
-      }
-      if (data.insurerName && !notes) {
-        setNotes(`Insurer: ${data.insurerName}`)
-      }
-    } else if (data.category === 'amc') {
-      if (data.serviceType && !title) {
-        setTitle(data.serviceType)
-      }
-      if (data.providerName && !notes) {
-        setNotes(`Provider: ${data.providerName}`)
-      }
-    } else if (data.category === 'subscription') {
-      if (data.serviceName && !title) {
-        setTitle(data.serviceName)
-      }
-      if (data.planType && !notes) {
-        setNotes(`Plan: ${data.planType}`)
-      }
-    } else if (data.category === 'medicine') {
-      if (data.medicineName && !medicineName) {
-        setMedicineName(data.medicineName)
-      }
-      if (data.brandName && !notes) {
-        setNotes(`Brand: ${data.brandName}`)
-      }
-    }
-
-    setShowOCRConfirmation(false)
-    setOcrExtractedData(null)
-  }
-
-  const handleOCRCancel = () => {
-    setShowOCRConfirmation(false)
-    setOcrExtractedData(null)
-  }
-
-  const handleOCREdit = (field: string, value: string) => {
-    if (!ocrExtractedData) return
-    
-    const updated = { ...ocrExtractedData }
-    if (field === 'expiryDate') {
-      updated.expiryDate = { ...updated.expiryDate, value }
-    } else {
-      updated[field] = value
-    }
-    setOcrExtractedData(updated)
-  }
+  // CRITICAL: Add Item modal is MANUAL ENTRY ONLY
+  // NO OCR processing here - OCR is handled separately via "Choose File" button
+  // Document upload in this modal is just for storage, not for OCR extraction
 
   // Reset reminder days when category changes to Medicine
   useEffect(() => {
@@ -649,7 +534,7 @@ export default function AddItemModal({ isOpen, onClose, onSuccess, userPlan = 'f
                 Document (optional)
               </label>
               <p className="text-xs text-gray-500 mb-2">
-                Upload image or PDF (max 10MB). We'll automatically extract details from your document if OCR is available.
+                Upload image or PDF (max 10MB) to attach to this item. For automatic extraction, use the "Choose File" button on the dashboard.
                 {userPlan === 'free' && (
                   <span className={`block mt-1 font-medium ${
                     documentCount >= 5 
@@ -717,32 +602,18 @@ export default function AddItemModal({ isOpen, onClose, onSuccess, userPlan = 'f
 
                     setDocumentFile(file)
                     setError(null)
-                    
-                    // Process OCR for all plans (with limits enforced in API)
-                    await processOCR(file)
+                    // Document is just stored - no OCR processing in manual Add Item flow
                   }
                 }}
                 className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100"
               />
             </div>
-            {processingOCR && (
-              <div className="mt-2 text-sm text-blue-600 flex items-center gap-2">
-                <span className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
-                Processing document and extracting details...
-              </div>
-            )}
-            {documentFile && !processingOCR && (
+            {documentFile && (
               <div className="mt-2 flex items-center gap-2 text-sm text-gray-600">
                 <span>📄 {documentFile.name}</span>
-                {ocrExtracted && (
-                  <span className="text-green-600 text-xs">✓ Details extracted</span>
-                )}
                 <button
                   type="button"
-                  onClick={() => {
-                    setDocumentFile(null)
-                    setOcrExtracted(false)
-                  }}
+                  onClick={() => setDocumentFile(null)}
                   className="text-red-600 hover:text-red-800 text-xs"
                 >
                   Remove
@@ -788,14 +659,6 @@ export default function AddItemModal({ isOpen, onClose, onSuccess, userPlan = 'f
         </form>
       </div>
 
-      {/* OCR Confirmation Modal */}
-      <OCRConfirmationModal
-        isOpen={showOCRConfirmation}
-        extractedData={ocrExtractedData}
-        onConfirm={handleOCRConfirm}
-        onCancel={handleOCRCancel}
-        onEdit={handleOCREdit}
-      />
     </div>
   )
 }

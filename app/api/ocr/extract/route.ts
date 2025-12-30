@@ -5,6 +5,7 @@ import { validateFile, generateFileHash, logOCRCall, checkDuplicateFile, checkRa
 import { canUseOCR } from '@/lib/ocr/pricingLogic'
 import { predictCategory, getPredictionConfidence } from '@/lib/ocr/categoryPredictor'
 import { extractByCategory } from '@/lib/ocr/extractors'
+import { sanitizeOCRText } from '@/lib/ocr/sanitizeOCRText'
 import type { Category } from '@/lib/ocr/categorySchemas'
 import sharp from 'sharp'
 
@@ -331,7 +332,10 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // 13. Predict category and extract data
+    // 13. Sanitize OCR text to remove PII before processing
+    const sanitizedText = sanitizeOCRText(ocrText)
+
+    // 14. Predict category and extract data
     let category: Category
     let confidence: number
     let extractedData: any
@@ -343,9 +347,10 @@ export async function POST(request: NextRequest) {
         ? (userSelectedCategory as Category)
         : null
       
-      category = userCategory || predictCategory(ocrText)
-      confidence = getPredictionConfidence(ocrText, category)
-      extractedData = extractByCategory(ocrText, category)
+      // Use sanitized text for category prediction and extraction
+      category = userCategory || predictCategory(sanitizedText)
+      confidence = getPredictionConfidence(sanitizedText, category)
+      extractedData = extractByCategory(sanitizedText, category)
     } catch (extractionError: unknown) {
       const errorMessage = extractionError instanceof Error ? extractionError.message : String(extractionError)
       console.error('[OCR] Data extraction error:', errorMessage)
@@ -376,7 +381,7 @@ export async function POST(request: NextRequest) {
       documentType: extractedData.documentType || null,
       additionalFields: extractedData.additionalFields || {},
       warnings: extractedData.extractionWarnings || [],
-      rawText: ocrText.substring(0, 1000), // Limit raw text in response
+      rawText: sanitizedText.substring(0, 1000), // Limit raw text in response (sanitized)
     }
 
     // 15. Log successful OCR call (don't block on logging errors)
@@ -397,7 +402,7 @@ export async function POST(request: NextRequest) {
     // 16. Return success response
     return NextResponse.json({
       success: true,
-      text: ocrText, // Include raw OCR text for client
+      text: sanitizedText, // Include sanitized OCR text for client (PII removed)
       extractedData: result,
     })
   } catch (error: unknown) {
