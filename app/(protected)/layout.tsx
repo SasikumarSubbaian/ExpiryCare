@@ -4,6 +4,7 @@ import type { User } from '@supabase/supabase-js'
 import { ReactNode } from 'react'
 
 // CRITICAL: Force Node.js runtime to prevent Edge runtime crashes with cookies()
+// This ensures Supabase server client and cookies() work correctly in production
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
