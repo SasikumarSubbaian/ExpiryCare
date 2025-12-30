@@ -13,6 +13,12 @@ const LandingPageAuth = dynamic(
   { ssr: false }
 )
 
+// Load client-only auth component with SSR disabled
+const LandingPageAuth = dynamic(
+  () => import('@/components/LandingPageAuth'),
+  { ssr: false }
+)
+
 // Safe env access with fallback
 function getSiteUrl(): string {
   const url = process.env.NEXT_PUBLIC_SITE_URL
