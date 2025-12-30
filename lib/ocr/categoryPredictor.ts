@@ -74,45 +74,43 @@ const categoryKeywords: Record<Category, string[]> = {
 
 /**
  * Predicts document category from OCR text
+ * Rule-based prediction with simple keyword matching
  */
 export function predictCategory(ocrText: string): Category {
-  const text = ocrText.toLowerCase()
-  const scores: CategoryScore[] = []
+  const t = ocrText.toLowerCase()
 
-  // Calculate score for each category
-  for (const [category, keywords] of Object.entries(categoryKeywords)) {
-    if (category === 'other') continue // Skip "other" for scoring
-
-    let score = 0
-    const matchedKeywords: string[] = []
-
-    for (const keyword of keywords) {
-      // Count occurrences (case-insensitive)
-      const regex = new RegExp(keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi')
-      const matches = text.match(regex)
-      if (matches) {
-        score += matches.length
-        matchedKeywords.push(keyword)
-      }
-    }
-
-    scores.push({
-      category: category as Category,
-      score,
-      keywords: matchedKeywords,
-    })
+  // Medicine detection
+  if (t.includes('tablet') || t.includes('capsule') || t.includes('mg') || 
+      t.includes('ml') || t.includes('mfg') || t.includes('exp date')) {
+    return 'medicine'
   }
 
-  // Sort by score (highest first)
-  scores.sort((a, b) => b.score - a.score)
-
-  // If highest score is 0 or very low, default to "other"
-  if (scores.length === 0 || scores[0].score < 2) {
-    return 'other'
+  // Insurance detection
+  if (t.includes('policy') || t.includes('insurance') || 
+      t.includes('premium') || t.includes('coverage')) {
+    return 'insurance'
   }
 
-  // Return category with highest score
-  return scores[0].category
+  // Warranty detection
+  if (t.includes('warranty') || t.includes('guarantee') || 
+      t.includes('valid till') || t.includes('purchase date')) {
+    return 'warranty'
+  }
+
+  // Subscription detection
+  if (t.includes('subscription') || t.includes('renewal') || 
+      t.includes('membership') || t.includes('plan')) {
+    return 'subscription'
+  }
+
+  // AMC detection
+  if (t.includes('amc') || t.includes('maintenance') || 
+      t.includes('service contract') || t.includes('service provider')) {
+    return 'amc'
+  }
+
+  // Default to Other
+  return 'other'
 }
 
 /**

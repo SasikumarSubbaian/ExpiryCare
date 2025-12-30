@@ -41,9 +41,10 @@ export default function LandingPage() {
                 <Image 
                   src="/logo.png" 
                   alt="ExpiryCare Logo" 
-                  width={48}
-                  height={48}
-                  className="h-10 w-10 lg:h-12 lg:w-12 transition-transform duration-300 group-hover:scale-110"
+                  width={140}
+                  height={40}
+                  priority
+                  className="h-10 transition-transform duration-300 group-hover:scale-110"
                 />
               </div>
               <span className="text-xl lg:text-2xl font-bold bg-gradient-to-r from-primary-600 to-primary-500 bg-clip-text text-transparent">

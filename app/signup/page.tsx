@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
 import { createClient } from '@/lib/supabase/client'
+import { validatePassword } from '@/lib/utils/passwordValidation'
 
 export default function SignUpPage() {
   const [name, setName] = useState('')
@@ -20,6 +21,16 @@ export default function SignUpPage() {
     e.preventDefault()
     setLoading(true)
     setError(null)
+
+    // Validate password before submitting
+    const passwordValidation = validatePassword(password)
+    if (!passwordValidation.valid) {
+      setError(
+        'Password must be at least 8 characters and include uppercase, lowercase, number, and special character (@$!%*?&)'
+      )
+      setLoading(false)
+      return
+    }
 
     try {
       const { error } = await supabase.auth.signUp({
@@ -39,7 +50,7 @@ export default function SignUpPage() {
         if (error.message.includes('already registered')) {
           errorMessage = 'This email is already registered. Please sign in instead.'
         } else if (error.message.includes('Password')) {
-          errorMessage = 'Password must be at least 6 characters long.'
+          errorMessage = 'Password does not meet requirements. Please check and try again.'
         } else if (error.message.includes('network') || error.message.includes('fetch')) {
           errorMessage = 'Connection issue. Please check your internet and try again.'
         } else if (error.message) {
@@ -94,9 +105,10 @@ export default function SignUpPage() {
             <Image 
               src="/logo.png" 
               alt="ExpiryCare Logo" 
-              width={48}
-              height={48}
-              className="h-12 w-12 transition-transform duration-300 group-hover:scale-110"
+              width={140}
+              height={40}
+              priority
+              className="h-10 transition-transform duration-300 group-hover:scale-110"
             />
             <span className="text-2xl font-bold bg-gradient-to-r from-primary-600 to-primary-500 bg-clip-text text-transparent">
               ExpiryCare
@@ -172,7 +184,9 @@ export default function SignUpPage() {
                 className="w-full px-4 py-3 text-base text-gray-900 border-2 border-gray-200 rounded-xl shadow-soft focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200"
                 placeholder="••••••••"
               />
-              <p className="mt-2 text-xs text-gray-500">Must be at least 6 characters</p>
+              <p className="mt-2 text-xs text-gray-500">
+                Must be at least 8 characters with uppercase, lowercase, number, and special character (@$!%*?&)
+              </p>
             </div>
             
             <button

@@ -6,6 +6,8 @@ import { getItemCount, getFamilyMemberCount, getDocumentCount } from '@/lib/supa
 // Force Node.js runtime for database operations
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
+// Cache plan data for 1 hour to improve performance
+export const revalidate = 3600
 
 /**
  * Plan Limits API Route
@@ -44,42 +46,39 @@ export async function GET() {
 
     const user = data.user
 
-    // Get user plan and counts - all have safe fallbacks
-    let plan: 'free' | 'pro' | 'family' = 'free'
-    let itemCount = 0
-    let familyMemberCount = 0
-    let documentCount = 0
+    // Parallel data fetching for better performance
+    const [planResult, itemCountResult, familyMemberCountResult, documentCountResult] = await Promise.allSettled([
+      getUserPlan(user.id),
+      getItemCount(user.id),
+      getFamilyMemberCount(user.id),
+      getDocumentCount(user.id),
+    ])
 
-    try {
-      plan = await getUserPlan(user.id)
-    } catch (err: unknown) {
-      const errorMessage = err instanceof Error ? err.message : String(err)
-      console.error('[PlanLimits] Error fetching plan:', errorMessage)
-      plan = 'free'
+    // Extract results with safe fallbacks
+    const plan: 'free' | 'pro' | 'family' = 
+      planResult.status === 'fulfilled' ? planResult.value : 'free'
+    
+    const itemCount = 
+      itemCountResult.status === 'fulfilled' ? itemCountResult.value : 0
+    
+    const familyMemberCount = 
+      familyMemberCountResult.status === 'fulfilled' ? familyMemberCountResult.value : 0
+    
+    const documentCount = 
+      documentCountResult.status === 'fulfilled' ? documentCountResult.value : 0
+
+    // Log errors if any
+    if (planResult.status === 'rejected') {
+      console.error('[PlanLimits] Error fetching plan:', planResult.reason)
     }
-
-    try {
-      itemCount = await getItemCount(user.id)
-    } catch (err: unknown) {
-      const errorMessage = err instanceof Error ? err.message : String(err)
-      console.error('[PlanLimits] Error fetching item count:', errorMessage)
-      itemCount = 0
+    if (itemCountResult.status === 'rejected') {
+      console.error('[PlanLimits] Error fetching item count:', itemCountResult.reason)
     }
-
-    try {
-      familyMemberCount = await getFamilyMemberCount(user.id)
-    } catch (err: unknown) {
-      const errorMessage = err instanceof Error ? err.message : String(err)
-      console.error('[PlanLimits] Error fetching family member count:', errorMessage)
-      familyMemberCount = 0
+    if (familyMemberCountResult.status === 'rejected') {
+      console.error('[PlanLimits] Error fetching family member count:', familyMemberCountResult.reason)
     }
-
-    try {
-      documentCount = await getDocumentCount(user.id)
-    } catch (err: unknown) {
-      const errorMessage = err instanceof Error ? err.message : String(err)
-      console.error('[PlanLimits] Error fetching document count:', errorMessage)
-      documentCount = 0
+    if (documentCountResult.status === 'rejected') {
+      console.error('[PlanLimits] Error fetching document count:', documentCountResult.reason)
     }
 
     return NextResponse.json({
