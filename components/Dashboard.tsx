@@ -130,9 +130,10 @@ export default function Dashboard() {
                 <Image 
                   src="/logo.png" 
                   alt="ExpiryCare Logo" 
-                  width={48}
-                  height={48}
-                  className="h-10 w-10 lg:h-12 lg:w-12 transition-transform duration-300 group-hover:scale-110"
+                  width={140}
+                  height={40}
+                  priority
+                  className="h-10 transition-transform duration-300 group-hover:scale-110"
                 />
               </div>
               <div>

@@ -93,9 +93,10 @@ export default function LoginPage() {
             <Image 
               src="/logo.png" 
               alt="ExpiryCare Logo" 
-              width={48}
-              height={48}
-              className="h-12 w-12 transition-transform duration-300 group-hover:scale-110"
+              width={140}
+              height={40}
+              priority
+              className="h-10 transition-transform duration-300 group-hover:scale-110"
             />
             <span className="text-2xl font-bold bg-gradient-to-r from-primary-600 to-primary-500 bg-clip-text text-transparent">
               ExpiryCare

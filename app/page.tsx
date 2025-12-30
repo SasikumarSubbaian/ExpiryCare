@@ -357,9 +357,10 @@ export default function LandingPage() {
                 <Image 
                   src="/logo.png" 
                   alt="ExpiryCare Logo" 
-                  width={40}
+                  width={140}
                   height={40}
-                  className="h-10 w-10"
+                  priority
+                  className="h-10 w-auto"
                 />
                 <span className="text-xl font-bold text-white">ExpiryCare</span>
               </div>
