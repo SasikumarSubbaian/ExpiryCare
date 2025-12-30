@@ -2,13 +2,13 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { differenceInDays, isPast, isToday } from 'date-fns'
-import { revalidatePath } from 'next/cache'
 import DashboardHeader from '@/components/DashboardHeader'
 import ItemsSection from '@/components/ItemsSection'
 import DashboardWithModal from '@/components/DashboardWithModal'
 import FamilyMembersSection from '@/components/FamilyMembersSection'
 import PlanDisplay from '@/components/PlanDisplay'
 import { getUserPlan, getItemCount, getFamilyMemberCount, getDocumentCount } from '@/lib/supabase/plans'
+import { requireAuth } from '@/lib/auth/guard'
 
 // Revalidate this page every time it's accessed (for fresh data after adds)
 export const revalidate = 0
@@ -28,70 +28,35 @@ type LifeItem = {
 }
 
 export default async function DashboardPage() {
-  // Handle Supabase client creation gracefully with comprehensive error handling
-  let supabase
-  try {
-    supabase = await createClient()
-  } catch (error: any) {
-    console.error('[Dashboard] Error creating Supabase client:', {
-      message: error?.message || error,
-      stack: error?.stack,
-    })
-    redirect('/login')
-  }
-
+  // Server-side auth guard - redirects to login if not authenticated
+  const user = await requireAuth()
+  
+  // Get Supabase client for data fetching
+  const supabase = await createClient()
+  
   if (!supabase) {
-    console.error('[Dashboard] Supabase client is null - redirecting to login')
+    // If client is null, redirect to login (shouldn't happen after requireAuth, but safe guard)
     redirect('/login')
   }
 
-  let user = null
-  try {
-    const { data, error: authError } = await supabase.auth.getUser()
-    if (authError) {
-      console.error('[Dashboard] Auth error:', authError.message)
-      redirect('/login')
-    }
-    user = data?.user || null
-  } catch (error: any) {
-    console.error('[Dashboard] Error fetching user:', {
-      message: error?.message || error,
-      stack: error?.stack,
-    })
-    redirect('/login')
-  }
-
-  // Redirect unauthenticated users to login
-  if (!user) {
-    redirect('/login')
-  }
-
-  // Get user profile for name display
+  // Get user profile for name display - safe fallbacks
   let userName = user.email?.split('@')[0] || 'User'
   try {
-    if (supabase) {
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('full_name')
-        .eq('id', user.id)
-        .single()
-      
-      if (profileError) {
-        console.warn('[Dashboard] Profile fetch error:', profileError.message)
-      } else if (profile?.full_name) {
-        userName = profile.full_name
-      } else if (user.user_metadata?.full_name) {
-        userName = user.user_metadata.full_name
-      } else if (user.user_metadata?.name) {
-        userName = user.user_metadata.name
-      }
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('full_name')
+      .eq('id', user.id)
+      .single()
+    
+    if (!profileError && profile?.full_name) {
+      userName = profile.full_name
+    } else if (user.user_metadata?.full_name) {
+      userName = user.user_metadata.full_name
+    } else if (user.user_metadata?.name) {
+      userName = user.user_metadata.name
     }
   } catch (err: any) {
-    console.error('[Dashboard] Error fetching user profile:', {
-      message: err?.message || err,
-      stack: err?.stack,
-    })
-    // Fallback to email or metadata
+    // Profile fetch failed - use metadata as fallback
     if (user.user_metadata?.full_name) {
       userName = user.user_metadata.full_name
     } else if (user.user_metadata?.name) {
@@ -99,119 +64,40 @@ export default async function DashboardPage() {
     }
   }
 
-  // Get user plan and counts (with error handling)
-  let userPlan: 'free' | 'pro' | 'family' = 'free'
-  let itemCount = 0
-  let familyMemberCount = 0
-  let documentCount = 0
-  
-  try {
-    userPlan = await getUserPlan(user.id)
-  } catch (err) {
-    console.error('Error getting user plan:', err)
-  }
-  
-  try {
-    itemCount = await getItemCount(user.id)
-  } catch (err) {
-    console.error('Error getting item count:', err)
-  }
-  
-  try {
-    familyMemberCount = await getFamilyMemberCount(user.id)
-  } catch (err) {
-    console.error('Error getting family member count:', err)
-  }
+  // Get user plan and counts - all functions have safe fallbacks (no throws)
+  const userPlan = await getUserPlan(user.id) // Returns 'free' on error
+  const itemCount = await getItemCount(user.id) // Returns 0 on error
+  const familyMemberCount = await getFamilyMemberCount(user.id) // Returns 0 on error
+  const documentCount = await getDocumentCount(user.id) // Returns 0 on error
 
-  // Count documents with document_url for free plan limit check
-  try {
-    documentCount = await getDocumentCount(user.id)
-  } catch (err) {
-    console.error('Error counting documents:', err)
-  }
-
-  // Fetch user's items
-  // Always use explicit user_id filter for reliability
-  let items: any[] = []
-  let error: any = null
+  // Fetch user's items - safe fallback to empty array
+  let items: LifeItem[] = []
   
   try {
-    if (supabase) {
-      // Use explicit user_id filter - more reliable than relying solely on RLS
-      const result = await supabase
-        .from('life_items')
-        .select('id, user_id, title, category, expiry_date, reminder_days, notes, document_url, person_name, created_at, updated_at')
-        .eq('user_id', user.id)
-        .order('expiry_date', { ascending: true })
-      
-      items = result.data || []
-      error = result.error
+    const result = await supabase
+      .from('life_items')
+      .select('id, user_id, title, category, expiry_date, reminder_days, notes, document_url, person_name, created_at, updated_at')
+      .eq('user_id', user.id)
+      .order('expiry_date', { ascending: true })
+    
+    if (result.error) {
+      console.error('[Dashboard] Error fetching items:', result.error.message)
+      // Continue with empty array - don't break the page
+    } else {
+      items = (result.data || []).filter((item): item is LifeItem => {
+        // Type guard and filter by user_id
+        return item && String(item.user_id) === String(user.id)
+      })
     }
   } catch (err: any) {
-    console.error('[Dashboard] Error fetching items:', {
-      message: err?.message || err,
-      stack: err?.stack,
-    })
-    error = err
+    console.error('[Dashboard] Exception fetching items:', err?.message || String(err))
+    // Continue with empty array - don't break the page
     items = []
   }
 
-  if (error) {
-    console.error('[Dashboard] Error fetching items:', error)
-    console.error('[Dashboard] Error code:', error.code)
-    console.error('[Dashboard] Error message:', error.message)
-    console.error('[Dashboard] Error details:', JSON.stringify(error, null, 2))
-    console.error('[Dashboard] User ID:', user.id)
-    console.error('[Dashboard] User authenticated:', !!user)
-    
-    // If it's a permission error, show helpful message
-    if (error.code === '42501') {
-      console.error('[Dashboard] RLS Policy Issue: Check that life_items table has proper RLS policies')
-      console.error('[Dashboard] Please run migration 011_ensure_rls_policies_production.sql in Supabase')
-    }
-  }
-
-  // Filter items by user_id in code as well (double safety)
-  const lifeItems: LifeItem[] = (items || []).filter(item => String(item.user_id) === String(user.id))
-  
-  // Debug logging to help troubleshoot
-  console.log(`[Dashboard] User ID: ${user.id} (type: ${typeof user.id})`)
-  console.log(`[Dashboard] User Plan: ${userPlan}`)
-  console.log(`[Dashboard] Item count from getItemCount: ${itemCount}`)
-  console.log(`[Dashboard] Total items fetched from query: ${lifeItems.length}`)
-  console.log(`[Dashboard] Items:`, lifeItems.map(item => ({ id: item.id, title: item.title, category: item.category })))
-  
-  if (itemCount > 0 && lifeItems.length === 0) {
-    console.error('[Dashboard] ERROR: getItemCount shows items exist but query returned none!')
-    console.error('[Dashboard] This suggests a query or RLS policy issue')
-    console.error('[Dashboard] Try checking RLS policies in Supabase')
-  }
-  
-  if (lifeItems.length > 0) {
-    console.log(`[Dashboard] Successfully loaded ${lifeItems.length} items`)
-  }
-  
-  if (lifeItems.length > 0) {
-    console.log(`[Dashboard] First few items:`, lifeItems.slice(0, 3).map(item => ({
-      id: item.id,
-      title: item.title,
-      category: item.category,
-      expiry_date: item.expiry_date,
-      user_id: item.user_id,
-      user_id_type: typeof item.user_id
-    })))
-  }
-
-  // All items from the query should be the user's own items since we filtered by user_id
-  // For family plan, we might have shared items, but for now, all items are own items
-  const ownItems = lifeItems
+  // All items are own items (filtered by user_id in query)
+  const ownItems = items
   const sharedItems: LifeItem[] = [] // Will be populated when family sharing is implemented
-  
-  // Debug: Check if items are being filtered out incorrectly
-  if (lifeItems.length > 0 && ownItems.length === 0) {
-    console.warn('[Dashboard] WARNING: Items fetched but none match user_id after string conversion')
-    console.warn('[Dashboard] This might indicate a user_id type mismatch')
-  }
 
   // Categorize items
   const today = new Date()

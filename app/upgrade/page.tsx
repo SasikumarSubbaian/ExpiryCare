@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
-import { createClient } from '@/lib/supabase/server'
 import { getUserPlan } from '@/lib/supabase/plans'
 import { PLAN_PRICES } from '@/lib/plans'
+import { requireAuth } from '@/lib/auth/guard'
 import Link from 'next/link'
 
 // Force dynamic rendering to ensure cookies are accessible
@@ -9,43 +9,10 @@ export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
 export default async function UpgradePage() {
-  // Handle Supabase client creation gracefully with comprehensive error handling
-  let supabase
-  try {
-    supabase = await createClient()
-  } catch (error: any) {
-    console.error('[Upgrade] Error creating Supabase client:', {
-      message: error?.message || error,
-      stack: error?.stack,
-    })
-    redirect('/login')
-  }
-
-  if (!supabase) {
-    console.error('[Upgrade] Supabase client is null - redirecting to login')
-    redirect('/login')
-  }
-
-  let user = null
-  try {
-    const { data, error: authError } = await supabase.auth.getUser()
-    if (authError) {
-      console.error('[Upgrade] Auth error:', authError.message)
-      redirect('/login')
-    }
-    user = data?.user || null
-  } catch (error: any) {
-    console.error('[Upgrade] Error fetching user:', {
-      message: error?.message || error,
-      stack: error?.stack,
-    })
-    redirect('/login')
-  }
-
-  if (!user) {
-    redirect('/login')
-  }
-
+  // Server-side auth guard - redirects to login if not authenticated
+  const user = await requireAuth()
+  
+  // Get user plan - safe fallback to 'free' if error
   const currentPlan = await getUserPlan(user.id)
 
   return (

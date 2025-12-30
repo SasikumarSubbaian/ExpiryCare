@@ -72,7 +72,9 @@ export default function PlanSettingsPage() {
         if (upsertError.message.includes('relation') || upsertError.message.includes('does not exist')) {
           setMessage(`Table 'user_plans' doesn't exist. Please run the SQL migration first. See instructions below.`)
         } else {
-          throw upsertError
+          // Don't throw - show error message instead
+          setMessage(`Error: ${upsertError.message}`)
+          console.error('Error setting plan:', upsertError)
         }
       } else {
         setCurrentPlan(plan)
