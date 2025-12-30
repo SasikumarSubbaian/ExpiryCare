@@ -60,8 +60,12 @@ export default function UpgradePage() {
 
   // Safe fallback if still loading or error
   // Map 'family' plan to 'pro' for display (family plan removed from UI)
-  const planForDisplay = planLimits?.plan === 'family' ? 'pro' : (planLimits?.plan || 'free')
-  const currentPlan: 'free' | 'pro' = planForDisplay === 'family' ? 'pro' : planForDisplay
+  const planForDisplay: 'free' | 'pro' =
+    planLimits?.plan === 'family'
+      ? 'pro'
+      : (planLimits?.plan ?? 'free')
+
+  const currentPlan: 'free' | 'pro' = planForDisplay
 
   if (loading) {
     return (
