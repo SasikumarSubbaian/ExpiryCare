@@ -3,25 +3,31 @@
 import { useState } from 'react'
 import type { Category } from '@/lib/ocr/categorySchemas'
 
+type FieldWithConfidence = {
+  value: string | null
+  confidence: 'High' | 'Medium' | 'Low'
+}
+
 type ExtractedData = {
   category: string
-  categoryConfidence: number
+  categoryConfidence: 'High' | 'Medium' | 'Low'
+  categoryConfidencePercentage?: number
   expiryDate: {
     value: string | null
     confidence: 'High' | 'Medium' | 'Low'
     sourceKeyword: string | null
   }
-  productName?: string | null
-  companyName?: string | null
-  policyType?: string | null
-  insurerName?: string | null
-  serviceType?: string | null
-  providerName?: string | null
-  serviceName?: string | null
-  planType?: string | null
-  medicineName?: string | null
-  brandName?: string | null
-  documentType?: string | null
+  productName?: FieldWithConfidence
+  companyName?: FieldWithConfidence
+  policyType?: FieldWithConfidence
+  insurerName?: FieldWithConfidence
+  serviceType?: FieldWithConfidence
+  providerName?: FieldWithConfidence
+  serviceName?: FieldWithConfidence
+  planType?: FieldWithConfidence
+  medicineName?: FieldWithConfidence
+  brandName?: FieldWithConfidence
+  documentType?: FieldWithConfidence
   warnings?: string[]
 }
 
@@ -79,10 +85,23 @@ export default function OCRConfirmationModal({
   const renderField = (
     label: string,
     fieldName: string,
-    value: string | null | undefined,
+    fieldData: FieldWithConfidence | string | null | undefined,
     confidence?: 'High' | 'Medium' | 'Low'
   ) => {
-    if (value === null || value === undefined) return null
+    // Handle both old format (string) and new format (FieldWithConfidence)
+    let value: string | null = null
+    let fieldConfidence: 'High' | 'Medium' | 'Low' = confidence || 'Medium'
+    
+    if (typeof fieldData === 'string') {
+      value = fieldData
+    } else if (fieldData && typeof fieldData === 'object' && 'value' in fieldData) {
+      value = fieldData.value
+      fieldConfidence = fieldData.confidence || confidence || 'Medium'
+    } else if (fieldData === null || fieldData === undefined) {
+      return null
+    }
+    
+    if (value === null || value === undefined || value.trim() === '') return null
 
     const isEditing = editingField === fieldName
 
@@ -90,15 +109,13 @@ export default function OCRConfirmationModal({
       <div className="mb-3">
         <label className="block text-sm font-medium text-gray-700 mb-1">
           {label}
-          {confidence && (
-            <span
-              className={`ml-2 px-2 py-0.5 rounded text-xs font-medium ${getConfidenceColor(
-                confidence
-              )}`}
-            >
-              {confidence} Confidence
-            </span>
-          )}
+          <span
+            className={`ml-2 px-2 py-0.5 rounded text-xs font-medium ${getConfidenceColor(
+              fieldConfidence
+            )}`}
+          >
+            {fieldConfidence} Confidence
+          </span>
         </label>
         {isEditing ? (
           <div className="flex gap-2">
@@ -165,8 +182,15 @@ export default function OCRConfirmationModal({
           <div className="mb-3">
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Category
-              <span className="ml-2 text-xs text-gray-500">
-                (Confidence: {Math.round(extractedData.categoryConfidence * 100)}%)
+              <span
+                className={`ml-2 px-2 py-0.5 rounded text-xs font-medium ${getConfidenceColor(
+                  extractedData.categoryConfidence
+                )}`}
+              >
+                {extractedData.categoryConfidence} Confidence
+                {extractedData.categoryConfidencePercentage !== undefined && (
+                  <span className="ml-1">({extractedData.categoryConfidencePercentage}%)</span>
+                )}
               </span>
             </label>
             <div className="px-3 py-2 bg-gray-50 rounded-md text-gray-900 capitalize">

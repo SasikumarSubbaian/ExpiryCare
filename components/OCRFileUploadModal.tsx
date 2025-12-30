@@ -102,36 +102,47 @@ export default function OCRFileUploadModal({
         person_name: null,
       }
 
+      // Helper to extract value from field (handles both old string format and new FieldWithConfidence format)
+      const getFieldValue = (field: any): string | null => {
+        if (!field) return null
+        if (typeof field === 'string') return field
+        if (typeof field === 'object' && 'value' in field) return field.value
+        return null
+      }
+      
       // Category-specific fields
       if (data.category === 'warranty') {
-        itemData.title = data.productName || 'Warranty'
-        if (data.companyName) {
-          itemData.notes = `Company: ${data.companyName}`
+        itemData.title = getFieldValue(data.productName) || 'Warranty'
+        const companyName = getFieldValue(data.companyName)
+        if (companyName) {
+          itemData.notes = `Company: ${companyName}`
         }
       } else if (data.category === 'insurance') {
-        itemData.title = data.policyType ? `${data.policyType} Insurance` : 'Insurance'
-        if (data.insurerName) {
-          itemData.notes = `Insurer: ${data.insurerName}`
+        const policyType = getFieldValue(data.policyType)
+        itemData.title = policyType ? `${policyType} Insurance` : 'Insurance'
+        const insurerName = getFieldValue(data.insurerName)
+        if (insurerName) {
+          itemData.notes = `Insurer: ${insurerName}`
         }
       } else if (data.category === 'amc') {
-        itemData.title = data.serviceType || 'AMC'
-        if (data.providerName) {
-          itemData.notes = `Provider: ${data.providerName}`
+        itemData.title = getFieldValue(data.serviceType) || 'AMC'
+        const providerName = getFieldValue(data.providerName)
+        if (providerName) {
+          itemData.notes = `Provider: ${providerName}`
         }
       } else if (data.category === 'subscription') {
-        itemData.title = data.serviceName || 'Subscription'
-        if (data.planType) {
-          itemData.notes = `Plan: ${data.planType}`
-        }
+        itemData.title = getFieldValue(data.serviceName) || 'Subscription'
       } else if (data.category === 'medicine') {
-        itemData.title = data.medicineName || 'Medicine'
+        const medicineName = getFieldValue(data.medicineName)
+        itemData.title = medicineName || 'Medicine'
         itemData.person_name = 'Self' // Default for medicine
-        if (data.brandName) {
-          itemData.notes = `Brand: ${data.brandName}`
+        const brandName = getFieldValue(data.brandName)
+        if (brandName) {
+          itemData.notes = `Brand: ${brandName}`
         }
         itemData.reminder_days = [30, 7, 0] // Medicine reminders
       } else {
-        itemData.title = data.documentType || 'Other'
+        itemData.title = getFieldValue(data.documentType) || 'Other'
       }
 
       // Upload document if file exists

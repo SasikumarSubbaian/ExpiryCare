@@ -17,6 +17,16 @@ type AddItemModalProps = {
 type Category = 'warranty' | 'insurance' | 'amc' | 'subscription' | 'medicine' | 'other'
 type PersonOption = 'self' | 'dad' | 'mom' | 'custom'
 
+// Category-specific field definitions
+const categoryFields = {
+  warranty: ['productName', 'companyName'],
+  insurance: ['policyType', 'insurerName'],
+  amc: ['serviceType', 'providerName'],
+  subscription: ['serviceName'],
+  medicine: ['medicineName', 'brandName'],
+  other: ['field1', 'field2', 'field3'], // Custom fields for Other category
+} as const
+
 export default function AddItemModal({ isOpen, onClose, onSuccess, userPlan = 'free', currentItemCount = 0, documentCount = 0 }: AddItemModalProps) {
   const [title, setTitle] = useState('')
   const [category, setCategory] = useState<Category>('warranty')
@@ -24,8 +34,21 @@ export default function AddItemModal({ isOpen, onClose, onSuccess, userPlan = 'f
   const [reminderDays, setReminderDays] = useState<number[]>([7])
   const [notes, setNotes] = useState('')
   
-  // Medicine-specific fields
+  // Category-specific fields
+  const [productName, setProductName] = useState('')
+  const [companyName, setCompanyName] = useState('')
+  const [policyType, setPolicyType] = useState('')
+  const [insurerName, setInsurerName] = useState('')
+  const [serviceType, setServiceType] = useState('')
+  const [providerName, setProviderName] = useState('')
+  const [serviceName, setServiceName] = useState('')
   const [medicineName, setMedicineName] = useState('')
+  const [brandName, setBrandName] = useState('')
+  const [field1, setField1] = useState('')
+  const [field2, setField2] = useState('')
+  const [field3, setField3] = useState('')
+  
+  // Medicine-specific fields
   const [personOption, setPersonOption] = useState<PersonOption>('self')
   const [customPersonName, setCustomPersonName] = useState('')
   
@@ -42,8 +65,26 @@ export default function AddItemModal({ isOpen, onClose, onSuccess, userPlan = 'f
   // NO OCR processing here - OCR is handled separately via "Choose File" button
   // Document upload in this modal is just for storage, not for OCR extraction
 
-  // Reset reminder days when category changes to Medicine
+  // Reset form fields when category changes
   useEffect(() => {
+    // Reset all category-specific fields
+    setProductName('')
+    setCompanyName('')
+    setPolicyType('')
+    setInsurerName('')
+    setServiceType('')
+    setProviderName('')
+    setServiceName('')
+    setMedicineName('')
+    setBrandName('')
+    setField1('')
+    setField2('')
+    setField3('')
+    setPersonOption('self')
+    setCustomPersonName('')
+    setTitle('')
+    
+    // Reset reminder days based on category
     if (category === 'medicine') {
       if (!canUseMedicine(userPlan)) {
         setCategory('warranty') // Reset to warranty if medicine not allowed
@@ -138,13 +179,50 @@ export default function AddItemModal({ isOpen, onClose, onSuccess, userPlan = 'f
         return
       }
 
-      // For medicine, use medicine name as title if provided, otherwise use title
-      const finalTitle = category === 'medicine' && medicineName 
-        ? medicineName 
-        : title
-
-      if (category === 'medicine' && !medicineName) {
-        setError('Medicine name is required')
+      // Build title and notes based on category and extracted fields
+      let finalTitle = title
+      let finalNotes = notes
+      
+      if (category === 'warranty') {
+        finalTitle = productName || title || 'Warranty'
+        if (companyName) {
+          finalNotes = finalNotes ? `${finalNotes}\nCompany: ${companyName}` : `Company: ${companyName}`
+        }
+      } else if (category === 'insurance') {
+        finalTitle = policyType ? `${policyType} Insurance` : title || 'Insurance'
+        if (insurerName) {
+          finalNotes = finalNotes ? `${finalNotes}\nInsurer: ${insurerName}` : `Insurer: ${insurerName}`
+        }
+      } else if (category === 'amc') {
+        finalTitle = serviceType || title || 'AMC'
+        if (providerName) {
+          finalNotes = finalNotes ? `${finalNotes}\nProvider: ${providerName}` : `Provider: ${providerName}`
+        }
+      } else if (category === 'subscription') {
+        finalTitle = serviceName || title || 'Subscription'
+      } else if (category === 'medicine') {
+        if (!medicineName) {
+          setError('Medicine name is required')
+          setLoading(false)
+          return
+        }
+        finalTitle = medicineName
+        if (brandName) {
+          finalNotes = finalNotes ? `${finalNotes}\nBrand: ${brandName}` : `Brand: ${brandName}`
+        }
+      } else if (category === 'other') {
+        // For Other category, use field2 (Product/License/Document) as title if provided
+        finalTitle = field2 || title || 'Other'
+        if (field1) {
+          finalNotes = finalNotes ? `${finalNotes}\nCompany: ${field1}` : `Company: ${field1}`
+        }
+        if (field3) {
+          finalNotes = finalNotes ? `${finalNotes}\nNotes: ${field3}` : `Notes: ${field3}`
+        }
+      }
+      
+      if (!finalTitle) {
+        setError('Title is required')
         setLoading(false)
         return
       }
@@ -164,7 +242,28 @@ export default function AddItemModal({ isOpen, onClose, onSuccess, userPlan = 'f
 
       // For Free plan, basic fields are required
       if (userPlan === 'free') {
-        if (!title && !isMedicine) {
+        // Check category-specific required fields
+        if (category === 'warranty' && !productName && !title) {
+          setError('Product name is required')
+          setLoading(false)
+          return
+        }
+        if (category === 'insurance' && !policyType && !title) {
+          setError('Policy type is required')
+          setLoading(false)
+          return
+        }
+        if (category === 'amc' && !serviceType && !title) {
+          setError('Service type is required')
+          setLoading(false)
+          return
+        }
+        if (category === 'subscription' && !serviceName && !title) {
+          setError('Service name is required')
+          setLoading(false)
+          return
+        }
+        if (category !== 'medicine' && category !== 'warranty' && category !== 'insurance' && category !== 'amc' && category !== 'subscription' && category !== 'other' && !title) {
           setError('Title is required')
           setLoading(false)
           return
@@ -218,7 +317,7 @@ export default function AddItemModal({ isOpen, onClose, onSuccess, userPlan = 'f
           category,
           expiry_date: expiryDate,
           reminder_days: reminderDays,
-          notes: notes || null,
+          notes: finalNotes || null,
           person_name: personName,
           document_url: documentUrl,
         })
@@ -283,7 +382,18 @@ export default function AddItemModal({ isOpen, onClose, onSuccess, userPlan = 'f
       setExpiryDate('')
       setReminderDays([7])
       setNotes('')
+      setProductName('')
+      setCompanyName('')
+      setPolicyType('')
+      setInsurerName('')
+      setServiceType('')
+      setProviderName('')
+      setServiceName('')
       setMedicineName('')
+      setBrandName('')
+      setField1('')
+      setField2('')
+      setField3('')
       setPersonOption('self')
       setCustomPersonName('')
       setDocumentFile(null)
@@ -322,13 +432,245 @@ export default function AddItemModal({ isOpen, onClose, onSuccess, userPlan = 'f
       setExpiryDate('')
       setReminderDays([7])
       setNotes('')
+      setProductName('')
+      setCompanyName('')
+      setPolicyType('')
+      setInsurerName('')
+      setServiceType('')
+      setProviderName('')
+      setServiceName('')
       setMedicineName('')
+      setBrandName('')
+      setField1('')
+      setField2('')
+      setField3('')
       setPersonOption('self')
       setCustomPersonName('')
       setDocumentFile(null)
       setError(null)
       onClose()
     }
+  }
+  
+  // Helper to render category-specific fields
+  const renderCategoryFields = () => {
+    const fields = categoryFields[category]
+    if (!fields || fields.length === 0) return null
+    
+    return fields.map((field) => {
+      const fieldLabel = field
+        .replace(/([A-Z])/g, ' $1')
+        .replace(/^./, (str) => str.toUpperCase())
+        .trim()
+      
+      if (category === 'warranty') {
+        if (field === 'productName') {
+          return (
+            <div key={field}>
+              <label htmlFor={field} className="block text-sm font-medium text-gray-700 mb-1">
+                Product Name {userPlan === 'free' && <span className="text-red-500">*</span>}
+              </label>
+              <input
+                id={field}
+                type="text"
+                required={userPlan === 'free'}
+                value={productName}
+                onChange={(e) => setProductName(e.target.value)}
+                placeholder="e.g., iPhone 14"
+                className="w-full px-3 py-2 text-base text-gray-900 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+              />
+            </div>
+          )
+        }
+        if (field === 'companyName') {
+          return (
+            <div key={field}>
+              <label htmlFor={field} className="block text-sm font-medium text-gray-700 mb-1">
+                Company Name
+              </label>
+              <input
+                id={field}
+                type="text"
+                value={companyName}
+                onChange={(e) => setCompanyName(e.target.value)}
+                placeholder="e.g., Apple Inc."
+                className="w-full px-3 py-2 text-base text-gray-900 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+              />
+            </div>
+          )
+        }
+      }
+      
+      if (category === 'insurance') {
+        if (field === 'policyType') {
+          return (
+            <div key={field}>
+              <label htmlFor={field} className="block text-sm font-medium text-gray-700 mb-1">
+                Policy Type {userPlan === 'free' && <span className="text-red-500">*</span>}
+              </label>
+              <input
+                id={field}
+                type="text"
+                required={userPlan === 'free'}
+                value={policyType}
+                onChange={(e) => setPolicyType(e.target.value)}
+                placeholder="e.g., Health, Motor, Life"
+                className="w-full px-3 py-2 text-base text-gray-900 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+              />
+            </div>
+          )
+        }
+        if (field === 'insurerName') {
+          return (
+            <div key={field}>
+              <label htmlFor={field} className="block text-sm font-medium text-gray-700 mb-1">
+                Insurer Name
+              </label>
+              <input
+                id={field}
+                type="text"
+                value={insurerName}
+                onChange={(e) => setInsurerName(e.target.value)}
+                placeholder="e.g., LIC, HDFC Life"
+                className="w-full px-3 py-2 text-base text-gray-900 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+              />
+            </div>
+          )
+        }
+      }
+      
+      if (category === 'amc') {
+        if (field === 'serviceType') {
+          return (
+            <div key={field}>
+              <label htmlFor={field} className="block text-sm font-medium text-gray-700 mb-1">
+                Service Type {userPlan === 'free' && <span className="text-red-500">*</span>}
+              </label>
+              <input
+                id={field}
+                type="text"
+                required={userPlan === 'free'}
+                value={serviceType}
+                onChange={(e) => setServiceType(e.target.value)}
+                placeholder="e.g., Annual Maintenance"
+                className="w-full px-3 py-2 text-base text-gray-900 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+              />
+            </div>
+          )
+        }
+        if (field === 'providerName') {
+          return (
+            <div key={field}>
+              <label htmlFor={field} className="block text-sm font-medium text-gray-700 mb-1">
+                Provider Name
+              </label>
+              <input
+                id={field}
+                type="text"
+                value={providerName}
+                onChange={(e) => setProviderName(e.target.value)}
+                placeholder="e.g., Service Provider Name"
+                className="w-full px-3 py-2 text-base text-gray-900 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+              />
+            </div>
+          )
+        }
+      }
+      
+      if (category === 'subscription') {
+        if (field === 'serviceName') {
+          return (
+            <div key={field}>
+              <label htmlFor={field} className="block text-sm font-medium text-gray-700 mb-1">
+                Service Name {userPlan === 'free' && <span className="text-red-500">*</span>}
+              </label>
+              <input
+                id={field}
+                type="text"
+                required={userPlan === 'free'}
+                value={serviceName}
+                onChange={(e) => setServiceName(e.target.value)}
+                placeholder="e.g., Netflix, Spotify"
+                className="w-full px-3 py-2 text-base text-gray-900 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+              />
+            </div>
+          )
+        }
+      }
+      
+      if (category === 'medicine') {
+        if (field === 'medicineName') {
+          return (
+            <div key={field}>
+              <label htmlFor={field} className="block text-sm font-medium text-gray-700 mb-1">
+                Medicine Name <span className="text-red-500">*</span>
+              </label>
+              <input
+                id={field}
+                type="text"
+                required
+                value={medicineName}
+                onChange={(e) => setMedicineName(e.target.value)}
+                placeholder="e.g., Paracetamol 500mg"
+                className="w-full px-3 py-2 text-base text-gray-900 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+              />
+            </div>
+          )
+        }
+        if (field === 'brandName') {
+          return (
+            <div key={field}>
+              <label htmlFor={field} className="block text-sm font-medium text-gray-700 mb-1">
+                Brand Name
+              </label>
+              <input
+                id={field}
+                type="text"
+                value={brandName}
+                onChange={(e) => setBrandName(e.target.value)}
+                placeholder="e.g., Crocin, Dolo"
+                className="w-full px-3 py-2 text-base text-gray-900 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+              />
+            </div>
+          )
+        }
+      }
+      
+      if (category === 'other') {
+        const labels = {
+          field1: 'Company Name',
+          field2: 'Product / License / Document',
+          field3: 'Notes',
+        }
+        const placeholders = {
+          field1: 'Optional company name',
+          field2: 'Product, license, or document name',
+          field3: 'Additional notes',
+        }
+        
+        return (
+          <div key={field}>
+            <label htmlFor={field} className="block text-sm font-medium text-gray-700 mb-1">
+              {labels[field as keyof typeof labels]}
+            </label>
+            <input
+              id={field}
+              type="text"
+              value={field === 'field1' ? field1 : field === 'field2' ? field2 : field3}
+              onChange={(e) => {
+                if (field === 'field1') setField1(e.target.value)
+                else if (field === 'field2') setField2(e.target.value)
+                else setField3(e.target.value)
+              }}
+              placeholder={placeholders[field as keyof typeof placeholders]}
+              className="w-full px-3 py-2 text-base text-gray-900 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+            />
+          </div>
+        )
+      }
+      
+      return null
+    })
   }
 
   const isMedicine = category === 'medicine'
@@ -382,26 +724,11 @@ export default function AddItemModal({ isOpen, onClose, onSuccess, userPlan = 'f
             )}
           </div>
 
-          {/* Medicine Name (only for Medicine category) */}
-          {isMedicine && canUseMedicine(userPlan) && (
-            <div>
-              <label htmlFor="medicineName" className="block text-sm font-medium text-gray-700 mb-1">
-                Medicine Name <span className="text-red-500">*</span>
-              </label>
-              <input
-                id="medicineName"
-                type="text"
-                required
-                value={medicineName}
-                onChange={(e) => setMedicineName(e.target.value)}
-                placeholder="e.g., Paracetamol 500mg"
-                className="w-full px-3 py-2 text-base text-gray-900 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
-              />
-            </div>
-          )}
-
-          {/* Title (only for non-Medicine categories) */}
-          {!isMedicine && (
+          {/* Category-specific fields - dynamically rendered */}
+          {renderCategoryFields()}
+          
+          {/* Title field - shown for categories that don't have a primary name field */}
+          {category !== 'medicine' && category !== 'warranty' && category !== 'insurance' && category !== 'amc' && category !== 'subscription' && category !== 'other' && (
             <div>
               <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">
                 Title {userPlan === 'free' && <span className="text-red-500">*</span>}
@@ -412,7 +739,7 @@ export default function AddItemModal({ isOpen, onClose, onSuccess, userPlan = 'f
                 required={userPlan === 'free'}
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                placeholder="e.g., iPhone 14 Warranty"
+                placeholder="Item title"
                 className="w-full px-3 py-2 text-base text-gray-900 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
               />
             </div>
@@ -638,7 +965,11 @@ export default function AddItemModal({ isOpen, onClose, onSuccess, userPlan = 'f
               disabled={loading || uploading || 
                 ((userPlan === 'pro' || userPlan === 'family') && reminderDays.length === 0) || 
                 (userPlan === 'free' && reminderDays.length === 0) ||
-                (isMedicine && !medicineName)}
+                (category === 'medicine' && !medicineName) ||
+                (category === 'warranty' && userPlan === 'free' && !productName) ||
+                (category === 'insurance' && userPlan === 'free' && !policyType) ||
+                (category === 'amc' && userPlan === 'free' && !serviceType) ||
+                (category === 'subscription' && userPlan === 'free' && !serviceName)}
               className="flex-1 px-4 py-2 border border-transparent rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               {uploading ? (

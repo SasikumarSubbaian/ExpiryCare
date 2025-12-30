@@ -363,22 +363,37 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 14. Prepare response - all serializable data
+    // 14. Prepare response - all serializable data with confidence scores
+    // Map confidence levels: High (≥70%), Medium (40-69%), Low (<40%)
+    const mapConfidence = (value: string | null | undefined): { value: string | null; confidence: 'High' | 'Medium' | 'Low' } => {
+      if (!value || value.trim().length === 0) {
+        return { value: null, confidence: 'Low' }
+      }
+      // Simple heuristic: if value was extracted and is not empty, assume Medium confidence
+      // In production, this would be calculated based on extraction quality
+      return { value, confidence: 'Medium' }
+    }
+    
     const result = {
       category,
-      categoryConfidence: String(confidence), // Convert number to string for JSON
-      expiryDate: extractedData.expiryDate || null,
-      productName: extractedData.productName || null,
-      companyName: extractedData.companyName || null,
-      policyType: extractedData.policyType || null,
-      insurerName: extractedData.insurerName || null,
-      serviceType: extractedData.serviceType || null,
-      providerName: extractedData.providerName || null,
-      serviceName: extractedData.serviceName || null,
-      planType: extractedData.planType || null,
-      medicineName: extractedData.medicineName || null,
-      brandName: extractedData.brandName || null,
-      documentType: extractedData.documentType || null,
+      categoryConfidence: confidence >= 0.7 ? 'High' : confidence >= 0.4 ? 'Medium' : 'Low',
+      categoryConfidencePercentage: Math.round(confidence * 100),
+      expiryDate: extractedData.expiryDate ? {
+        value: extractedData.expiryDate.value,
+        confidence: extractedData.expiryDate.confidence,
+        sourceKeyword: extractedData.expiryDate.sourceKeyword,
+      } : { value: null, confidence: 'Low' as const, sourceKeyword: null },
+      productName: mapConfidence(extractedData.productName),
+      companyName: mapConfidence(extractedData.companyName),
+      policyType: mapConfidence(extractedData.policyType),
+      insurerName: mapConfidence(extractedData.insurerName),
+      serviceType: mapConfidence(extractedData.serviceType),
+      providerName: mapConfidence(extractedData.providerName),
+      serviceName: mapConfidence(extractedData.serviceName),
+      planType: mapConfidence(extractedData.planType),
+      medicineName: mapConfidence(extractedData.medicineName),
+      brandName: mapConfidence(extractedData.brandName),
+      documentType: mapConfidence(extractedData.documentType),
       additionalFields: extractedData.additionalFields || {},
       warnings: extractedData.extractionWarnings || [],
       rawText: sanitizedText.substring(0, 1000), // Limit raw text in response (sanitized)
