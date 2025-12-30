@@ -1,16 +1,17 @@
+'use client'
+
+import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { createClient } from '@/lib/supabase/server'
-import { differenceInDays, isPast, isToday } from 'date-fns'
 import DashboardHeader from '@/components/DashboardHeader'
 import ItemsSection from '@/components/ItemsSection'
 import DashboardWithModal from '@/components/DashboardWithModal'
 import FamilyMembersSection from '@/components/FamilyMembersSection'
 import PlanDisplay from '@/components/PlanDisplay'
-import { getUserPlan, getItemCount, getFamilyMemberCount, getDocumentCount } from '@/lib/supabase/plans'
-import { serializeArray } from '@/lib/utils/serialize'
+import type { User } from '@supabase/supabase-js'
 
-// No runtime exports needed - inherited from layout
-// No auth logic needed - handled by layout
+// Client component - no server-side Supabase calls
+// All data fetching happens via API route
 
 type LifeItem = {
   id: string
@@ -25,225 +26,140 @@ type LifeItem = {
   user_id: string
 }
 
-export default async function DashboardPage() {
-  // Auth is handled by layout - user is guaranteed to be authenticated here
-  // Fetch user for this page (Supabase caches, so this is efficient)
-  const supabase = await createClient()
-  
-  if (!supabase) {
-    // This shouldn't happen if layout worked, but safe guard
+type DashboardData = {
+  user: {
+    id: string
+    email: string | undefined
+    userName: string
+  }
+  userPlan: 'free' | 'pro' | 'family'
+  itemCount: number
+  familyMemberCount: number
+  documentCount: number
+  items: LifeItem[]
+  categorized: {
+    expired: LifeItem[]
+    expiringSoon: LifeItem[]
+    active: LifeItem[]
+  }
+  error?: string
+}
+
+export default function DashboardPage() {
+  const router = useRouter()
+  const [loading, setLoading] = useState(true)
+  const [data, setData] = useState<DashboardData | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    // Fetch dashboard data from API route
+    async function fetchDashboardData() {
+      try {
+        setLoading(true)
+        setError(null)
+
+        const response = await fetch('/api/dashboard', {
+          method: 'GET',
+          credentials: 'include', // Include cookies for auth
+        })
+
+        if (response.status === 401) {
+          // Unauthorized - redirect to login
+          router.push('/login')
+          return
+        }
+
+        if (!response.ok) {
+          // Server error - show error message
+          const errorData = await response.json().catch(() => ({ error: 'Failed to load dashboard' }))
+          setError(errorData.error || 'Failed to load dashboard data')
+          setLoading(false)
+          return
+        }
+
+        const dashboardData: DashboardData = await response.json()
+        setData(dashboardData)
+      } catch (err: unknown) {
+        const errorMessage = err instanceof Error ? err.message : 'Failed to load dashboard'
+        console.error('[Dashboard] Error fetching data:', errorMessage)
+        setError(errorMessage)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchDashboardData()
+  }, [router])
+
+  // Loading state
+  if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-900 mb-4">Error</h1>
-          <p className="text-gray-600">Unable to connect to database. Please try again later.</p>
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mb-4"></div>
+          <p className="text-gray-600">Loading dashboard...</p>
         </div>
       </div>
     )
   }
 
-  // Get authenticated user
-  let user = null
-  try {
-    const { data, error } = await supabase.auth.getUser()
-    if (error || !data?.user) {
-      // This shouldn't happen if layout worked, but safe guard
-      return (
-        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-          <div className="text-center">
-            <h1 className="text-2xl font-bold text-gray-900 mb-4">Authentication Error</h1>
-            <p className="text-gray-600">Please log in again.</p>
-            <Link href="/login" className="mt-4 inline-block text-primary-600 hover:text-primary-700">
-              Go to Login
-            </Link>
-          </div>
-        </div>
-      )
-    }
-    user = data.user
-  } catch (err: unknown) {
-    const errorMessage = err instanceof Error ? err.message : String(err)
-    console.error('[Dashboard] Error fetching user:', errorMessage)
+  // Error state
+  if (error || !data) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
+        <div className="text-center max-w-md">
           <h1 className="text-2xl font-bold text-gray-900 mb-4">Error</h1>
-          <p className="text-gray-600">An error occurred. Please try again later.</p>
+          <p className="text-gray-600 mb-4">{error || 'Failed to load dashboard data'}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 transition-colors"
+          >
+            Retry
+          </button>
+          <Link
+            href="/login"
+            className="ml-4 px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
+          >
+            Go to Login
+          </Link>
         </div>
       </div>
     )
   }
 
-  // Get user profile for name display - safe fallbacks
-  let userName = user.email?.split('@')[0] || 'User'
-  try {
-    const { data: profile, error: profileError } = await supabase
-      .from('profiles')
-      .select('full_name')
-      .eq('id', user.id)
-      .single()
-    
-    if (!profileError && profile?.full_name) {
-      userName = profile.full_name
-    } else if (user.user_metadata?.full_name) {
-      userName = user.user_metadata.full_name
-    } else if (user.user_metadata?.name) {
-      userName = user.user_metadata.name
-    }
-  } catch (err: unknown) {
-    // Profile fetch failed - use metadata as fallback
-    const errorMessage = err instanceof Error ? err.message : String(err)
-    console.error('[Dashboard] Profile fetch error:', errorMessage)
-    if (user.user_metadata?.full_name) {
-      userName = user.user_metadata.full_name
-    } else if (user.user_metadata?.name) {
-      userName = user.user_metadata.name
-    }
-  }
+  // Convert user data to User type for components
+  const user: User = {
+    id: data.user.id,
+    email: data.user.email || undefined,
+    user_metadata: {},
+  } as User
 
-  // Get user plan and counts - all functions have safe fallbacks (no throws)
-  const userPlan = await getUserPlan(user.id) // Returns 'free' on error
-  const itemCount = await getItemCount(user.id) // Returns 0 on error
-  const familyMemberCount = await getFamilyMemberCount(user.id) // Returns 0 on error
-  const documentCount = await getDocumentCount(user.id) // Returns 0 on error
-
-  // Fetch user's items - safe fallback to empty array
-  // CRITICAL: All data must be serializable (no Date, BigInt, undefined)
-  let items: LifeItem[] = []
-  
-  try {
-    const result = await supabase
-      .from('life_items')
-      .select('id, user_id, title, category, expiry_date, reminder_days, notes, document_url, person_name, created_at, updated_at')
-      .eq('user_id', user.id)
-      .order('expiry_date', { ascending: true })
-    
-    if (result.error) {
-      console.error('[Dashboard] Error fetching items:', result.error.message)
-      // Continue with empty array - don't break the page
-      items = []
-    } else {
-      // Cast Supabase result once - then apply normal filters
-      const rows = (result.data ?? []) as LifeItem[]
-      // Filter by user_id (double safety, though query already filters)
-      // CRITICAL: Ensure all data is serializable - convert to plain array
-      items = serializeArray(
-        rows
-          .filter(item => item && String(item.user_id) === String(user.id))
-          .map(item => ({
-            id: String(item.id || ''),
-            user_id: String(item.user_id || ''),
-            title: String(item.title || ''),
-            category: String(item.category || 'other') as LifeItem['category'],
-            expiry_date: String(item.expiry_date || ''),
-            reminder_days: Array.isArray(item.reminder_days) ? item.reminder_days.map(d => Number(d) || 0) : [],
-            notes: item.notes ? String(item.notes) : null,
-            document_url: item.document_url ? String(item.document_url) : null,
-            person_name: item.person_name ? String(item.person_name) : null,
-            created_at: String(item.created_at || ''),
-          }))
-      )
-    }
-  } catch (err: unknown) {
-    const errorMessage = err instanceof Error ? err.message : String(err)
-    console.error('[Dashboard] Exception fetching items:', errorMessage)
-    // Continue with empty array - don't break the page
-    items = []
-  }
-
-  // All items are own items (filtered by user_id in query)
-  // CRITICAL: Ensure arrays are plain arrays (serializable)
-  const ownItems: LifeItem[] = serializeArray(items)
+  const ownItems = data.items
   const sharedItems: LifeItem[] = [] // Will be populated when family sharing is implemented
 
-  // Categorize items
-  // CRITICAL: Use Date only for calculation, never pass Date objects to components
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-
-  const categorizeItems = (items: LifeItem[]): { expired: LifeItem[]; expiringSoon: LifeItem[]; active: LifeItem[] } => {
-    // Create arrays for each category - ensure they're plain arrays
-    const expired: LifeItem[] = []
-    const expiringSoon: LifeItem[] = []
-    const active: LifeItem[] = []
-
-    items.forEach(item => {
-      try {
-        // Parse expiry date - handle both date strings and date objects
-        const expiryDateStr = String(item.expiry_date || '')
-        if (!expiryDateStr) {
-          // No expiry date - treat as expired
-          expired.push(item)
-          return
-        }
-
-        const expiryDate = new Date(expiryDateStr)
-        if (isNaN(expiryDate.getTime())) {
-          // Invalid date - treat as expired
-          expired.push(item)
-          return
-        }
-
-        expiryDate.setHours(0, 0, 0, 0)
-        
-        // Calculate days until expiry
-        const daysUntil = differenceInDays(expiryDate, today)
-        
-        // Categorize item - all items are plain objects (serializable)
-        if (isPast(expiryDate) && !isToday(expiryDate)) {
-          // Item has expired (past, but not today)
-          expired.push(item)
-        } else if (isToday(expiryDate)) {
-          // Item expires today - show in expired section
-          expired.push(item)
-        } else if (daysUntil > 0 && daysUntil <= 30) {
-          // Item expires within 30 days
-          expiringSoon.push(item)
-        } else if (daysUntil > 30) {
-          // Item expires in more than 30 days
-          active.push(item)
-        } else {
-          // Fallback: if daysUntil is negative but not caught by isPast, treat as expired
-          expired.push(item)
-        }
-      } catch (err: unknown) {
-        // Error parsing date - treat as expired
-        const errorMessage = err instanceof Error ? err.message : String(err)
-        console.error('[Dashboard] Error categorizing item:', item.id, errorMessage)
-        expired.push(item)
-      }
-    })
-
-    // CRITICAL: Ensure all arrays are serializable
-    return {
-      expired: serializeArray(expired),
-      expiringSoon: serializeArray(expiringSoon),
-      active: serializeArray(active),
-    }
-  }
-
-  const ownCategorized = categorizeItems(ownItems)
-  const sharedCategorized = categorizeItems(sharedItems)
-
   return (
-    <DashboardWithModal userPlan={userPlan} currentItemCount={itemCount} documentCount={documentCount}>
-      <DashboardHeader user={user} userName={userName} />
+    <DashboardWithModal
+      userPlan={data.userPlan}
+      currentItemCount={data.itemCount}
+      documentCount={data.documentCount}
+    >
+      <DashboardHeader user={user} userName={data.user.userName} />
 
       {/* Plan Display */}
       <div className="mb-6 sm:mb-8">
-        <PlanDisplay 
-          plan={userPlan} 
-          itemCount={itemCount}
-          familyMemberCount={familyMemberCount}
+        <PlanDisplay
+          plan={data.userPlan}
+          itemCount={data.itemCount}
+          familyMemberCount={data.familyMemberCount}
         />
       </div>
 
       {/* Family Members Section */}
-      {userPlan === 'family' && (
+      {data.userPlan === 'family' && (
         <div className="mb-6 sm:mb-8">
-          <FamilyMembersSection 
-            userPlan={userPlan}
-            currentMemberCount={familyMemberCount}
+          <FamilyMembersSection
+            userPlan={data.userPlan}
+            currentMemberCount={data.familyMemberCount}
           />
         </div>
       )}
@@ -251,21 +167,21 @@ export default async function DashboardPage() {
       {/* Own Items Sections */}
       <div className="space-y-6 sm:space-y-8 mb-8">
         <h2 className="text-xl font-bold text-gray-900">My Items</h2>
-        
+
         {/* Debug: Show error if items expected but none found */}
-        {itemCount > 0 && ownItems.length === 0 && (
+        {data.itemCount > 0 && ownItems.length === 0 && (
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
             <p className="text-yellow-800 text-sm">
-              <strong>Debug Info:</strong> Database shows {itemCount} item(s) but query returned 0. 
+              <strong>Debug Info:</strong> Database shows {data.itemCount} item(s) but query returned 0.
               Please check browser console for details.
             </p>
           </div>
         )}
-        
+
         <ItemsSection
           title="Expiring Soon"
           subtitle="Items expiring within 30 days"
-          items={ownCategorized.expiringSoon}
+          items={data.categorized.expiringSoon}
           emptyMessage="No items expiring soon. You're all set!"
           emptySubtext="Items expiring within 30 days will appear here."
         />
@@ -273,7 +189,7 @@ export default async function DashboardPage() {
         <ItemsSection
           title="Expired"
           subtitle="Items that have expired"
-          items={ownCategorized.expired}
+          items={data.categorized.expired}
           emptyMessage="No expired items"
           emptySubtext="Great job keeping track! Expired items will appear here."
         />
@@ -281,7 +197,7 @@ export default async function DashboardPage() {
         <ItemsSection
           title="Active"
           subtitle="Items with more than 30 days remaining"
-          items={ownCategorized.active}
+          items={data.categorized.active}
           emptyMessage="No active items yet"
           emptySubtext="Add your first item to get started tracking your expiries."
         />
@@ -291,11 +207,11 @@ export default async function DashboardPage() {
       {sharedItems.length > 0 && (
         <div className="space-y-6 sm:space-y-8">
           <h2 className="text-xl font-bold text-gray-900">Shared with Me</h2>
-          
+
           <ItemsSection
             title="Expiring Soon"
             subtitle="Shared items expiring within 30 days"
-            items={sharedCategorized.expiringSoon}
+            items={[]}
             emptyMessage="No shared items expiring soon"
             emptySubtext=""
           />
@@ -303,7 +219,7 @@ export default async function DashboardPage() {
           <ItemsSection
             title="Expired"
             subtitle="Shared items that have expired"
-            items={sharedCategorized.expired}
+            items={[]}
             emptyMessage="No expired shared items"
             emptySubtext=""
           />
@@ -311,7 +227,7 @@ export default async function DashboardPage() {
           <ItemsSection
             title="Active"
             subtitle="Shared items with more than 30 days remaining"
-            items={sharedCategorized.active}
+            items={[]}
             emptyMessage="No active shared items"
             emptySubtext=""
           />
@@ -330,4 +246,3 @@ export default async function DashboardPage() {
     </DashboardWithModal>
   )
 }
-

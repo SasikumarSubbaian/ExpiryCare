@@ -1,61 +1,23 @@
-import { redirect } from 'next/navigation'
-import { createClient } from '@/lib/supabase/server'
-import type { User } from '@supabase/supabase-js'
 import { ReactNode } from 'react'
 
-// CRITICAL: Force Node.js runtime to prevent Edge runtime crashes with cookies()
-// This ensures Supabase server client and cookies() work correctly in production
-export const runtime = 'nodejs'
-export const dynamic = 'force-dynamic'
-export const revalidate = 0
-
 /**
- * Protected Layout - Handles authentication for all pages in (protected) route group
- * - Reads Supabase auth cookies ONCE
- * - Fetches user ONCE
- * - Redirects to /login if unauthenticated
- * - Never throws errors
- * - Provides user context to all child pages
+ * Protected Layout - Simple wrapper for protected route group
  * 
- * This layout ensures all child pages are authenticated before rendering.
+ * Authentication is handled by middleware.ts which:
+ * - Checks user authentication before requests reach this layout
+ * - Redirects unauthenticated users to /login
+ * - Never throws errors
+ * 
+ * This layout is a simple pass-through since middleware handles all auth logic.
+ * Child pages (like dashboard) are client components that fetch data via API routes.
  */
-export default async function ProtectedLayout({
+export default function ProtectedLayout({
   children,
 }: {
   children: ReactNode
 }) {
-  // Fetch user ONCE at layout level - all child pages inherit this
-  // CRITICAL: redirect() throws a special error - don't catch it in try-catch
-  
-  const supabase = await createClient()
-
-  if (!supabase) {
-    // Supabase client is null - redirect to login
-    // redirect() throws - don't catch it
-    console.error('[ProtectedLayout] Supabase client is null')
-    redirect('/login')
-  }
-
-  const { data, error } = await supabase.auth.getUser()
-
-  if (error) {
-    // Auth error - redirect to login
-    // redirect() throws - don't catch it
-    console.error('[ProtectedLayout] Auth error:', error.message)
-    redirect('/login')
-  }
-
-  if (!data?.user) {
-    // No user - redirect to login
-    // redirect() throws - don't catch it
-    console.error('[ProtectedLayout] No user found')
-    redirect('/login')
-  }
-
-  // User is authenticated - render children
-  // Note: We don't pass user as a prop because Next.js layouts don't support that
-  // Instead, child pages will fetch user again (but it's cached by Supabase)
-  // This is acceptable because the layout ensures auth is valid
+  // Middleware has already verified authentication
+  // Just render children - no server-side logic needed
   return <>{children}</>
 }
 
