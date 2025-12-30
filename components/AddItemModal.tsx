@@ -18,7 +18,8 @@ type Category = 'warranty' | 'insurance' | 'amc' | 'subscription' | 'medicine' |
 type PersonOption = 'self' | 'dad' | 'mom' | 'custom'
 
 // Category-specific field definitions
-const categoryFields = {
+// Type-safe category fields mapping
+const categoryFields: Record<Category, readonly string[]> = {
   warranty: ['productName', 'companyName'],
   insurance: ['policyType', 'insurerName'],
   amc: ['serviceType', 'providerName'],
@@ -455,7 +456,9 @@ export default function AddItemModal({ isOpen, onClose, onSuccess, userPlan = 'f
   // Helper to render category-specific fields
   const renderCategoryFields = () => {
     const fields = categoryFields[category]
-    if (!fields || fields.length === 0) return null
+    
+    // TypeScript-safe check - no length comparison needed
+    if (!fields) return null
     
     return fields.map((field) => {
       const fieldLabel = field
