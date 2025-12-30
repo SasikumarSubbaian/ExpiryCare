@@ -106,13 +106,13 @@ export default function SignUpPage() {
               <Image 
                 src="/logo.png" 
                 alt="ExpiryCare Logo" 
-                width={48}
-                height={48}
+                width={36}
+                height={36}
                 priority
-                className="h-12 w-12 object-contain transition-transform duration-300 group-hover:scale-110"
+                className="h-9 w-9 object-contain transition-transform duration-300 group-hover:scale-110"
               />
             </div>
-            <span className="text-2xl font-bold bg-gradient-to-r from-primary-600 to-primary-500 bg-clip-text text-transparent">
+            <span className="text-xl font-semibold bg-gradient-to-r from-primary-600 to-primary-500 bg-clip-text text-transparent tracking-tight">
               ExpiryCare
             </span>
           </Link>

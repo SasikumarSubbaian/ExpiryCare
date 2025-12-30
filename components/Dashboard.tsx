@@ -130,14 +130,14 @@ export default function Dashboard() {
                 <Image 
                   src="/logo.png" 
                   alt="ExpiryCare Logo" 
-                  width={48}
-                  height={48}
+                  width={36}
+                  height={36}
                   priority
-                  className="h-12 w-12 object-contain transition-transform duration-300 group-hover:scale-110"
+                  className="h-9 w-9 object-contain transition-transform duration-300 group-hover:scale-110"
                 />
               </div>
               <div>
-                <h1 className="text-xl lg:text-2xl font-bold bg-gradient-to-r from-primary-600 to-primary-500 bg-clip-text text-transparent">
+                <h1 className="text-lg font-semibold bg-gradient-to-r from-primary-600 to-primary-500 bg-clip-text text-transparent tracking-tight">
                   ExpiryCare
                 </h1>
                 <p className="text-xs text-gray-500 hidden sm:block">Track your important expiries</p>

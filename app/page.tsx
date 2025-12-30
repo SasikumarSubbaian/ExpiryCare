@@ -41,13 +41,13 @@ export default function LandingPage() {
                 <Image 
                   src="/logo.png" 
                   alt="ExpiryCare Logo" 
-                  width={48}
-                  height={48}
+                  width={36}
+                  height={36}
                   priority
-                  className="h-12 w-12 object-contain transition-transform duration-300 group-hover:scale-110"
+                  className="h-9 w-9 object-contain transition-transform duration-300 group-hover:scale-110"
                 />
               </div>
-              <span className="text-xl lg:text-2xl font-bold bg-gradient-to-r from-primary-600 to-primary-500 bg-clip-text text-transparent">
+              <span className="text-lg font-semibold bg-gradient-to-r from-primary-600 to-primary-500 bg-clip-text text-transparent tracking-tight">
                 ExpiryCare
               </span>
             </Link>
@@ -358,13 +358,13 @@ export default function LandingPage() {
                   <Image 
                     src="/logo.png" 
                     alt="ExpiryCare Logo" 
-                    width={48}
-                    height={48}
+                    width={36}
+                    height={36}
                     priority
-                    className="h-12 w-12 object-contain"
+                    className="h-9 w-9 object-contain"
                   />
                 </div>
-                <span className="text-xl font-bold text-white">ExpiryCare</span>
+                <span className="text-lg font-semibold text-white tracking-tight">ExpiryCare</span>
               </div>
               <p className="text-gray-400 mb-4 max-w-md">
                 Never miss an important expiry again. Track warranties, insurance, medicines, and subscriptions with intelligent reminders.

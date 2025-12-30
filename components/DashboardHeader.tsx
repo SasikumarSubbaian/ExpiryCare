@@ -25,13 +25,13 @@ export default function DashboardHeader({ user, userName }: DashboardHeaderProps
             <Image 
               src="/logo.png" 
               alt="ExpiryCare Logo" 
-              width={48}
-              height={48}
+              width={36}
+              height={36}
               priority
-              className="h-12 w-12 object-contain"
+              className="h-9 w-9 object-contain"
             />
           </div>
-          <span className="text-lg sm:text-xl font-bold text-gray-900">ExpiryCare</span>
+          <span className="text-lg font-semibold text-gray-900 tracking-tight">ExpiryCare</span>
         </Link>
       </div>
       
