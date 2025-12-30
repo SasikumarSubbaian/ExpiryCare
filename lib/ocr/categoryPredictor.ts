@@ -68,6 +68,19 @@ const categoryKeywords: Record<Category, string[]> = {
     'use before',
     'best before',
     'pharmaceutical',
+    'tablet',
+    'tablets',
+    'capsule',
+    'capsules',
+    'vitamin',
+    'vitamins',
+    'chewable',
+    'mg',
+    'ml',
+    'pharma',
+    'pharmaceuticals',
+    'manufactured',
+    'mfg',
   ],
   other: [], // Default category, no specific keywords
 }
@@ -79,9 +92,13 @@ const categoryKeywords: Record<Category, string[]> = {
 export function predictCategory(ocrText: string): Category {
   const t = ocrText.toLowerCase()
 
-  // Medicine detection
+  // Medicine detection - enhanced with more keywords
   if (t.includes('tablet') || t.includes('capsule') || t.includes('mg') || 
-      t.includes('ml') || t.includes('mfg') || t.includes('exp date')) {
+      t.includes('ml') || t.includes('mfg') || t.includes('exp date') ||
+      t.includes('vitamin') || t.includes('chewable') || t.includes('medicine') ||
+      t.includes('medication') || t.includes('drug') || t.includes('pharma') ||
+      t.includes('pharmaceutical') || t.includes('batch') || t.includes('use before') ||
+      t.includes('best before') || t.includes('prescription')) {
     return 'medicine'
   }
 

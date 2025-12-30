@@ -239,6 +239,7 @@ export default function OCRConfirmationModal({
             <>
               {renderField('Medicine Name', 'medicineName', extractedData.medicineName)}
               {renderField('Brand Name', 'brandName', extractedData.brandName)}
+              {renderField('Company Name', 'companyName', extractedData.companyName)}
             </>
           )}
 

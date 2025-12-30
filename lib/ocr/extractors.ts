@@ -167,37 +167,100 @@ function extractSubscriptionFields(ocrText: string): Partial<ExtractedData> {
 
 /**
  * Extract medicine-specific fields
+ * Enhanced to extract medicine name and company/brand name more intelligently
+ * Handles both original case and uppercase text
  */
 function extractMedicineFields(ocrText: string): Partial<ExtractedData> {
-  const text = ocrText.toUpperCase()
+  // Use original text for better extraction (preserves product names)
+  const originalText = ocrText
+  const text = ocrText.toUpperCase() // For pattern matching
   const result: Partial<ExtractedData> = {}
 
-  // Extract medicine name (usually prominent)
-  const medicinePatterns = [
-    /(?:MEDICINE|DRUG|MEDICATION)\s*:?\s*([A-Z0-9\s]{3,40})/,
-    /^([A-Z][A-Z0-9\s]{3,40})(?:\s+\d+MG|\d+ML)/,
+  // Strategy 1: Look for prominent product names (usually at the start or large text)
+  // Pattern: "VITAMIN C CHEWABLE TABLETS" or similar
+  const prominentMedicinePatterns = [
+    // Match product names like "VITAMIN C CHEWABLE TABLETS"
+    /^([A-Za-z][A-Za-z0-9\s]{2,50}?)(?:\s+(?:CHEWABLE|TABLET|TABLETS|CAPSULE|CAPSULES|MG|ML|VIAL|INJECTION))/i,
+    // Match "VITAMIN C" or similar at start
+    /^([A-Za-z][A-Za-z0-9\s]{2,40}?)(?:\s+(?:TABLET|TABLETS|CAPSULE|CAPSULES))/i,
+    // Match medicine name before common keywords
+    /([A-Za-z][A-Za-z0-9\s]{3,40}?)(?:\s+(?:CHEWABLE|TABLET|TABLETS|CAPSULE|CAPSULES|MG|ML))/i,
+    // Match after "MEDICINE", "DRUG", "MEDICATION" labels
+    /(?:MEDICINE|DRUG|MEDICATION|PRODUCT)\s*:?\s*([A-Za-z0-9\s]{3,40})/i,
   ]
 
-  for (const pattern of medicinePatterns) {
-    const match = text.match(pattern)
+  for (const pattern of prominentMedicinePatterns) {
+    const match = originalText.match(pattern)
     if (match && match[1]) {
-      result.medicineName = match[1].trim()
-      break
+      const candidate = match[1].trim()
+      // Filter out common non-medicine words
+      if (!candidate.toUpperCase().match(/^(EXPIRY|DATE|BATCH|MFG|USE|BEST|BEFORE|VALID|TILL|UNTIL)/i)) {
+        result.medicineName = candidate
+        break
+      }
     }
   }
 
-  // Extract brand name
+  // Strategy 2: If no medicine name found, try to extract from first few lines
+  if (!result.medicineName) {
+    const lines = originalText.split('\n').slice(0, 5) // First 5 lines
+    for (const line of lines) {
+      const trimmed = line.trim()
+      // Look for lines that look like product names (2-50 chars, mostly letters/numbers)
+      if (trimmed.length >= 3 && trimmed.length <= 50 && 
+          trimmed.match(/^[A-Za-z0-9\s]+$/) && 
+          !trimmed.toUpperCase().match(/^(EXPIRY|DATE|BATCH|MFG|USE|BEST|BEFORE|VALID|TILL|UNTIL|MANUFACTURING|STORE)/i)) {
+        result.medicineName = trimmed
+        break
+      }
+    }
+  }
+
+  // Extract brand/company name
   const brandPatterns = [
-    /(?:BRAND|MANUFACTURER)\s*:?\s*([A-Z\s]{2,30})/,
-    /^([A-Z][A-Z\s]{2,30})(?:\s+PHARMA|PHARMACEUTICALS)/,
+    // After "BRAND", "MANUFACTURER", "MADE BY", "BY" labels
+    /(?:BRAND|MANUFACTURER|MADE\s+BY|BY)\s*:?\s*([A-Za-z\s]{2,40})/i,
+    // Company names ending with PHARMA, PHARMACEUTICALS, LTD, LIMITED, INC
+    /([A-Za-z][A-Za-z\s]{2,30}?)(?:\s+(?:PHARMA|PHARMACEUTICALS|LTD|LIMITED|INC|PRIVATE|LIMITED))/i,
+    // Look for company names in specific positions (usually after product name)
+    /(?:^|\n)([A-Za-z][A-Za-z\s]{2,30}?)(?:\s+(?:PHARMA|PHARMACEUTICALS|LTD|LIMITED))/i,
   ]
 
   for (const pattern of brandPatterns) {
-    const match = text.match(pattern)
+    const match = originalText.match(pattern)
     if (match && match[1]) {
-      result.brandName = match[1].trim()
-      break
+      const candidate = match[1].trim()
+      // Filter out common non-company words
+      if (!candidate.toUpperCase().match(/^(EXPIRY|DATE|BATCH|MFG|USE|BEST|BEFORE|VALID|TILL|UNTIL|MEDICINE|DRUG|MEDICATION|PRODUCT|STORE|MANUFACTURING)/i)) {
+        result.brandName = candidate
+        break
+      }
     }
+  }
+
+  // Strategy 3: If brand not found, look for company names in lines after medicine name
+  if (!result.brandName) {
+    const lines = originalText.split('\n')
+    const medicineLineIndex = lines.findIndex(line => 
+      result.medicineName && line.toUpperCase().includes(result.medicineName.toUpperCase())
+    )
+    if (medicineLineIndex >= 0 && medicineLineIndex < lines.length - 1) {
+      // Check next few lines for company name
+      for (let i = medicineLineIndex + 1; i < Math.min(medicineLineIndex + 4, lines.length); i++) {
+        const line = lines[i].trim()
+        if (line.length >= 2 && line.length <= 40 && 
+            line.match(/^[A-Za-z\s]+$/) &&
+            !line.toUpperCase().match(/^(EXPIRY|DATE|BATCH|MFG|USE|BEST|BEFORE|VALID|TILL|UNTIL|STORE|MANUFACTURING|CHEWABLE|TABLET|TABLETS)/i)) {
+          result.brandName = line
+          break
+        }
+      }
+    }
+  }
+
+  // Also set companyName to brandName if brandName exists (they're often the same for medicine)
+  if (result.brandName && !result.companyName) {
+    result.companyName = result.brandName
   }
 
   return result

@@ -7,9 +7,6 @@ import { predictCategory, getPredictionConfidence } from '@/lib/ocr/categoryPred
 import { extractByCategory } from '@/lib/ocr/extractors'
 import { sanitizeOCRText } from '@/lib/ocr/sanitizeOCRText'
 import type { Category } from '@/lib/ocr/categorySchemas'
-import { preprocessImage } from '@/lib/ocr/preprocessImage'
-import { extractDates } from '@/lib/ocr/dateExtractor'
-import { calculateConfidence, needsReview } from '@/lib/ocr/confidenceScore'
 import sharp from 'sharp'
 
 /**
@@ -252,8 +249,17 @@ export async function POST(request: NextRequest) {
     // 10. Preprocess image (resize, grayscale, enhance) - optional, continue on failure
     if (file.type.startsWith('image/')) {
       try {
-        // Use the dedicated preprocessing utility for better OCR accuracy
-        imageBuffer = await preprocessImage(imageBuffer) // Max 1600px width as per requirements
+        const processedBuffer: Buffer = await sharp(imageBuffer)
+          .rotate() // Auto-rotate based on EXIF
+          .resize(2000, 2000, {
+            fit: 'inside',
+            withoutEnlargement: true,
+          })
+          .greyscale()
+          .normalise()
+          .sharpen()
+          .toBuffer()
+        imageBuffer = processedBuffer
       } catch (preprocessError: unknown) {
         const errorMessage = preprocessError instanceof Error ? preprocessError.message : String(preprocessError)
         console.error('[OCR] Image preprocessing error:', errorMessage)
@@ -329,14 +335,7 @@ export async function POST(request: NextRequest) {
     // 13. Sanitize OCR text to remove PII before processing
     const sanitizedText = sanitizeOCRText(ocrText)
 
-    // 14. Extract dates for multi-pass analysis and confidence scoring
-    const extractedDates = extractDates(sanitizedText)
-    
-    // 15. Calculate overall confidence score
-    const overallConfidence = calculateConfidence(sanitizedText, extractedDates)
-    const requiresReview = needsReview(overallConfidence)
-
-    // 16. Predict category and extract data
+    // 14. Predict category and extract data
     let category: Category
     let confidence: number
     let extractedData: any
@@ -364,7 +363,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 17. Prepare response - all serializable data with confidence scores
+    // 14. Prepare response - all serializable data with confidence scores
     // Map confidence levels: High (≥70%), Medium (40-69%), Low (<40%)
     const mapConfidence = (value: string | null | undefined): { value: string | null; confidence: 'High' | 'Medium' | 'Low' } => {
       if (!value || value.trim().length === 0) {
@@ -379,12 +378,6 @@ export async function POST(request: NextRequest) {
       category,
       categoryConfidence: confidence >= 0.7 ? 'High' : confidence >= 0.4 ? 'Medium' : 'Low',
       categoryConfidencePercentage: Math.round(confidence * 100),
-      // NEW: Overall OCR confidence score (0-100)
-      overallConfidence: overallConfidence,
-      // NEW: Flag indicating if manual review is needed
-      needsReview: requiresReview,
-      // NEW: Extracted dates for multi-pass analysis
-      extractedDates: extractedDates,
       expiryDate: extractedData.expiryDate ? {
         value: extractedData.expiryDate.value,
         confidence: extractedData.expiryDate.confidence,
@@ -406,7 +399,7 @@ export async function POST(request: NextRequest) {
       rawText: sanitizedText.substring(0, 1000), // Limit raw text in response (sanitized)
     }
 
-    // 18. Log successful OCR call (don't block on logging errors)
+    // 15. Log successful OCR call (don't block on logging errors)
     try {
       await supabase.from('ocr_logs').insert({
         user_id: user.id,
@@ -421,7 +414,7 @@ export async function POST(request: NextRequest) {
       // Continue - don't block response on logging errors
     }
 
-    // 19. Return success response
+    // 16. Return success response
     return NextResponse.json({
       success: true,
       text: sanitizedText, // Include sanitized OCR text for client (PII removed)

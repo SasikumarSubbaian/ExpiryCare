@@ -129,17 +129,16 @@ export class GoogleVisionService {
         return ''
       }
 
-      // Normalize text: uppercase, fix common OCR errors
-      let normalizedText = fullTextAnnotation.text
-        .toUpperCase()
-        .replace(/O(?=\d)/g, '0') // O before digit → 0
-        .replace(/(?<=\d)O/g, '0') // O after digit → 0
-        .replace(/l(?=\d)/g, '1') // lowercase l before digit → 1
-        .replace(/(?<=\d)l/g, '1') // lowercase l after digit → 1
-        .replace(/\s+/g, ' ') // Normalize whitespace
-        .trim()
-
-      return normalizedText
+      // Get original text first (preserve for better extraction)
+      const originalText = fullTextAnnotation.text
+      
+      // Also create normalized version for date extraction and keyword matching
+      // But return original text to preserve product names, company names better
+      // The extractors will handle both formats
+      
+      // For now, return original text to preserve all information
+      // Extractors can handle case-insensitive matching
+      return originalText
     } catch (error: any) {
       console.error('Google Vision OCR error:', error)
       throw new Error(`OCR extraction failed: ${error.message}`)

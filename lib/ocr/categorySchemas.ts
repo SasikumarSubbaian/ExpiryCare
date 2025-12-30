@@ -66,7 +66,7 @@ export const categorySchemas: Record<Category, FieldSchema> = {
     required: ['expiryDate'],
   },
   medicine: {
-    allowed: ['medicineName', 'brandName', 'expiryDate'],
+    allowed: ['medicineName', 'brandName', 'companyName', 'expiryDate'],
     forbidden: [
       'batchNumber',
       'mfgLicense',
