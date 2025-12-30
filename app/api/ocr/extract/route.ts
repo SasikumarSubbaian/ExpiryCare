@@ -33,13 +33,16 @@ export async function POST(request: NextRequest) {
     const supabase = await createClient()
     if (!supabase) {
       console.error('[OCR] Supabase client is null')
+      // Return 200 with success:false - never return 500 unless request is malformed
       return NextResponse.json(
         {
           success: false,
+          text: null,
+          reason: 'SERVICE_CONFIG_ERROR',
           error: 'Service configuration error',
           allowManualEntry: true, // Allow user to enter data manually
         },
-        { status: 503 }
+        { status: 200 }
       )
     }
 
@@ -47,13 +50,16 @@ export async function POST(request: NextRequest) {
     const user = data?.user || null
 
     if (authError || !user) {
+      // Return 200 with success:false - auth errors are not 500s
       return NextResponse.json(
         {
           success: false,
+          text: null,
+          reason: 'UNAUTHORIZED',
           error: 'Unauthorized',
           allowManualEntry: false,
         },
-        { status: 401 }
+        { status: 200 }
       )
     }
 
@@ -61,14 +67,17 @@ export async function POST(request: NextRequest) {
     try {
       const rateLimitResult = checkRateLimit(`ocr:${user.id}`, 5, 60 * 1000)
       if (!rateLimitResult.allowed) {
+        // Return 200 with success:false - rate limit is not a 500 error
         return NextResponse.json(
           {
             success: false,
+            text: null,
+            reason: 'RATE_LIMIT_EXCEEDED',
             error: rateLimitResult.error || 'Rate limit exceeded',
             retryAfter: rateLimitResult.retryAfter,
             allowManualEntry: true, // Allow manual entry even if rate limited
           },
-          { status: 429 }
+          { status: 200 }
         )
       }
     } catch (rateLimitError: unknown) {
@@ -84,9 +93,12 @@ export async function POST(request: NextRequest) {
     } catch (formDataError: unknown) {
       const errorMessage = formDataError instanceof Error ? formDataError.message : String(formDataError)
       console.error('[OCR] FormData parse error:', errorMessage)
+      // Malformed request - return 400 (this is the only case where we return non-200)
       return NextResponse.json(
         {
           success: false,
+          text: null,
+          reason: 'INVALID_REQUEST',
           error: 'Invalid request format',
           allowManualEntry: true,
         },
@@ -99,13 +111,16 @@ export async function POST(request: NextRequest) {
 
     // 4. Validate file exists
     if (!file || !(file instanceof File)) {
+      // Return 200 with success:false - missing file is not a 500 error
       return NextResponse.json(
         {
           success: false,
+          text: null,
+          reason: 'NO_FILE',
           error: 'No file provided',
           allowManualEntry: true, // Allow manual entry
         },
-        { status: 400 }
+        { status: 200 }
       )
     }
 
@@ -114,13 +129,16 @@ export async function POST(request: NextRequest) {
     try {
       validation = validateFile(file)
       if (!validation.valid) {
+        // Return 200 with success:false - invalid file is not a 500 error
         return NextResponse.json(
           {
             success: false,
+            text: null,
+            reason: 'INVALID_FILE',
             error: validation.error || 'Invalid file',
             allowManualEntry: true,
           },
-          { status: 400 }
+          { status: 200 }
         )
       }
     } catch (validationError: unknown) {
@@ -129,10 +147,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           success: false,
+          text: null,
+          reason: 'VALIDATION_ERROR',
           error: 'File validation failed',
           allowManualEntry: true,
         },
-        { status: 400 }
+        { status: 200 }
       )
     }
 
@@ -141,14 +161,17 @@ export async function POST(request: NextRequest) {
     try {
       ocrCheck = await canUseOCR(user.id)
       if (!ocrCheck.allowed) {
+        // Return 200 with success:false - limit reached is not a 500 error
         return NextResponse.json(
           {
             success: false,
+            text: null,
+            reason: 'OCR_LIMIT_REACHED',
             error: ocrCheck.reason || 'OCR limit reached',
             remaining: ocrCheck.remaining,
             allowManualEntry: true, // Always allow manual entry
           },
-          { status: 403 }
+          { status: 200 }
         )
       }
     } catch (ocrCheckError: unknown) {
@@ -193,15 +216,18 @@ export async function POST(request: NextRequest) {
       const arrayBuffer = await file.arrayBuffer()
       imageBuffer = Buffer.from(new Uint8Array(arrayBuffer))
       
-      // Enforce size limit (10MB max)
-      if (imageBuffer.length > 10 * 1024 * 1024) {
+      // Enforce size limit (5MB max for OCR)
+      if (imageBuffer.length > 5 * 1024 * 1024) {
+        // Return 200 with success:false - file too large is not a 500 error
         return NextResponse.json(
           {
             success: false,
-            error: 'File too large. Maximum size is 10MB.',
+            text: null,
+            reason: 'FILE_TOO_LARGE',
+            error: 'File too large. Maximum size is 5MB.',
             allowManualEntry: true,
           },
-          { status: 400 }
+          { status: 200 }
         )
       }
     } catch (bufferError: unknown) {
@@ -210,10 +236,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           success: false,
+          text: null,
+          reason: 'BUFFER_CONVERSION_ERROR',
           error: 'Failed to process file',
           allowManualEntry: true,
         },
-        { status: 400 }
+        { status: 200 }
       )
     }
 
@@ -242,13 +270,16 @@ export async function POST(request: NextRequest) {
     const visionService = getGoogleVisionService()
     if (!visionService.isAvailable()) {
       console.error('[OCR] Google Vision service not available')
+      // Return 200 with success:false - service unavailable is not a 500 error
       return NextResponse.json(
         {
           success: false,
+          text: null,
+          reason: 'SERVICE_UNAVAILABLE',
           error: 'OCR service not available. Please configure Google Vision API credentials.',
           allowManualEntry: true, // Always allow manual entry
         },
-        { status: 503 }
+        { status: 200 }
       )
     }
 
@@ -266,14 +297,16 @@ export async function POST(request: NextRequest) {
         console.error('[OCR] Failed to log OCR call:', logError)
       }
 
-      // Return fallback - allow manual entry
+      // Return 200 with success:false - OCR failure is not a 500 error
       return NextResponse.json(
         {
           success: false,
+          text: null,
+          reason: 'OCR_FAILED',
           error: 'Failed to extract text from document. Please try again or enter details manually.',
           allowManualEntry: true, // CRITICAL: Always allow manual entry
         },
-        { status: 500 }
+        { status: 200 }
       )
     }
 
@@ -285,13 +318,16 @@ export async function POST(request: NextRequest) {
         console.error('[OCR] Failed to log OCR call:', logError)
       }
       
+      // Return 200 with success:false - no text found is not a 500 error
       return NextResponse.json(
         {
           success: false,
+          text: null,
+          reason: 'NO_TEXT_FOUND',
           error: 'No text found in document. Please ensure the document is clear and readable, or enter details manually.',
           allowManualEntry: true, // Always allow manual entry
         },
-        { status: 400 }
+        { status: 200 }
       )
     }
 
@@ -361,6 +397,7 @@ export async function POST(request: NextRequest) {
     // 16. Return success response
     return NextResponse.json({
       success: true,
+      text: ocrText, // Include raw OCR text for client
       extractedData: result,
     })
   } catch (error: unknown) {
@@ -369,14 +406,16 @@ export async function POST(request: NextRequest) {
     const errorStack = error instanceof Error ? error.stack : undefined
     console.error('[OCR] Global error handler:', errorMessage, errorStack)
 
-    // Return fallback response - always allow manual entry
+    // Return 200 with success:false - never return 500 unless request is malformed
     return NextResponse.json(
       {
         success: false,
+        text: null,
+        reason: 'INTERNAL_ERROR',
         error: 'An error occurred while processing the document. Please try again or enter details manually.',
         allowManualEntry: true, // CRITICAL: Always allow manual entry
       },
-      { status: 500 }
+      { status: 200 }
     )
   }
 }

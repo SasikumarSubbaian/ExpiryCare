@@ -11,17 +11,12 @@ export class GoogleVisionService {
 
   constructor() {
     // Initialize client if credentials are available
+    // CRITICAL: Google Vision SDK does NOT support API key auth
+    // MUST use Service Account credentials with explicit projectId
     // CRITICAL: Never use fs.readFile or local JSON files in production
     try {
-      // Option 1: API Key (simplest, works with Vercel)
-      if (process.env.GOOGLE_VISION_API_KEY) {
-        this.client = new ImageAnnotatorClient({
-          apiKey: process.env.GOOGLE_VISION_API_KEY,
-        })
-        console.log('[GoogleVision] Initialized with API key')
-      }
-      // Option 2: Base64 encoded credentials (for Vercel production)
-      else if (process.env.GOOGLE_CLOUD_VISION_CREDENTIALS) {
+      // Option 1: Base64 encoded credentials (for Vercel production) - PRIMARY METHOD
+      if (process.env.GOOGLE_CLOUD_VISION_CREDENTIALS) {
         try {
           // Decode base64 credentials
           const credentialsJson = Buffer.from(
@@ -30,37 +25,54 @@ export class GoogleVisionService {
           ).toString('utf-8')
           const credentials = JSON.parse(credentialsJson)
           
-          // Initialize with explicit credentials
+          // CRITICAL: Must include projectId for Service Account auth
+          if (!credentials.project_id) {
+            console.error('[GoogleVision] Service account credentials missing project_id')
+            this.client = null
+            return
+          }
+          
+          // Initialize with explicit credentials and projectId
           this.client = new ImageAnnotatorClient({
             credentials,
+            projectId: credentials.project_id,
           })
-          console.log('[GoogleVision] Initialized with base64 credentials')
+          console.log('[GoogleVision] Initialized with base64 Service Account credentials')
         } catch (decodeError) {
           console.error('[GoogleVision] Failed to decode base64 credentials:', decodeError)
           this.client = null
         }
       }
-      // Option 3: Plain JSON string credentials (fallback)
+      // Option 2: Plain JSON string credentials (fallback)
       else if (process.env.GOOGLE_VISION_CREDENTIALS) {
         try {
           const credentials = JSON.parse(process.env.GOOGLE_VISION_CREDENTIALS)
+          
+          // CRITICAL: Must include projectId for Service Account auth
+          if (!credentials.project_id) {
+            console.error('[GoogleVision] Service account credentials missing project_id')
+            this.client = null
+            return
+          }
+          
           this.client = new ImageAnnotatorClient({
             credentials,
+            projectId: credentials.project_id,
           })
-          console.log('[GoogleVision] Initialized with JSON credentials')
+          console.log('[GoogleVision] Initialized with JSON Service Account credentials')
         } catch (parseError) {
           console.error('[GoogleVision] Failed to parse JSON credentials:', parseError)
           this.client = null
         }
       }
-      // Option 4: Local development only (file path - NOT for production)
+      // Option 3: Local development only (file path - NOT for production)
       else if (process.env.GOOGLE_APPLICATION_CREDENTIALS && process.env.NODE_ENV !== 'production') {
         // Only use file path in local development
         this.client = new ImageAnnotatorClient()
         console.log('[GoogleVision] Initialized with file path (local dev only)')
       }
       else {
-        console.warn('[GoogleVision] No credentials found. Set GOOGLE_VISION_API_KEY or GOOGLE_CLOUD_VISION_CREDENTIALS')
+        console.warn('[GoogleVision] No Service Account credentials found. Set GOOGLE_CLOUD_VISION_CREDENTIALS (base64 encoded JSON)')
         this.client = null
       }
     } catch (error) {

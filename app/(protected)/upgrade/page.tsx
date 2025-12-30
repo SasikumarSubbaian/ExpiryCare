@@ -56,7 +56,16 @@ export default async function UpgradePage() {
   }
 
   // Get user plan - safe fallback to 'free' if error
-  const currentPlan = await getUserPlan(user.id)
+  // CRITICAL: Wrap in try/catch to prevent 500 errors on RSC crashes
+  let currentPlan: 'free' | 'pro' | 'family' = 'free'
+  try {
+    currentPlan = await getUserPlan(user.id)
+  } catch (planError: unknown) {
+    const errorMessage = planError instanceof Error ? planError.message : String(planError)
+    console.error('[Upgrade] Error fetching user plan:', errorMessage)
+    // Safe fallback - default to 'free' plan
+    currentPlan = 'free'
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
