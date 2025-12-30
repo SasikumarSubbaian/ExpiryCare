@@ -21,14 +21,16 @@ export default function DashboardHeader({ user, userName }: DashboardHeaderProps
       {/* Logo and Brand */}
       <div className="mb-4">
         <Link href="/" className="flex items-center gap-3">
-          <Image 
-            src="/logo.png" 
-            alt="ExpiryCare Logo" 
-            width={140}
-            height={40}
-            priority
-            className="h-10 w-auto"
-          />
+          <div className="relative flex-shrink-0">
+            <Image 
+              src="/logo.png" 
+              alt="ExpiryCare Logo" 
+              width={48}
+              height={48}
+              priority
+              className="h-12 w-12 object-contain"
+            />
+          </div>
           <span className="text-lg sm:text-xl font-bold text-gray-900">ExpiryCare</span>
         </Link>
       </div>

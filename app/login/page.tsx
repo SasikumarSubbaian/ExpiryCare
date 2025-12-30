@@ -90,14 +90,16 @@ export default function LoginPage() {
         {/* Header */}
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex items-center gap-3 mb-6 group">
-            <Image 
-              src="/logo.png" 
-              alt="ExpiryCare Logo" 
-              width={140}
-              height={40}
-              priority
-              className="h-10 transition-transform duration-300 group-hover:scale-110"
-            />
+            <div className="relative flex-shrink-0">
+              <Image 
+                src="/logo.png" 
+                alt="ExpiryCare Logo" 
+                width={48}
+                height={48}
+                priority
+                className="h-12 w-12 object-contain transition-transform duration-300 group-hover:scale-110"
+              />
+            </div>
             <span className="text-2xl font-bold bg-gradient-to-r from-primary-600 to-primary-500 bg-clip-text text-transparent">
               ExpiryCare
             </span>

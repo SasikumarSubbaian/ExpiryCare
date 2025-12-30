@@ -126,14 +126,14 @@ export default function Dashboard() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16 lg:h-20">
             <Link href="/" className="flex items-center gap-3 group">
-              <div className="relative">
+              <div className="relative flex-shrink-0">
                 <Image 
                   src="/logo.png" 
                   alt="ExpiryCare Logo" 
-                  width={140}
-                  height={40}
+                  width={48}
+                  height={48}
                   priority
-                  className="h-10 transition-transform duration-300 group-hover:scale-110"
+                  className="h-12 w-12 object-contain transition-transform duration-300 group-hover:scale-110"
                 />
               </div>
               <div>

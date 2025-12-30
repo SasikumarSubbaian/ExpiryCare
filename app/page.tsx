@@ -37,14 +37,14 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16 lg:h-20">
             <Link href="/" className="flex items-center gap-3 group">
-              <div className="relative">
+              <div className="relative flex-shrink-0">
                 <Image 
                   src="/logo.png" 
                   alt="ExpiryCare Logo" 
-                  width={140}
-                  height={40}
+                  width={48}
+                  height={48}
                   priority
-                  className="h-10 transition-transform duration-300 group-hover:scale-110"
+                  className="h-12 w-12 object-contain transition-transform duration-300 group-hover:scale-110"
                 />
               </div>
               <span className="text-xl lg:text-2xl font-bold bg-gradient-to-r from-primary-600 to-primary-500 bg-clip-text text-transparent">
@@ -354,14 +354,16 @@ export default function LandingPage() {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
             <div className="col-span-1 md:col-span-2">
               <div className="flex items-center gap-3 mb-4">
-                <Image 
-                  src="/logo.png" 
-                  alt="ExpiryCare Logo" 
-                  width={140}
-                  height={40}
-                  priority
-                  className="h-10 w-auto"
-                />
+                <div className="relative flex-shrink-0">
+                  <Image 
+                    src="/logo.png" 
+                    alt="ExpiryCare Logo" 
+                    width={48}
+                    height={48}
+                    priority
+                    className="h-12 w-12 object-contain"
+                  />
+                </div>
                 <span className="text-xl font-bold text-white">ExpiryCare</span>
               </div>
               <p className="text-gray-400 mb-4 max-w-md">
