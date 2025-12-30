@@ -1,114 +1,29 @@
-import { redirect } from 'next/navigation'
-import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import Image from 'next/image'
 import { PLAN_PRICES } from '@/lib/plans'
+import dynamic from 'next/dynamic'
 
-// Force dynamic rendering to ensure cookies are accessible
-export const dynamic = 'force-dynamic'
-export const revalidate = 0
+// Force static rendering to prevent SSR crashes
+export const dynamic = 'force-static'
+export const revalidate = false
 
-// Wrapper to catch any rendering errors
-async function SafeLandingPageContent() {
-  let user = null
-  let userName = 'User'
-  let proPlanPrice = '299' // Default fallback
-  
-  // Safely get PLAN_PRICES
-  try {
-    if (PLAN_PRICES && typeof PLAN_PRICES === 'object' && 'pro' in PLAN_PRICES) {
-      proPlanPrice = String(PLAN_PRICES.pro)
-    }
-  } catch {
-    // Use default
-  }
-  
-  // Safely get user - all errors caught
-  try {
-    const supabase = await createClient()
-    if (supabase) {
-      try {
-        const { data, error } = await supabase.auth.getUser()
-        if (!error && data) {
-          user = data.user || null
-          
-          if (user) {
-            userName = user.email?.split('@')[0] || 'User'
-            
-            try {
-              const { data: profile } = await supabase
-                .from('profiles')
-                .select('full_name')
-                .eq('id', user.id)
-                .single()
-              
-              if (profile?.full_name) {
-                userName = profile.full_name
-              } else if (user.user_metadata?.full_name) {
-                userName = user.user_metadata.full_name
-              } else if (user.user_metadata?.name) {
-                userName = user.user_metadata.name
-              }
-            } catch {
-              // Profile fetch failed - use metadata
-              if (user.user_metadata?.full_name) {
-                userName = user.user_metadata.full_name
-              } else if (user.user_metadata?.name) {
-                userName = user.user_metadata.name
-              }
-            }
-          }
-        }
-      } catch {
-        // Auth failed - continue as guest
-      }
-    }
-  } catch {
-    // Any error - continue as guest
-    user = null
-  }
+// Load client-only auth component with SSR disabled
+const LandingPageAuth = dynamic(
+  () => import('@/components/LandingPageAuth'),
+  { ssr: false }
+)
 
-  return { user, userName, proPlanPrice }
+// Safe env access with fallback
+function getSiteUrl(): string {
+  const url = process.env.NEXT_PUBLIC_SITE_URL
+  return url && typeof url === 'string' ? url : 'https://expirycare.com'
 }
 
-export default async function LandingPage() {
-  // CRITICAL: This function must NEVER throw an error during SSR
-  // All operations are wrapped in try-catch with safe fallbacks
-  // No browser APIs (window, document, localStorage, navigator) are used
-  
-  // SSR Guard: Ensure we're in server context
-  if (typeof window !== 'undefined') {
-    // This should never happen in a server component, but guard anyway
-    console.error('[LandingPage] Unexpected browser context in server component')
-  }
-  
-  let user = null
-  let userName = 'User'
-  let proPlanPrice = '299'
-  let currentYear = new Date().getFullYear() // Safe for SSR - Date works on server
-  
-  try {
-    const result = await SafeLandingPageContent()
-    user = result.user
-    userName = result.userName
-    proPlanPrice = result.proPlanPrice
-  } catch (error: any) {
-    // If anything fails, use safe defaults
-    // Log error but never throw to prevent 500 error
-    console.error('[LandingPage] Error in SafeLandingPageContent:', {
-      message: error?.message || String(error),
-      name: error?.name,
-    })
-    // Continue with defaults - never throw
-  }
-  
-  // Additional safety: Ensure all values are safe for rendering
-  if (typeof userName !== 'string') userName = 'User'
-  if (typeof proPlanPrice !== 'string') proPlanPrice = '299'
-  if (typeof currentYear !== 'number' || isNaN(currentYear)) {
-    // Fallback to current year if Date fails
-    currentYear = 2024
-  }
+export default function LandingPage() {
+  // Static values - no async operations, no Supabase calls, no browser APIs
+  const proPlanPrice = PLAN_PRICES?.pro ? String(PLAN_PRICES.pro) : '299'
+  const currentYear = new Date().getFullYear()
+  const siteUrl = getSiteUrl()
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 via-white to-gray-50">
@@ -131,29 +46,34 @@ export default async function LandingPage() {
               </span>
             </Link>
             <nav className="flex items-center gap-3 sm:gap-4">
-              {user ? (
-                <Link
-                  href="/dashboard"
-                  className="hidden sm:inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 hover:text-primary-600 transition-colors"
-                >
-                  Dashboard
-                </Link>
-              ) : (
-                <>
-                  <Link
-                    href="/login"
-                    className="text-sm font-medium text-gray-700 hover:text-primary-600 px-3 py-2 rounded-lg transition-all duration-200 hover:bg-gray-100"
-                  >
-                    Log in
-                  </Link>
-                  <Link
-                    href="/signup"
-                    className="inline-flex items-center justify-center px-4 sm:px-6 py-2.5 text-sm font-semibold text-white gradient-primary rounded-lg shadow-soft hover:shadow-medium transition-all duration-300 hover:scale-105"
-                  >
-                    Get Started
-                  </Link>
-                </>
-              )}
+              {/* Auth-aware navigation - loaded client-side */}
+              <LandingPageAuth>
+                {({ user, userName }) => (
+                  user ? (
+                    <Link
+                      href="/dashboard"
+                      className="hidden sm:inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 hover:text-primary-600 transition-colors"
+                    >
+                      Dashboard
+                    </Link>
+                  ) : (
+                    <>
+                      <Link
+                        href="/login"
+                        className="text-sm font-medium text-gray-700 hover:text-primary-600 px-3 py-2 rounded-lg transition-all duration-200 hover:bg-gray-100"
+                      >
+                        Log in
+                      </Link>
+                      <Link
+                        href="/signup"
+                        className="inline-flex items-center justify-center px-4 sm:px-6 py-2.5 text-sm font-semibold text-white gradient-primary rounded-lg shadow-soft hover:shadow-medium transition-all duration-300 hover:scale-105"
+                      >
+                        Get Started
+                      </Link>
+                    </>
+                  )
+                )}
+              </LandingPageAuth>
             </nav>
           </div>
         </div>
@@ -189,69 +109,74 @@ export default async function LandingPage() {
               </span>
             </p>
             
-            {user ? (
-              <div className="mt-10 animate-scale-in">
-                <div className="inline-flex items-center gap-3 px-6 py-3 bg-white/80 backdrop-blur-sm rounded-full shadow-soft mb-6">
-                  <div className="w-2 h-2 bg-success-500 rounded-full animate-pulse"></div>
-                  <p className="text-base font-medium text-gray-700">
-                    Welcome back, <span className="text-primary-600 font-semibold">{userName}</span>!
-                  </p>
-                </div>
-                <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                  <Link
-                    href="/dashboard"
-                    className="inline-flex items-center justify-center px-8 py-4 text-base font-semibold text-white gradient-primary rounded-xl shadow-medium hover:shadow-large transition-all duration-300 hover:scale-105"
-                  >
-                    Go to Dashboard
-                    <svg className="ml-2 w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                    </svg>
-                  </Link>
-                  <form action="/auth/signout" method="post" className="inline">
-                    <button
-                      type="submit"
-                      className="inline-flex items-center justify-center px-8 py-4 text-base font-semibold text-gray-700 bg-white border-2 border-gray-200 rounded-xl hover:border-gray-300 hover:bg-gray-50 shadow-soft hover:shadow-medium transition-all duration-300"
-                    >
-                      Logout
-                    </button>
-                  </form>
-                </div>
-              </div>
-            ) : (
-              <div className="mt-10 animate-scale-in">
-                <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                  <Link
-                    href="/signup"
-                    className="inline-flex items-center justify-center px-8 py-4 text-base font-semibold text-white gradient-primary rounded-xl shadow-medium hover:shadow-large transition-all duration-300 hover:scale-105"
-                  >
-                    Start Free Trial
-                    <svg className="ml-2 w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                    </svg>
-                  </Link>
-                  <Link
-                    href="/login"
-                    className="inline-flex items-center justify-center px-8 py-4 text-base font-semibold text-gray-700 bg-white border-2 border-gray-200 rounded-xl hover:border-primary-300 hover:bg-primary-50 shadow-soft hover:shadow-medium transition-all duration-300"
-                  >
-                    Log In
-                  </Link>
-                </div>
-                <div className="mt-6 flex flex-wrap items-center justify-center gap-6 text-sm text-gray-600">
-                  <div className="flex items-center gap-2">
-                    <span className="text-success-500">✓</span>
-                    <span>No credit card required</span>
+            {/* Auth-aware hero CTA - loaded client-side */}
+            <LandingPageAuth>
+              {({ user, userName }) => (
+                user ? (
+                  <div className="mt-10 animate-scale-in">
+                    <div className="inline-flex items-center gap-3 px-6 py-3 bg-white/80 backdrop-blur-sm rounded-full shadow-soft mb-6">
+                      <div className="w-2 h-2 bg-success-500 rounded-full animate-pulse"></div>
+                      <p className="text-base font-medium text-gray-700">
+                        Welcome back, <span className="text-primary-600 font-semibold">{userName}</span>!
+                      </p>
+                    </div>
+                    <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                      <Link
+                        href="/dashboard"
+                        className="inline-flex items-center justify-center px-8 py-4 text-base font-semibold text-white gradient-primary rounded-xl shadow-medium hover:shadow-large transition-all duration-300 hover:scale-105"
+                      >
+                        Go to Dashboard
+                        <svg className="ml-2 w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                        </svg>
+                      </Link>
+                      <form action="/auth/signout" method="post" className="inline">
+                        <button
+                          type="submit"
+                          className="inline-flex items-center justify-center px-8 py-4 text-base font-semibold text-gray-700 bg-white border-2 border-gray-200 rounded-xl hover:border-gray-300 hover:bg-gray-50 shadow-soft hover:shadow-medium transition-all duration-300"
+                        >
+                          Logout
+                        </button>
+                      </form>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-success-500">✓</span>
-                    <span>Free forever plan</span>
+                ) : (
+                  <div className="mt-10 animate-scale-in">
+                    <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                      <Link
+                        href="/signup"
+                        className="inline-flex items-center justify-center px-8 py-4 text-base font-semibold text-white gradient-primary rounded-xl shadow-medium hover:shadow-large transition-all duration-300 hover:scale-105"
+                      >
+                        Start Free Trial
+                        <svg className="ml-2 w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                        </svg>
+                      </Link>
+                      <Link
+                        href="/login"
+                        className="inline-flex items-center justify-center px-8 py-4 text-base font-semibold text-gray-700 bg-white border-2 border-gray-200 rounded-xl hover:border-primary-300 hover:bg-primary-50 shadow-soft hover:shadow-medium transition-all duration-300"
+                      >
+                        Log In
+                      </Link>
+                    </div>
+                    <div className="mt-6 flex flex-wrap items-center justify-center gap-6 text-sm text-gray-600">
+                      <div className="flex items-center gap-2">
+                        <span className="text-success-500">✓</span>
+                        <span>No credit card required</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-success-500">✓</span>
+                        <span>Free forever plan</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-success-500">✓</span>
+                        <span>Setup in 2 minutes</span>
+                      </div>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-success-500">✓</span>
-                    <span>Setup in 2 minutes</span>
-                  </div>
-                </div>
-              </div>
-            )}
+                )
+              )}
+            </LandingPageAuth>
           </div>
         </div>
       </section>
