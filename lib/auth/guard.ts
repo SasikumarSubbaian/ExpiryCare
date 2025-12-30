@@ -24,11 +24,13 @@ export async function requireAuth(): Promise<User> {
     }
 
     return data.user
-  } catch (error: any) {
+  } catch (error: unknown) {
     // Any error during auth check - redirect to login
+    const errorMessage = error instanceof Error ? error.message : String(error)
+    const errorName = error instanceof Error ? error.name : 'UnknownError'
     console.error('[requireAuth] Error:', {
-      message: error?.message || String(error),
-      name: error?.name,
+      message: errorMessage,
+      name: errorName,
     })
     redirect('/login')
   }

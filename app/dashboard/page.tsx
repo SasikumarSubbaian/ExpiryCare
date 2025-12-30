@@ -55,8 +55,10 @@ export default async function DashboardPage() {
     } else if (user.user_metadata?.name) {
       userName = user.user_metadata.name
     }
-  } catch (err: any) {
+  } catch (err: unknown) {
     // Profile fetch failed - use metadata as fallback
+    const errorMessage = err instanceof Error ? err.message : String(err)
+    console.error('[Dashboard] Profile fetch error:', errorMessage)
     if (user.user_metadata?.full_name) {
       userName = user.user_metadata.full_name
     } else if (user.user_metadata?.name) {
@@ -83,14 +85,16 @@ export default async function DashboardPage() {
     if (result.error) {
       console.error('[Dashboard] Error fetching items:', result.error.message)
       // Continue with empty array - don't break the page
+      items = []
     } else {
-      items = (result.data || []).filter((item): item is LifeItem => {
-        // Type guard and filter by user_id
-        return item && String(item.user_id) === String(user.id)
-      })
+      // Cast Supabase result once - then apply normal filters
+      const rows = (result.data ?? []) as LifeItem[]
+      // Filter by user_id (double safety, though query already filters)
+      items = rows.filter(item => String(item.user_id) === String(user.id))
     }
-  } catch (err: any) {
-    console.error('[Dashboard] Exception fetching items:', err?.message || String(err))
+  } catch (err: unknown) {
+    const errorMessage = err instanceof Error ? err.message : String(err)
+    console.error('[Dashboard] Exception fetching items:', errorMessage)
     // Continue with empty array - don't break the page
     items = []
   }

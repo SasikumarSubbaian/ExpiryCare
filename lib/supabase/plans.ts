@@ -27,9 +27,10 @@ export async function getUserPlan(userId: string): Promise<PlanType> {
     }
 
     return (data.plan as PlanType) || 'free'
-  } catch (err: any) {
+  } catch (err: unknown) {
     // Any error - default to free plan
-    console.error('Exception in getUserPlan:', err)
+    const errorMessage = err instanceof Error ? err.message : String(err)
+    console.error('Exception in getUserPlan:', errorMessage)
     return 'free'
   }
 }
@@ -51,8 +52,9 @@ export async function getItemCount(userId: string): Promise<number> {
     }
 
     return count || 0
-  } catch (err: any) {
-    console.error('Exception in getItemCount:', err)
+  } catch (err: unknown) {
+    const errorMessage = err instanceof Error ? err.message : String(err)
+    console.error('Exception in getItemCount:', errorMessage)
     return 0
   }
 }
@@ -76,8 +78,9 @@ export async function getFamilyMemberCount(userId: string): Promise<number> {
     }
 
     return count || 0
-  } catch (err: any) {
-    console.error('Exception in getFamilyMemberCount:', err)
+  } catch (err: unknown) {
+    const errorMessage = err instanceof Error ? err.message : String(err)
+    console.error('Exception in getFamilyMemberCount:', errorMessage)
     return 0
   }
 }
@@ -98,8 +101,9 @@ export async function getDocumentCount(userId: string): Promise<number> {
     }
 
     return count || 0
-  } catch (err: any) {
-    console.error('Exception in getDocumentCount:', err)
+  } catch (err: unknown) {
+    const errorMessage = err instanceof Error ? err.message : String(err)
+    console.error('Exception in getDocumentCount:', errorMessage)
     return 0
   }
 }
