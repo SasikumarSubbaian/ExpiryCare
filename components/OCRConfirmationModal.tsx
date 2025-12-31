@@ -21,6 +21,8 @@ type ExtractedData = {
   productName?: FieldWithConfidence
   companyName?: FieldWithConfidence
   policyType?: FieldWithConfidence
+  policyNumber?: FieldWithConfidence
+  provider?: FieldWithConfidence
   insurerName?: FieldWithConfidence
   serviceType?: FieldWithConfidence
   providerName?: FieldWithConfidence
@@ -28,7 +30,9 @@ type ExtractedData = {
   planType?: FieldWithConfidence
   medicineName?: FieldWithConfidence
   brandName?: FieldWithConfidence
+  documentName?: FieldWithConfidence
   documentType?: FieldWithConfidence
+  issuer?: FieldWithConfidence
   warnings?: string[]
 }
 
@@ -267,7 +271,7 @@ export default function OCRConfirmationModal({
     const category = extractedData.category.toLowerCase()
     const fields: Array<{ label: string; fieldName: string; fieldData: any; isRequired: boolean }> = []
 
-    // Always show expiry date first (required)
+    // Always show expiry date first (required) - PINNED TO TOP
     fields.push({
       label: 'Expiry Date',
       fieldName: 'expiryDate',
@@ -275,14 +279,22 @@ export default function OCRConfirmationModal({
       isRequired: true,
     })
 
-    // Category-specific fields
+    // Category-specific fields - show all extracted fields
     if (category === 'medicine') {
       if (extractedData.medicineName) {
         fields.push({
           label: 'Medicine Name',
           fieldName: 'medicineName',
           fieldData: extractedData.medicineName,
-          isRequired: false,
+          isRequired: true,
+        })
+      }
+      if (extractedData.companyName) {
+        fields.push({
+          label: 'Manufacturer',
+          fieldName: 'companyName',
+          fieldData: extractedData.companyName,
+          isRequired: true,
         })
       }
       if (extractedData.brandName) {
@@ -293,21 +305,13 @@ export default function OCRConfirmationModal({
           isRequired: false,
         })
       }
-      if (extractedData.companyName) {
-        fields.push({
-          label: 'Company Name',
-          fieldName: 'companyName',
-          fieldData: extractedData.companyName,
-          isRequired: false,
-        })
-      }
     } else if (category === 'warranty') {
       if (extractedData.productName) {
         fields.push({
           label: 'Product Name',
           fieldName: 'productName',
           fieldData: extractedData.productName,
-          isRequired: false,
+          isRequired: true,
         })
       }
       if (extractedData.companyName) {
@@ -315,18 +319,27 @@ export default function OCRConfirmationModal({
           label: 'Company Name',
           fieldName: 'companyName',
           fieldData: extractedData.companyName,
-          isRequired: false,
+          isRequired: true,
         })
       }
     } else if (category === 'insurance') {
-      if (extractedData.policyType) {
+      if (extractedData.policyNumber) {
         fields.push({
-          label: 'Policy Type',
-          fieldName: 'policyType',
-          fieldData: extractedData.policyType,
-          isRequired: false,
+          label: 'Policy Number',
+          fieldName: 'policyNumber',
+          fieldData: extractedData.policyNumber,
+          isRequired: true,
         })
       }
+      if (extractedData.provider) {
+        fields.push({
+          label: 'Insurance Provider',
+          fieldName: 'provider',
+          fieldData: extractedData.provider,
+          isRequired: true,
+        })
+      }
+      // Legacy field names
       if (extractedData.insurerName) {
         fields.push({
           label: 'Insurer Name',
@@ -341,7 +354,7 @@ export default function OCRConfirmationModal({
           label: 'Service Type',
           fieldName: 'serviceType',
           fieldData: extractedData.serviceType,
-          isRequired: false,
+          isRequired: true,
         })
       }
       if (extractedData.providerName) {
@@ -349,7 +362,7 @@ export default function OCRConfirmationModal({
           label: 'Provider Name',
           fieldName: 'providerName',
           fieldData: extractedData.providerName,
-          isRequired: false,
+          isRequired: true,
         })
       }
     } else if (category === 'subscription') {
@@ -358,12 +371,37 @@ export default function OCRConfirmationModal({
           label: 'Service Name',
           fieldName: 'serviceName',
           fieldData: extractedData.serviceName,
+          isRequired: true,
+        })
+      }
+      if (extractedData.planType) {
+        fields.push({
+          label: 'Plan Type',
+          fieldName: 'planType',
+          fieldData: extractedData.planType,
+          isRequired: false,
+        })
+      }
+    } else if (category === 'other') {
+      if (extractedData.documentName) {
+        fields.push({
+          label: 'Document Name',
+          fieldName: 'documentName',
+          fieldData: extractedData.documentName,
+          isRequired: true,
+        })
+      }
+      if (extractedData.issuer) {
+        fields.push({
+          label: 'Issued By',
+          fieldName: 'issuer',
+          fieldData: extractedData.issuer,
           isRequired: false,
         })
       }
     }
 
-    // Always show category field
+    // Always show category field at the end
     fields.push({
       label: 'Category',
       fieldName: 'category',
@@ -399,15 +437,28 @@ export default function OCRConfirmationModal({
             </div>
           )}
 
-          {/* Render all fields */}
+          {/* Category confidence warning */}
+          {extractedData.categoryConfidencePercentage !== undefined && extractedData.categoryConfidencePercentage < 40 && (
+            <div className="bg-orange-50 border border-orange-200 rounded-md p-3 mb-4">
+              <p className="text-sm font-medium text-orange-800">
+                ⚠️ Low category confidence ({extractedData.categoryConfidencePercentage}%). Please verify the category is correct.
+              </p>
+            </div>
+          )}
+
+          {/* Render all fields - Expiry Date pinned to top */}
           {categoryFields.map((field) => {
             if (field.fieldName === 'expiryDate') {
-              return renderFieldCard(
-                field.label,
-                field.fieldName,
-                extractedData.expiryDate.value,
-                extractedData.expiryDate.confidence,
-                true
+              return (
+                <div key={field.fieldName}>
+                  {renderFieldCard(
+                    field.label,
+                    field.fieldName,
+                    extractedData.expiryDate.value,
+                    extractedData.expiryDate.confidence,
+                    true
+                  )}
+                </div>
               )
             } else if (field.fieldName === 'category') {
               return (
@@ -426,12 +477,16 @@ export default function OCRConfirmationModal({
                 </div>
               )
             } else {
-              return renderFieldCard(
-                field.label,
-                field.fieldName,
-                field.fieldData,
-                undefined,
-                field.isRequired
+              return (
+                <div key={field.fieldName}>
+                  {renderFieldCard(
+                    field.label,
+                    field.fieldName,
+                    field.fieldData,
+                    undefined,
+                    field.isRequired
+                  )}
+                </div>
               )
             }
           })}

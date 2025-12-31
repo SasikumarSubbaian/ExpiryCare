@@ -12,149 +12,136 @@ type CategoryScore = {
 }
 
 /**
- * Category-specific keywords for prediction
+ * Category-specific keywords with weights for prediction
+ * Higher weight = stronger indicator
  */
-const categoryKeywords: Record<Category, string[]> = {
+const categoryKeywords: Record<Category, Array<{ keyword: string; weight: number }>> = {
   warranty: [
-    'warranty',
-    'guarantee',
-    'warrant',
-    'manufacturer',
-    'product',
-    'serial',
-    'purchase date',
-    'valid till',
-    'warranty period',
+    { keyword: 'warranty', weight: 10 },
+    { keyword: 'invoice', weight: 8 },
+    { keyword: 'purchase date', weight: 7 },
+    { keyword: 'imei', weight: 6 },
+    { keyword: 'serial no', weight: 6 },
+    { keyword: 'guarantee', weight: 8 },
+    { keyword: 'valid till', weight: 7 },
   ],
   insurance: [
-    'insurance',
-    'policy',
-    'coverage',
-    'premium',
-    'insurer',
-    'policy number',
-    'policy holder',
-    'sum assured',
-    'policy expiry',
-    'renewal',
-  ],
-  amc: [
-    'amc',
-    'annual maintenance',
-    'maintenance contract',
-    'service contract',
-    'amc valid',
-    'service provider',
-    'maintenance period',
-  ],
-  subscription: [
-    'subscription',
-    'renewal',
-    'membership',
-    'plan',
-    'billing cycle',
-    'next renewal',
-    'auto renew',
-    'subscription ends',
+    { keyword: 'policy', weight: 10 },
+    { keyword: 'insurance', weight: 10 },
+    { keyword: 'sum insured', weight: 8 },
+    { keyword: 'premium', weight: 7 },
+    { keyword: 'policy number', weight: 9 },
+    { keyword: 'coverage', weight: 6 },
   ],
   medicine: [
-    'medicine',
-    'medication',
-    'drug',
-    'prescription',
-    'mfg date',
-    'exp date',
-    'batch',
-    'use before',
-    'best before',
-    'pharmaceutical',
-    'tablet',
-    'tablets',
-    'capsule',
-    'capsules',
-    'vitamin',
-    'vitamins',
-    'chewable',
-    'mg',
-    'ml',
-    'pharma',
-    'pharmaceuticals',
-    'manufactured',
-    'mfg',
+    { keyword: 'tablet', weight: 8 },
+    { keyword: 'capsule', weight: 8 },
+    { keyword: 'mg', weight: 6 },
+    { keyword: 'dosage', weight: 7 },
+    { keyword: 'manufactured', weight: 6 },
+    { keyword: 'expiry', weight: 7 },
+    { keyword: 'vitamin', weight: 9 },
+    { keyword: 'chewable', weight: 9 },
+    { keyword: 'medicine', weight: 10 },
+    { keyword: 'medication', weight: 9 },
+    { keyword: 'pharma', weight: 7 },
   ],
-  other: [], // Default category, no specific keywords
+  subscription: [
+    { keyword: 'valid till', weight: 8 },
+    { keyword: 'subscription', weight: 10 },
+    { keyword: 'renewal', weight: 8 },
+    { keyword: 'plan', weight: 6 },
+    { keyword: 'membership', weight: 7 },
+  ],
+  amc: [
+    { keyword: 'annual maintenance', weight: 10 },
+    { keyword: 'amc', weight: 10 },
+    { keyword: 'service valid', weight: 8 },
+    { keyword: 'maintenance contract', weight: 9 },
+  ],
+  other: [
+    { keyword: 'driving licence', weight: 10 },
+    { keyword: 'driving license', weight: 10 },
+    { keyword: 'dl no', weight: 9 },
+    { keyword: 'date of issue', weight: 7 },
+    { keyword: 'transport authority', weight: 8 },
+  ],
 }
 
 /**
  * Predicts document category from OCR text
- * Rule-based prediction with simple keyword matching
+ * Uses keyword weight scoring for human-like prediction
  */
 export function predictCategory(ocrText: string): Category {
   const t = ocrText.toLowerCase()
-
-  // Medicine detection - PRIORITIZE with enhanced keywords and scoring
-  // Check for medicine keywords first (highest priority)
-  const medicineKeywords = [
-    'vitamin', 'tablet', 'tablets', 'capsule', 'capsules', 'chewable',
-    'medicine', 'medication', 'drug', 'pharma', 'pharmaceutical',
-    'mg', 'ml', 'mfg', 'exp date', 'batch', 'use before', 'best before',
-    'prescription', 'pharmaceuticals'
-  ]
   
-  const medicineScore = medicineKeywords.filter(keyword => t.includes(keyword)).length
+  // Calculate scores for each category
+  const scores: Record<Category, number> = {
+    warranty: 0,
+    insurance: 0,
+    medicine: 0,
+    subscription: 0,
+    amc: 0,
+    other: 0,
+  }
   
-  // If we have strong medicine indicators, prioritize medicine
-  if (medicineScore >= 2 || t.includes('vitamin') || t.includes('chewable') || 
-      (t.includes('tablet') && (t.includes('vitamin') || t.includes('chewable')))) {
-    return 'medicine'
+  // Score each category based on keyword matches
+  for (const category of Object.keys(categoryKeywords) as Category[]) {
+    const keywords = categoryKeywords[category]
+    for (const { keyword, weight } of keywords) {
+      if (t.includes(keyword.toLowerCase())) {
+        scores[category] += weight
+      }
+    }
   }
-
-  // Insurance detection
-  if (t.includes('policy') || t.includes('insurance') || 
-      t.includes('premium') || t.includes('coverage')) {
-    return 'insurance'
+  
+  // Find category with highest score
+  let maxScore = 0
+  let predictedCategory: Category = 'other'
+  
+  for (const category of Object.keys(scores) as Category[]) {
+    if (scores[category] > maxScore) {
+      maxScore = scores[category]
+      predictedCategory = category
+    }
   }
-
-  // Warranty detection
-  if (t.includes('warranty') || t.includes('guarantee') || 
-      t.includes('valid till') || t.includes('purchase date')) {
-    return 'warranty'
+  
+  // Threshold: if score is too low, default to "other"
+  const threshold = 10
+  if (maxScore < threshold) {
+    return 'other'
   }
-
-  // Subscription detection
-  if (t.includes('subscription') || t.includes('renewal') || 
-      t.includes('membership') || t.includes('plan')) {
-    return 'subscription'
-  }
-
-  // AMC detection
-  if (t.includes('amc') || t.includes('maintenance') || 
-      t.includes('service contract') || t.includes('service provider')) {
-    return 'amc'
-  }
-
-  // Default to Other
-  return 'other'
+  
+  return predictedCategory
 }
 
 /**
  * Get prediction confidence (0-1)
+ * Based on weighted keyword scores
  */
 export function getPredictionConfidence(ocrText: string, predictedCategory: Category): number {
   const text = ocrText.toLowerCase()
   const keywords = categoryKeywords[predictedCategory] || []
 
-  if (keywords.length === 0) return 0.5 // Default confidence for "other"
+  if (keywords.length === 0) return 0.4 // Default confidence for "other"
 
-  let matches = 0
-  for (const keyword of keywords) {
+  let totalWeight = 0
+  let matchedWeight = 0
+  
+  for (const { keyword, weight } of keywords) {
+    totalWeight += weight
     const regex = new RegExp(keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi')
     if (regex.test(text)) {
-      matches++
+      matchedWeight += weight
     }
   }
 
-  // Confidence based on percentage of keywords matched
-  return Math.min(matches / keywords.length, 1.0)
+  // Confidence based on weighted percentage
+  if (totalWeight === 0) return 0.4
+  
+  const confidence = matchedWeight / totalWeight
+  
+  // Normalize to 0-1 range, minimum 0.3
+  return Math.max(Math.min(confidence, 1.0), 0.3)
 }
 

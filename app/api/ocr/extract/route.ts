@@ -6,6 +6,7 @@ import { canUseOCR } from '@/lib/ocr/pricingLogic'
 import { predictCategory, getPredictionConfidence } from '@/lib/ocr/categoryPredictor'
 import { extractByCategory } from '@/lib/ocr/extractors'
 import { sanitizeOCRText } from '@/lib/ocr/sanitizeOCRText'
+import { processOCRText, convertToLegacyFormat } from '@/lib/ocr/pipelineProcessor'
 import type { Category } from '@/lib/ocr/categorySchemas'
 import sharp from 'sharp'
 
@@ -335,31 +336,71 @@ export async function POST(request: NextRequest) {
     // 13. Sanitize OCR text to remove PII before processing
     const sanitizedText = sanitizeOCRText(ocrText)
 
-    // 14. Predict category and extract data
+    // 14. Process through human-like OCR pipeline
     let category: Category
     let confidence: number
     let extractedData: any
     
     try {
-      // Validate user-selected category or predict from text
-      const validCategories: Category[] = ['warranty', 'insurance', 'amc', 'medicine', 'subscription', 'other']
-      const userCategory = userSelectedCategory && validCategories.includes(userSelectedCategory as Category)
-        ? (userSelectedCategory as Category)
-        : null
+      // Use new pipeline processor (human-like extraction)
+      const ocrResult = processOCRText(ocrText, userSelectedCategory)
+      category = ocrResult.category
+      confidence = ocrResult.confidence / 100 // Convert to 0-1 scale
       
-      // Use sanitized text for category prediction and extraction
-      category = userCategory || predictCategory(sanitizedText)
-      confidence = getPredictionConfidence(sanitizedText, category)
-      extractedData = extractByCategory(sanitizedText, category)
+      // Convert to legacy format for backward compatibility
+      extractedData = convertToLegacyFormat(ocrResult)
+      
+      // Also run legacy extractor as fallback for missing fields
+      const legacyExtracted = extractByCategory(sanitizedText, category)
+      
+      // Merge legacy data for fields not in new pipeline
+      if (!extractedData.medicineName && legacyExtracted.medicineName) {
+        extractedData.medicineName = {
+          value: legacyExtracted.medicineName,
+          confidence: 'Medium',
+        }
+      }
+      if (!extractedData.brandName && legacyExtracted.brandName) {
+        extractedData.brandName = {
+          value: legacyExtracted.brandName,
+          confidence: 'Medium',
+        }
+      }
+      if (!extractedData.productName && legacyExtracted.productName) {
+        extractedData.productName = {
+          value: legacyExtracted.productName,
+          confidence: 'Medium',
+        }
+      }
+      
+      // Use legacy expiry date if new one is missing
+      if (!extractedData.expiryDate?.value && legacyExtracted.expiryDate?.value) {
+        extractedData.expiryDate = {
+          value: legacyExtracted.expiryDate.value,
+          confidence: legacyExtracted.expiryDate.confidence,
+          sourceKeyword: legacyExtracted.expiryDate.sourceKeyword,
+        }
+      }
+      
+      // Add warnings from legacy extractor
+      if (legacyExtracted.extractionWarnings && legacyExtracted.extractionWarnings.length > 0) {
+        extractedData.warnings = legacyExtracted.extractionWarnings
+      }
     } catch (extractionError: unknown) {
       const errorMessage = extractionError instanceof Error ? extractionError.message : String(extractionError)
       console.error('[OCR] Data extraction error:', errorMessage)
-      // Return partial data if extraction fails
-      category = 'other'
-      confidence = 0.3 // Low confidence (0-1 scale)
-      extractedData = {
-        expiryDate: null,
-        documentType: 'other',
+      // Fallback to legacy extraction
+      try {
+        category = userSelectedCategory as Category || predictCategory(sanitizedText)
+        confidence = getPredictionConfidence(sanitizedText, category)
+        extractedData = extractByCategory(sanitizedText, category)
+      } catch (fallbackError) {
+        // Return partial data if extraction fails
+        category = 'other'
+        confidence = 0.3 // Low confidence (0-1 scale)
+        extractedData = {
+          expiryDate: { value: null, confidence: 'Low' as const, sourceKeyword: null },
+        }
       }
     }
 

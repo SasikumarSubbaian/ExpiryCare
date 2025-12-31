@@ -113,32 +113,61 @@ export class GoogleVisionService {
     }
 
     try {
-      // Note: Image preprocessing is now done in the API route before calling this
-      // Perform OCR with document text detection
-      const [result] = await this.client.documentTextDetection({
-        image: { content: imageBuffer },
-        imageContext: {
-          languageHints: ['en'], // English language hint
-        },
-      })
+      // Use TEXT_DETECTION for better general text extraction
+      // Fallback to DOCUMENT_TEXT_DETECTION if needed
+      let result
+      let fullTextAnnotation
+      
+      try {
+        // Try TEXT_DETECTION first (better for general documents)
+        const [textResult] = await this.client.textDetection({
+          image: { content: imageBuffer },
+          imageContext: {
+            languageHints: ['en'],
+          },
+        })
+        
+        // TEXT_DETECTION returns textAnnotations array
+        if (textResult.textAnnotations && textResult.textAnnotations.length > 0) {
+          // First annotation contains full text
+          const fullText = textResult.textAnnotations[0].description || ''
+          if (fullText.trim().length > 0) {
+            return fullText
+          }
+        }
+        
+        // Fallback to DOCUMENT_TEXT_DETECTION
+        const [docResult] = await this.client.documentTextDetection({
+          image: { content: imageBuffer },
+          imageContext: {
+            languageHints: ['en'],
+          },
+        })
+        result = docResult
+        fullTextAnnotation = result.fullTextAnnotation
+      } catch (textError) {
+        // If TEXT_DETECTION fails, use DOCUMENT_TEXT_DETECTION
+        const [docResult] = await this.client.documentTextDetection({
+          image: { content: imageBuffer },
+          imageContext: {
+            languageHints: ['en'],
+          },
+        })
+        result = docResult
+        fullTextAnnotation = result.fullTextAnnotation
+      }
 
       // Extract full text annotation
-      const fullTextAnnotation = result.fullTextAnnotation
+      if (!fullTextAnnotation && result) {
+        fullTextAnnotation = result.fullTextAnnotation
+      }
 
       if (!fullTextAnnotation || !fullTextAnnotation.text) {
         return ''
       }
 
-      // Get original text first (preserve for better extraction)
-      const originalText = fullTextAnnotation.text
-      
-      // Also create normalized version for date extraction and keyword matching
-      // But return original text to preserve product names, company names better
-      // The extractors will handle both formats
-      
-      // For now, return original text to preserve all information
-      // Extractors can handle case-insensitive matching
-      return originalText
+      // Return original text (preserve for better extraction)
+      return fullTextAnnotation.text
     } catch (error: any) {
       console.error('Google Vision OCR error:', error)
       throw new Error(`OCR extraction failed: ${error.message}`)
