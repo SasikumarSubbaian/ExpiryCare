@@ -456,10 +456,13 @@ export async function POST(request: NextRequest) {
     }
 
     // 16. Return success response
+    // ALWAYS return success:true if we have any extracted data, even if partial
+    // This allows UI to show confirmation modal with editable fields
     return NextResponse.json({
       success: true,
       text: sanitizedText, // Include sanitized OCR text for client (PII removed)
       extractedData: result,
+      allowManualEntry: true, // Always allow manual entry/editing
     })
   } catch (error: unknown) {
     // Global error handler - NEVER throw, always return JSON

@@ -295,7 +295,7 @@ export function extractIssuer(text: string): ExtractedField | null {
   const lowerText = text.toLowerCase()
   
   // Check for driving license
-  if (lowerText.includes('driving licence') || lowerText.includes('driving license')) {
+  if (lowerText.includes('driving licence') || lowerText.includes('driving license') || lowerText.includes('dl no')) {
     // Look for transport authority or government
     if (lowerText.includes('transport') || lowerText.includes('rto')) {
       return {

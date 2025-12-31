@@ -43,9 +43,18 @@ export function processOCRText(ocrText: string, userSelectedCategory?: string | 
   const fields: Record<string, ExtractedField> = {}
   
   // Always extract expiry date first (required)
+  // FALLBACK MODE: If expiry date not detected, add empty field (user must edit)
   const expiryField = extractExpiryDateField(sanitizedText)
   if (expiryField) {
     fields.expiryDate = expiryField
+  } else {
+    // Add empty expiry date field - user must enter manually
+    fields.expiryDate = {
+      label: 'Expiry Date',
+      value: '',
+      confidence: 0,
+      required: true,
+    }
   }
   
   // Extract category-specific fields
@@ -87,6 +96,29 @@ export function processOCRText(ocrText: string, userSelectedCategory?: string | 
       case 'issuer':
         if (category === 'other') {
           extractedField = extractIssuer(sanitizedText)
+        }
+        break
+      case 'holderName':
+        if (category === 'other') {
+          // Extract holder name for licenses (optional, low confidence threshold)
+          const holderPatterns = [
+            /(?:name|holder|name of holder)\s*:?\s*([A-Za-z\s]{2,40})/i,
+          ]
+          for (const pattern of holderPatterns) {
+            const match = sanitizedText.match(pattern)
+            if (match && match[1]) {
+              const value = match[1].trim()
+              if (value.length >= 2 && value.length <= 40) {
+                extractedField = {
+                  label: 'Holder Name',
+                  value,
+                  confidence: 55,
+                  required: false,
+                }
+                break
+              }
+            }
+          }
         }
         break
       case 'serviceName':
@@ -131,11 +163,13 @@ export function processOCRText(ocrText: string, userSelectedCategory?: string | 
         break
     }
     
-    // Only add field if extracted and confidence >= 50%
-    if (extractedField && extractedField.confidence >= 50) {
+    // ALWAYS add field if required, even with low confidence
+    // For optional fields, only add if confidence >= 50%
+    if (extractedField) {
+      // Add field regardless of confidence (UI will show confidence badge)
       fields[fieldDef.key] = extractedField
     } else if (fieldDef.required) {
-      // Add empty required field with low confidence
+      // Add empty required field - user must enter manually
       fields[fieldDef.key] = {
         label: fieldDef.label,
         value: '',
@@ -146,9 +180,10 @@ export function processOCRText(ocrText: string, userSelectedCategory?: string | 
   }
   
   // Special handling for driving license
-  if (category === 'other' && sanitizedText.toLowerCase().includes('driving licence')) {
-    // Auto-fill document name if not extracted
-    if (!fields.documentName) {
+  const lowerText = sanitizedText.toLowerCase()
+  if (category === 'other' && (lowerText.includes('driving licence') || lowerText.includes('driving license') || lowerText.includes('dl no'))) {
+    // Auto-fill document name if not extracted or empty
+    if (!fields.documentName || !fields.documentName.value) {
       fields.documentName = {
         label: 'Document Name',
         value: 'Driving Licence',
@@ -158,20 +193,35 @@ export function processOCRText(ocrText: string, userSelectedCategory?: string | 
     }
     
     // Auto-fill issuer if not extracted
-    if (!fields.issuer) {
-      fields.issuer = {
-        label: 'Issued By',
-        value: 'Government of India',
-        confidence: 70,
-        required: false,
+    if (!fields.issuer || !fields.issuer.value) {
+      // Check for transport authority
+      if (lowerText.includes('transport') || lowerText.includes('rto')) {
+        fields.issuer = {
+          label: 'Issued By',
+          value: 'Transport Authority',
+          confidence: 80,
+          required: false,
+        }
+      } else {
+        fields.issuer = {
+          label: 'Issued By',
+          value: 'Government of India',
+          confidence: 70,
+          required: false,
+        }
       }
     }
   }
   
+  // ALWAYS return OCRResult - never return null or throw
+  // Ensure category is always valid
+  const safeCategory: Category = category || 'other'
+  const safeConfidence = Math.max(0, Math.min(100, Math.round(confidence * 100)))
+  
   return {
-    category,
-    confidence: Math.round(confidence * 100), // Convert 0-1 to 0-100
-    fields,
+    category: safeCategory,
+    confidence: safeConfidence,
+    fields, // May be empty - that's OK, UI will show empty fields
     rawText: sanitizedText.substring(0, 1000), // Limit raw text
   }
 }

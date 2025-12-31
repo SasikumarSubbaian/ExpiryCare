@@ -39,6 +39,7 @@ export const CATEGORY_SCHEMAS: Record<string, FieldDefinition[]> = {
   other: [
     { key: 'documentName', label: 'Document Name', required: true },
     { key: 'issuer', label: 'Issued By', required: false },
+    { key: 'holderName', label: 'Holder Name', required: false },
     { key: 'expiryDate', label: 'Expiry Date', required: true },
   ],
 }

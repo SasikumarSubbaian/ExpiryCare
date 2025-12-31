@@ -75,6 +75,12 @@ const categoryKeywords: Record<Category, Array<{ keyword: string; weight: number
 export function predictCategory(ocrText: string): Category {
   const t = ocrText.toLowerCase()
   
+  // PRIORITY: Check for driving licence first (high confidence)
+  if (t.includes('driving licence') || t.includes('driving license') || 
+      t.includes('dl no') || t.includes('transport authority')) {
+    return 'other' // Driving licence is "other" category
+  }
+  
   // Calculate scores for each category
   const scores: Record<Category, number> = {
     warranty: 0,

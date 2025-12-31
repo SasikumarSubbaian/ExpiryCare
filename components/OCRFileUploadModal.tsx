@@ -55,26 +55,39 @@ export default function OCRFileUploadModal({
 
       const result = await response.json()
 
+      // ALWAYS show confirmation modal if we have extractedData, even if partial
+      // Only show error for rate limits or auth issues
       if (result.success && result.extractedData) {
-        // Show confirmation modal with extracted data
+        // Show confirmation modal with extracted data (even if partial)
         setOcrExtractedData(result.extractedData)
         setShowOCRConfirmation(true)
-      } else {
-        // Handle errors gracefully
-        if (result.error) {
-          if (result.error.includes('limit') || result.error.includes('Upgrade')) {
-            setError(result.error)
-          } else {
-            setError('Could not extract details from document. Please try adding the item manually.')
-          }
+      } else if (result.error) {
+        // Only show error for rate limits or upgrade prompts
+        if (result.error.includes('limit') || result.error.includes('Upgrade') || result.error.includes('RATE_LIMIT')) {
+          setError(result.error)
+        } else if (result.allowManualEntry !== false && result.extractedData) {
+          // If manual entry is allowed and we have partial data, show confirmation
+          setOcrExtractedData(result.extractedData)
+          setShowOCRConfirmation(true)
         } else {
-          setError('Could not extract details from document. Please try adding the item manually.')
+          // Friendly message - encourage manual entry
+          setError('We found some information. Please review and complete missing fields.')
+          // Still try to show confirmation if we have any data
+          if (result.extractedData) {
+            setOcrExtractedData(result.extractedData)
+            setShowOCRConfirmation(true)
+          }
         }
+      } else {
+        // No error but no data - show friendly message
+        setError('We found some information. Please review and complete missing fields.')
       }
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : String(err)
       console.error('OCR processing error:', errorMessage)
-      setError('Could not extract details from document. Please try adding the item manually.')
+      // Don't show error - allow manual entry
+      // Show friendly message instead
+      setError('We found some information. Please review and complete missing fields.')
     } finally {
       setProcessingOCR(false)
     }
@@ -211,13 +224,13 @@ export default function OCRFileUploadModal({
             </div>
           )}
 
-          {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md text-sm mb-4">
+          {error && !showOCRConfirmation && (
+            <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 px-4 py-3 rounded-md text-sm mb-4">
               {error}
             </div>
           )}
 
-          {!processingOCR && !error && (
+          {!processingOCR && !error && !showOCRConfirmation && (
             <div className="text-center py-4">
               <p className="text-gray-600 mb-4">Document: {file.name}</p>
               <button

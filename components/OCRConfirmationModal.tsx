@@ -33,6 +33,7 @@ type ExtractedData = {
   documentName?: FieldWithConfidence
   documentType?: FieldWithConfidence
   issuer?: FieldWithConfidence
+  holderName?: FieldWithConfidence
   warnings?: string[]
 }
 
@@ -157,18 +158,23 @@ export default function OCRConfirmationModal({
       value = fieldData.value
       fieldConfidence = fieldData.confidence || confidence || 'Medium'
       confidencePercentage = fieldData.confidencePercentage
-    } else if (fieldData === null || fieldData === undefined) {
-      return null
+    } else {
+      // fieldData is null/undefined - set empty value but still show field
+      value = null
+      fieldConfidence = 'Low'
     }
     
-    if (value === null || value === undefined || value.trim() === '') return null
+    // NEVER return null - always show field, even if empty
+    // Empty fields will show placeholder text
+    const isEmpty = value === null || value === undefined || (typeof value === 'string' && value.trim() === '')
 
     const fieldState = fieldStates[fieldName] || { confirmed: false, skipped: false, edited: false, value }
     const isEditing = editingField === fieldName
     const isConfirmed = fieldState.confirmed
     const isSkipped = fieldState.skipped
-    const displayValue = fieldState.edited ? fieldState.value : value
+    const displayValue = fieldState.edited ? fieldState.value : (value || '')
     const confPercentage = getConfidencePercentage(fieldConfidence, confidencePercentage)
+    const showPlaceholder = isEmpty && !isEditing
 
     return (
       <div className={`mb-4 p-4 rounded-lg border-2 ${
@@ -222,7 +228,9 @@ export default function OCRConfirmationModal({
         ) : (
           <>
             <div className="mb-3">
-              <p className="text-gray-900 font-medium">{displayValue}</p>
+              <p className={`font-medium ${showPlaceholder ? 'text-gray-400 italic' : 'text-gray-900'}`}>
+                {showPlaceholder ? 'Not detected – please enter manually' : displayValue}
+              </p>
             </div>
             <div className="flex gap-2">
               {!isConfirmed && !isSkipped && (
@@ -279,24 +287,23 @@ export default function OCRConfirmationModal({
       isRequired: true,
     })
 
-    // Category-specific fields - show all extracted fields
+    // Category-specific fields - ALWAYS show required fields, even if empty
+    // Optional fields only shown if they have values
     if (category === 'medicine') {
-      if (extractedData.medicineName) {
-        fields.push({
-          label: 'Medicine Name',
-          fieldName: 'medicineName',
-          fieldData: extractedData.medicineName,
-          isRequired: true,
-        })
-      }
-      if (extractedData.companyName) {
-        fields.push({
-          label: 'Manufacturer',
-          fieldName: 'companyName',
-          fieldData: extractedData.companyName,
-          isRequired: true,
-        })
-      }
+      // Always show required fields
+      fields.push({
+        label: 'Medicine Name',
+        fieldName: 'medicineName',
+        fieldData: extractedData.medicineName || { value: '', confidence: 'Low' },
+        isRequired: true,
+      })
+      fields.push({
+        label: 'Manufacturer',
+        fieldName: 'companyName',
+        fieldData: extractedData.companyName || { value: '', confidence: 'Low' },
+        isRequired: true,
+      })
+      // Optional fields
       if (extractedData.brandName) {
         fields.push({
           label: 'Brand Name',
@@ -306,41 +313,35 @@ export default function OCRConfirmationModal({
         })
       }
     } else if (category === 'warranty') {
-      if (extractedData.productName) {
-        fields.push({
-          label: 'Product Name',
-          fieldName: 'productName',
-          fieldData: extractedData.productName,
-          isRequired: true,
-        })
-      }
-      if (extractedData.companyName) {
-        fields.push({
-          label: 'Company Name',
-          fieldName: 'companyName',
-          fieldData: extractedData.companyName,
-          isRequired: true,
-        })
-      }
+      // Always show required fields
+      fields.push({
+        label: 'Product Name',
+        fieldName: 'productName',
+        fieldData: extractedData.productName || { value: '', confidence: 'Low' },
+        isRequired: true,
+      })
+      fields.push({
+        label: 'Company Name',
+        fieldName: 'companyName',
+        fieldData: extractedData.companyName || { value: '', confidence: 'Low' },
+        isRequired: true,
+      })
     } else if (category === 'insurance') {
-      if (extractedData.policyNumber) {
-        fields.push({
-          label: 'Policy Number',
-          fieldName: 'policyNumber',
-          fieldData: extractedData.policyNumber,
-          isRequired: true,
-        })
-      }
-      if (extractedData.provider) {
-        fields.push({
-          label: 'Insurance Provider',
-          fieldName: 'provider',
-          fieldData: extractedData.provider,
-          isRequired: true,
-        })
-      }
-      // Legacy field names
-      if (extractedData.insurerName) {
+      // Always show required fields
+      fields.push({
+        label: 'Policy Number',
+        fieldName: 'policyNumber',
+        fieldData: extractedData.policyNumber || { value: '', confidence: 'Low' },
+        isRequired: true,
+      })
+      fields.push({
+        label: 'Insurance Provider',
+        fieldName: 'provider',
+        fieldData: extractedData.provider || extractedData.insurerName || { value: '', confidence: 'Low' },
+        isRequired: true,
+      })
+      // Legacy field names (optional)
+      if (extractedData.insurerName && !extractedData.provider) {
         fields.push({
           label: 'Insurer Name',
           fieldName: 'insurerName',
@@ -349,31 +350,28 @@ export default function OCRConfirmationModal({
         })
       }
     } else if (category === 'amc') {
-      if (extractedData.serviceType) {
-        fields.push({
-          label: 'Service Type',
-          fieldName: 'serviceType',
-          fieldData: extractedData.serviceType,
-          isRequired: true,
-        })
-      }
-      if (extractedData.providerName) {
-        fields.push({
-          label: 'Provider Name',
-          fieldName: 'providerName',
-          fieldData: extractedData.providerName,
-          isRequired: true,
-        })
-      }
+      // Always show required fields
+      fields.push({
+        label: 'Service Type',
+        fieldName: 'serviceType',
+        fieldData: extractedData.serviceType || { value: '', confidence: 'Low' },
+        isRequired: true,
+      })
+      fields.push({
+        label: 'Provider Name',
+        fieldName: 'providerName',
+        fieldData: extractedData.providerName || { value: '', confidence: 'Low' },
+        isRequired: true,
+      })
     } else if (category === 'subscription') {
-      if (extractedData.serviceName) {
-        fields.push({
-          label: 'Service Name',
-          fieldName: 'serviceName',
-          fieldData: extractedData.serviceName,
-          isRequired: true,
-        })
-      }
+      // Always show required fields
+      fields.push({
+        label: 'Service Name',
+        fieldName: 'serviceName',
+        fieldData: extractedData.serviceName || { value: '', confidence: 'Low' },
+        isRequired: true,
+      })
+      // Optional fields
       if (extractedData.planType) {
         fields.push({
           label: 'Plan Type',
@@ -383,19 +381,28 @@ export default function OCRConfirmationModal({
         })
       }
     } else if (category === 'other') {
-      if (extractedData.documentName) {
-        fields.push({
-          label: 'Document Name',
-          fieldName: 'documentName',
-          fieldData: extractedData.documentName,
-          isRequired: true,
-        })
-      }
+      // ALWAYS show required fields for "Other" category
+      fields.push({
+        label: 'Document Name',
+        fieldName: 'documentName',
+        fieldData: extractedData.documentName || extractedData.documentType || { value: '', confidence: 'Low' },
+        isRequired: true,
+      })
+      // Optional fields
       if (extractedData.issuer) {
         fields.push({
           label: 'Issued By',
           fieldName: 'issuer',
           fieldData: extractedData.issuer,
+          isRequired: false,
+        })
+      }
+      // Holder name (optional, only if extracted)
+      if (extractedData.holderName) {
+        fields.push({
+          label: 'Holder Name',
+          fieldName: 'holderName',
+          fieldData: extractedData.holderName,
           isRequired: false,
         })
       }
