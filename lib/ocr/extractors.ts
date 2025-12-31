@@ -177,24 +177,29 @@ function extractMedicineFields(ocrText: string): Partial<ExtractedData> {
   const result: Partial<ExtractedData> = {}
 
   // Strategy 1: Look for prominent product names (usually at the start or large text)
-  // Pattern: "VITAMIN C CHEWABLE TABLETS" or similar
+  // Pattern: "VITAMIN C CHEWABLE TABLETS" or similar - capture full name including descriptors
   const prominentMedicinePatterns = [
-    // Match product names like "VITAMIN C CHEWABLE TABLETS"
-    /^([A-Za-z][A-Za-z0-9\s]{2,50}?)(?:\s+(?:CHEWABLE|TABLET|TABLETS|CAPSULE|CAPSULES|MG|ML|VIAL|INJECTION))/i,
-    // Match "VITAMIN C" or similar at start
-    /^([A-Za-z][A-Za-z0-9\s]{2,40}?)(?:\s+(?:TABLET|TABLETS|CAPSULE|CAPSULES))/i,
-    // Match medicine name before common keywords
-    /([A-Za-z][A-Za-z0-9\s]{3,40}?)(?:\s+(?:CHEWABLE|TABLET|TABLETS|CAPSULE|CAPSULES|MG|ML))/i,
+    // Match full product names like "VITAMIN C CHEWABLE TABLETS" (capture everything including descriptors)
+    /^([A-Za-z][A-Za-z0-9\s]{2,60}?)(?:\s+(?:CHEWABLE|TABLET|TABLETS|CAPSULE|CAPSULES|MG|ML|VIAL|INJECTION))/i,
+    // Match "VITAMIN C" or similar at start, including following words
+    /^([A-Za-z][A-Za-z0-9\s]{2,60}?)(?:\s+(?:TABLET|TABLETS|CAPSULE|CAPSULES))/i,
+    // Match medicine name with descriptors before common keywords
+    /([A-Za-z][A-Za-z0-9\s]{3,60}?)(?:\s+(?:CHEWABLE|TABLET|TABLETS|CAPSULE|CAPSULES|MG|ML))/i,
     // Match after "MEDICINE", "DRUG", "MEDICATION" labels
-    /(?:MEDICINE|DRUG|MEDICATION|PRODUCT)\s*:?\s*([A-Za-z0-9\s]{3,40})/i,
+    /(?:MEDICINE|DRUG|MEDICATION|PRODUCT)\s*:?\s*([A-Za-z0-9\s]{3,60})/i,
+    // Special pattern for "Vitamin C" style names
+    /(VITAMIN\s+[A-Z]\s+[A-Za-z\s]{0,30}(?:CHEWABLE|TABLET|TABLETS|CAPSULE|CAPSULES)?)/i,
   ]
 
   for (const pattern of prominentMedicinePatterns) {
     const match = originalText.match(pattern)
     if (match && match[1]) {
-      const candidate = match[1].trim()
+      let candidate = match[1].trim()
+      // Clean up extra whitespace
+      candidate = candidate.replace(/\s+/g, ' ')
       // Filter out common non-medicine words
-      if (!candidate.toUpperCase().match(/^(EXPIRY|DATE|BATCH|MFG|USE|BEST|BEFORE|VALID|TILL|UNTIL)/i)) {
+      if (!candidate.toUpperCase().match(/^(EXPIRY|DATE|BATCH|MFG|USE|BEST|BEFORE|VALID|TILL|UNTIL)/i) &&
+          candidate.length >= 3 && candidate.length <= 60) {
         result.medicineName = candidate
         break
       }
@@ -202,12 +207,31 @@ function extractMedicineFields(ocrText: string): Partial<ExtractedData> {
   }
 
   // Strategy 2: If no medicine name found, try to extract from first few lines
+  // Look for lines that contain medicine-related keywords
+  if (!result.medicineName) {
+    const lines = originalText.split('\n').slice(0, 8) // First 8 lines
+    for (const line of lines) {
+      const trimmed = line.trim()
+      const upperLine = trimmed.toUpperCase()
+      // Look for lines that contain medicine keywords and look like product names
+      if (trimmed.length >= 3 && trimmed.length <= 60 && 
+          (upperLine.includes('VITAMIN') || upperLine.includes('TABLET') || 
+           upperLine.includes('CAPSULE') || upperLine.includes('CHEWABLE') ||
+           upperLine.includes('MEDICINE') || upperLine.includes('DRUG')) &&
+          !upperLine.match(/^(EXPIRY|DATE|BATCH|MFG|USE|BEST|BEFORE|VALID|TILL|UNTIL|MANUFACTURING|STORE)/i)) {
+        result.medicineName = trimmed
+        break
+      }
+    }
+  }
+
+  // Strategy 3: Extract from lines that look like product names (fallback)
   if (!result.medicineName) {
     const lines = originalText.split('\n').slice(0, 5) // First 5 lines
     for (const line of lines) {
       const trimmed = line.trim()
-      // Look for lines that look like product names (2-50 chars, mostly letters/numbers)
-      if (trimmed.length >= 3 && trimmed.length <= 50 && 
+      // Look for lines that look like product names (2-60 chars, mostly letters/numbers)
+      if (trimmed.length >= 3 && trimmed.length <= 60 && 
           trimmed.match(/^[A-Za-z0-9\s]+$/) && 
           !trimmed.toUpperCase().match(/^(EXPIRY|DATE|BATCH|MFG|USE|BEST|BEFORE|VALID|TILL|UNTIL|MANUFACTURING|STORE)/i)) {
         result.medicineName = trimmed

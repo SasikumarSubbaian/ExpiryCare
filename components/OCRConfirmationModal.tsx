@@ -6,6 +6,7 @@ import type { Category } from '@/lib/ocr/categorySchemas'
 type FieldWithConfidence = {
   value: string | null
   confidence: 'High' | 'Medium' | 'Low'
+  confidencePercentage?: number
 }
 
 type ExtractedData = {
@@ -39,6 +40,13 @@ type OCRConfirmationModalProps = {
   onEdit: (field: string, value: string) => void
 }
 
+type FieldState = {
+  confirmed: boolean
+  skipped: boolean
+  edited: boolean
+  value: string | null
+}
+
 export default function OCRConfirmationModal({
   isOpen,
   extractedData,
@@ -48,6 +56,7 @@ export default function OCRConfirmationModal({
 }: OCRConfirmationModalProps) {
   const [editingField, setEditingField] = useState<string | null>(null)
   const [editValue, setEditValue] = useState('')
+  const [fieldStates, setFieldStates] = useState<Record<string, FieldState>>({})
 
   if (!isOpen || !extractedData) return null
 
@@ -56,9 +65,17 @@ export default function OCRConfirmationModal({
     setEditValue(currentValue || '')
   }
 
-  const handleSaveEdit = () => {
-    if (editingField) {
-      onEdit(editingField, editValue)
+  const handleSaveEdit = (field: string) => {
+    if (editingField === field) {
+      onEdit(field, editValue)
+      setFieldStates(prev => ({
+        ...prev,
+        [field]: {
+          ...prev[field],
+          edited: true,
+          value: editValue,
+        }
+      }))
       setEditingField(null)
       setEditValue('')
     }
@@ -69,106 +86,310 @@ export default function OCRConfirmationModal({
     setEditValue('')
   }
 
+  const handleConfirmField = (field: string) => {
+    setFieldStates(prev => ({
+      ...prev,
+      [field]: {
+        ...prev[field],
+        confirmed: true,
+        skipped: false,
+      }
+    }))
+  }
+
+  const handleSkipField = (field: string) => {
+    setFieldStates(prev => ({
+      ...prev,
+      [field]: {
+        ...prev[field],
+        skipped: true,
+        confirmed: false,
+      }
+    }))
+  }
+
   const getConfidenceColor = (confidence: 'High' | 'Medium' | 'Low') => {
     switch (confidence) {
       case 'High':
-        return 'text-green-600 bg-green-50'
+        return 'bg-green-100 text-green-700'
       case 'Medium':
-        return 'text-yellow-600 bg-yellow-50'
+        return 'bg-yellow-100 text-yellow-700'
       case 'Low':
-        return 'text-red-600 bg-red-50'
+        return 'bg-red-100 text-red-700'
       default:
-        return 'text-gray-600 bg-gray-50'
+        return 'bg-gray-100 text-gray-700'
     }
   }
 
-  const renderField = (
+  const getConfidencePercentage = (confidence: 'High' | 'Medium' | 'Low', percentage?: number): number => {
+    if (percentage !== undefined) return percentage
+    switch (confidence) {
+      case 'High':
+        return 90
+      case 'Medium':
+        return 60
+      case 'Low':
+        return 30
+      default:
+        return 50
+    }
+  }
+
+  const renderFieldCard = (
     label: string,
     fieldName: string,
     fieldData: FieldWithConfidence | string | null | undefined,
-    confidence?: 'High' | 'Medium' | 'Low'
+    confidence?: 'High' | 'Medium' | 'Low',
+    isRequired: boolean = false
   ) => {
     // Handle both old format (string) and new format (FieldWithConfidence)
     let value: string | null = null
     let fieldConfidence: 'High' | 'Medium' | 'Low' = confidence || 'Medium'
+    let confidencePercentage: number | undefined = undefined
     
     if (typeof fieldData === 'string') {
       value = fieldData
     } else if (fieldData && typeof fieldData === 'object' && 'value' in fieldData) {
       value = fieldData.value
       fieldConfidence = fieldData.confidence || confidence || 'Medium'
+      confidencePercentage = fieldData.confidencePercentage
     } else if (fieldData === null || fieldData === undefined) {
       return null
     }
     
     if (value === null || value === undefined || value.trim() === '') return null
 
+    const fieldState = fieldStates[fieldName] || { confirmed: false, skipped: false, edited: false, value }
     const isEditing = editingField === fieldName
+    const isConfirmed = fieldState.confirmed
+    const isSkipped = fieldState.skipped
+    const displayValue = fieldState.edited ? fieldState.value : value
+    const confPercentage = getConfidencePercentage(fieldConfidence, confidencePercentage)
 
     return (
-      <div className="mb-3">
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          {label}
-          <span
-            className={`ml-2 px-2 py-0.5 rounded text-xs font-medium ${getConfidenceColor(
-              fieldConfidence
-            )}`}
-          >
-            {fieldConfidence} Confidence
+      <div className={`mb-4 p-4 rounded-lg border-2 ${
+        isConfirmed 
+          ? 'bg-blue-50 border-blue-200' 
+          : isSkipped 
+          ? 'bg-gray-50 border-gray-200 opacity-60' 
+          : 'bg-white border-gray-200'
+      }`}>
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2">
+            <label className="text-sm font-semibold text-gray-900">
+              {label}
+              {isRequired && <span className="text-red-500 ml-1">*</span>}
+            </label>
+            {!isRequired && (
+              <span className="px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-700 rounded">
+                Optional
+              </span>
+            )}
+          </div>
+          <span className={`px-2 py-1 text-xs font-medium rounded ${getConfidenceColor(fieldConfidence)}`}>
+            {fieldConfidence} ({confPercentage}%)
           </span>
-        </label>
+        </div>
+        
         {isEditing ? (
-          <div className="flex gap-2">
+          <div className="space-y-2">
             <input
               type="text"
               value={editValue}
               onChange={(e) => setEditValue(e.target.value)}
-              className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
               autoFocus
             />
-            <button
-              onClick={handleSaveEdit}
-              className="px-3 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700"
-            >
-              Save
-            </button>
-            <button
-              onClick={handleCancelEdit}
-              className="px-3 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300"
-            >
-              Cancel
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={() => handleSaveEdit(fieldName)}
+                className="px-3 py-1.5 bg-green-600 text-white text-sm rounded hover:bg-green-700"
+              >
+                ✓ Save
+              </button>
+              <button
+                onClick={handleCancelEdit}
+                className="px-3 py-1.5 bg-gray-200 text-gray-700 text-sm rounded hover:bg-gray-300"
+              >
+                Cancel
+              </button>
+            </div>
           </div>
         ) : (
-          <div className="flex items-center justify-between px-3 py-2 bg-gray-50 rounded-md">
-            <span className="text-gray-900">{value}</span>
-            <button
-              onClick={() => handleEdit(fieldName, value)}
-              className="text-primary-600 hover:text-primary-700 text-sm font-medium"
-            >
-              Edit
-            </button>
-          </div>
+          <>
+            <div className="mb-3">
+              <p className="text-gray-900 font-medium">{displayValue}</p>
+            </div>
+            <div className="flex gap-2">
+              {!isConfirmed && !isSkipped && (
+                <>
+                  <button
+                    onClick={() => handleConfirmField(fieldName)}
+                    className="px-3 py-1.5 bg-green-600 text-white text-sm rounded hover:bg-green-700 flex items-center gap-1"
+                  >
+                    <span>✓</span> Confirm
+                  </button>
+                  <button
+                    onClick={() => handleEdit(fieldName, displayValue)}
+                    className="px-3 py-1.5 bg-orange-200 text-orange-700 text-sm rounded hover:bg-orange-300 flex items-center gap-1"
+                  >
+                    <span>✎</span> Edit
+                  </button>
+                  {!isRequired && (
+                    <button
+                      onClick={() => handleSkipField(fieldName)}
+                      className="px-3 py-1.5 bg-gray-200 text-gray-700 text-sm rounded hover:bg-gray-300"
+                    >
+                      Skip
+                    </button>
+                  )}
+                </>
+              )}
+              {isConfirmed && (
+                <span className="px-3 py-1.5 bg-green-100 text-green-700 text-sm rounded">
+                  ✓ Confirmed
+                </span>
+              )}
+              {isSkipped && (
+                <span className="px-3 py-1.5 bg-gray-200 text-gray-600 text-sm rounded">
+                  Skipped
+                </span>
+              )}
+            </div>
+          </>
         )}
       </div>
     )
   }
 
+  // Get category-specific fields based on schema
+  const getCategoryFields = () => {
+    const category = extractedData.category.toLowerCase()
+    const fields: Array<{ label: string; fieldName: string; fieldData: any; isRequired: boolean }> = []
+
+    // Always show expiry date first (required)
+    fields.push({
+      label: 'Expiry Date',
+      fieldName: 'expiryDate',
+      fieldData: extractedData.expiryDate.value,
+      isRequired: true,
+    })
+
+    // Category-specific fields
+    if (category === 'medicine') {
+      if (extractedData.medicineName) {
+        fields.push({
+          label: 'Medicine Name',
+          fieldName: 'medicineName',
+          fieldData: extractedData.medicineName,
+          isRequired: false,
+        })
+      }
+      if (extractedData.brandName) {
+        fields.push({
+          label: 'Brand Name',
+          fieldName: 'brandName',
+          fieldData: extractedData.brandName,
+          isRequired: false,
+        })
+      }
+      if (extractedData.companyName) {
+        fields.push({
+          label: 'Company Name',
+          fieldName: 'companyName',
+          fieldData: extractedData.companyName,
+          isRequired: false,
+        })
+      }
+    } else if (category === 'warranty') {
+      if (extractedData.productName) {
+        fields.push({
+          label: 'Product Name',
+          fieldName: 'productName',
+          fieldData: extractedData.productName,
+          isRequired: false,
+        })
+      }
+      if (extractedData.companyName) {
+        fields.push({
+          label: 'Company Name',
+          fieldName: 'companyName',
+          fieldData: extractedData.companyName,
+          isRequired: false,
+        })
+      }
+    } else if (category === 'insurance') {
+      if (extractedData.policyType) {
+        fields.push({
+          label: 'Policy Type',
+          fieldName: 'policyType',
+          fieldData: extractedData.policyType,
+          isRequired: false,
+        })
+      }
+      if (extractedData.insurerName) {
+        fields.push({
+          label: 'Insurer Name',
+          fieldName: 'insurerName',
+          fieldData: extractedData.insurerName,
+          isRequired: false,
+        })
+      }
+    } else if (category === 'amc') {
+      if (extractedData.serviceType) {
+        fields.push({
+          label: 'Service Type',
+          fieldName: 'serviceType',
+          fieldData: extractedData.serviceType,
+          isRequired: false,
+        })
+      }
+      if (extractedData.providerName) {
+        fields.push({
+          label: 'Provider Name',
+          fieldName: 'providerName',
+          fieldData: extractedData.providerName,
+          isRequired: false,
+        })
+      }
+    } else if (category === 'subscription') {
+      if (extractedData.serviceName) {
+        fields.push({
+          label: 'Service Name',
+          fieldName: 'serviceName',
+          fieldData: extractedData.serviceName,
+          isRequired: false,
+        })
+      }
+    }
+
+    // Always show category field
+    fields.push({
+      label: 'Category',
+      fieldName: 'category',
+      fieldData: extractedData.category,
+      isRequired: false,
+    })
+
+    return fields
+  }
+
+  const categoryFields = getCategoryFields()
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+      <div className="bg-white rounded-lg max-w-3xl w-full max-h-[90vh] overflow-y-auto">
         <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4">
-          <h2 className="text-xl font-bold text-gray-900">Confirm Extracted Data</h2>
+          <h2 className="text-xl font-bold text-gray-900">Confirm Extracted Information</h2>
           <p className="text-sm text-gray-600 mt-1">
-            Please review and confirm the extracted information. You can edit any field before
-            confirming.
+            Review and confirm the extracted data. You can edit or skip any field.
           </p>
         </div>
 
-        <div className="p-6 space-y-4">
+        <div className="p-6">
           {/* Warnings */}
           {extractedData.warnings && extractedData.warnings.length > 0 && (
-            <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3">
+            <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3 mb-4">
               <p className="text-sm font-medium text-yellow-800 mb-1">⚠️ Warnings</p>
               <ul className="list-disc list-inside text-xs text-yellow-700 space-y-1">
                 {extractedData.warnings.map((warning, idx) => (
@@ -178,97 +399,59 @@ export default function OCRConfirmationModal({
             </div>
           )}
 
-          {/* Category */}
-          <div className="mb-3">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Category
-              <span
-                className={`ml-2 px-2 py-0.5 rounded text-xs font-medium ${getConfidenceColor(
-                  extractedData.categoryConfidence
-                )}`}
-              >
-                {extractedData.categoryConfidence} Confidence
-                {extractedData.categoryConfidencePercentage !== undefined && (
-                  <span className="ml-1">({extractedData.categoryConfidencePercentage}%)</span>
-                )}
-              </span>
-            </label>
-            <div className="px-3 py-2 bg-gray-50 rounded-md text-gray-900 capitalize">
-              {extractedData.category}
-            </div>
-          </div>
-
-          {/* Expiry Date (Always shown) */}
-          {renderField(
-            'Expiry Date',
-            'expiryDate',
-            extractedData.expiryDate.value,
-            extractedData.expiryDate.confidence
-          )}
-
-          {/* Category-specific fields - ONLY show allowed fields per schema */}
-          {extractedData.category === 'warranty' && (
-            <>
-              {renderField('Product Name', 'productName', extractedData.productName)}
-              {renderField('Company Name', 'companyName', extractedData.companyName)}
-            </>
-          )}
-
-          {extractedData.category === 'insurance' && (
-            <>
-              {renderField('Policy Type', 'policyType', extractedData.policyType)}
-              {renderField('Insurer Name', 'insurerName', extractedData.insurerName)}
-            </>
-          )}
-
-          {extractedData.category === 'amc' && (
-            <>
-              {renderField('Service Type', 'serviceType', extractedData.serviceType)}
-              {renderField('Provider Name', 'providerName', extractedData.providerName)}
-            </>
-          )}
-
-          {extractedData.category === 'subscription' && (
-            <>
-              {/* CRITICAL: Subscription only shows serviceName per requirements */}
-              {renderField('Service Name', 'serviceName', extractedData.serviceName)}
-            </>
-          )}
-
-          {extractedData.category === 'medicine' && (
-            <>
-              {renderField('Medicine Name', 'medicineName', extractedData.medicineName)}
-              {renderField('Brand Name', 'brandName', extractedData.brandName)}
-              {renderField('Company Name', 'companyName', extractedData.companyName)}
-            </>
-          )}
-
-          {extractedData.category === 'other' && (
-            <>
-              {/* CRITICAL: Other category shows ONLY expiry date - no other fields */}
-              <p className="text-sm text-gray-500 italic">
-                Only expiry date is extracted for "Other" category documents to protect privacy.
-              </p>
-            </>
-          )}
+          {/* Render all fields */}
+          {categoryFields.map((field) => {
+            if (field.fieldName === 'expiryDate') {
+              return renderFieldCard(
+                field.label,
+                field.fieldName,
+                extractedData.expiryDate.value,
+                extractedData.expiryDate.confidence,
+                true
+              )
+            } else if (field.fieldName === 'category') {
+              return (
+                <div key={field.fieldName} className="mb-4 p-4 rounded-lg border-2 bg-white border-gray-200">
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="text-sm font-semibold text-gray-900">{field.label}</label>
+                    <span className={`px-2 py-1 text-xs font-medium rounded ${getConfidenceColor(
+                      extractedData.categoryConfidence
+                    )}`}>
+                      {extractedData.categoryConfidence} ({extractedData.categoryConfidencePercentage || 0}%)
+                    </span>
+                  </div>
+                  <div className="mb-3">
+                    <p className="text-gray-900 font-medium capitalize">{field.fieldData}</p>
+                  </div>
+                </div>
+              )
+            } else {
+              return renderFieldCard(
+                field.label,
+                field.fieldName,
+                field.fieldData,
+                undefined,
+                field.isRequired
+              )
+            }
+          })}
         </div>
 
-        <div className="sticky bottom-0 bg-white border-t border-gray-200 px-6 py-4 flex gap-3">
+        <div className="sticky bottom-0 bg-white border-t border-gray-200 px-6 py-4 flex gap-3 justify-end">
           <button
             onClick={onCancel}
-            className="flex-1 px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+            className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
           >
             Cancel
           </button>
           <button
             onClick={() => onConfirm(extractedData)}
-            className="flex-1 px-4 py-2 border border-transparent rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+            className="px-4 py-2 border border-transparent rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
           >
-            Confirm & Use Data
+            Apply Confirmed Fields
           </button>
         </div>
       </div>
     </div>
   )
 }
-

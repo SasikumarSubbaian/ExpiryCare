@@ -92,13 +92,20 @@ const categoryKeywords: Record<Category, string[]> = {
 export function predictCategory(ocrText: string): Category {
   const t = ocrText.toLowerCase()
 
-  // Medicine detection - enhanced with more keywords
-  if (t.includes('tablet') || t.includes('capsule') || t.includes('mg') || 
-      t.includes('ml') || t.includes('mfg') || t.includes('exp date') ||
-      t.includes('vitamin') || t.includes('chewable') || t.includes('medicine') ||
-      t.includes('medication') || t.includes('drug') || t.includes('pharma') ||
-      t.includes('pharmaceutical') || t.includes('batch') || t.includes('use before') ||
-      t.includes('best before') || t.includes('prescription')) {
+  // Medicine detection - PRIORITIZE with enhanced keywords and scoring
+  // Check for medicine keywords first (highest priority)
+  const medicineKeywords = [
+    'vitamin', 'tablet', 'tablets', 'capsule', 'capsules', 'chewable',
+    'medicine', 'medication', 'drug', 'pharma', 'pharmaceutical',
+    'mg', 'ml', 'mfg', 'exp date', 'batch', 'use before', 'best before',
+    'prescription', 'pharmaceuticals'
+  ]
+  
+  const medicineScore = medicineKeywords.filter(keyword => t.includes(keyword)).length
+  
+  // If we have strong medicine indicators, prioritize medicine
+  if (medicineScore >= 2 || t.includes('vitamin') || t.includes('chewable') || 
+      (t.includes('tablet') && (t.includes('vitamin') || t.includes('chewable')))) {
     return 'medicine'
   }
 
