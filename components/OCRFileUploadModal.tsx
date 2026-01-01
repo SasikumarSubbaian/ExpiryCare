@@ -39,19 +39,20 @@ export default function OCRFileUploadModal({
     }
   }, [isOpen, file])
 
-  // Safety net: Ensure confirmation modal opens when we have data
+  // ✅ HARD SAFETY NET: Force confirmation modal to open when we have result
   useEffect(() => {
-    if (ocrExtractedData && !showOCRConfirmation) {
+    if (ocrExtractedData !== null) {
       setProcessingOCR(false)
       setShowOCRConfirmation(true)
     }
-  }, [ocrExtractedData, showOCRConfirmation])
+  }, [ocrExtractedData])
 
   const processOCR = async (fileToProcess: File) => {
-    setProcessingOCR(true)
-    setError(null)
-
     try {
+      setProcessingOCR(true)
+      setShowOCRConfirmation(false)
+      setError(null)
+
       const formData = new FormData()
       formData.append('file', fileToProcess)
       formData.append('category', selectedCategory)
@@ -63,48 +64,28 @@ export default function OCRFileUploadModal({
 
       const result = await response.json()
 
-      // ALWAYS show confirmation modal if we have extractedData, even if partial
-      // Only show error for rate limits or auth issues
-      if (result.success && result.extractedData) {
-        // Show confirmation modal with extracted data (even if partial)
-        setOcrExtractedData(result.extractedData)
-        setProcessingOCR(false) // ✅ CRITICAL: Close processing modal
-        setShowOCRConfirmation(true) // ✅ CRITICAL: Open confirmation modal
-      } else if (result.error) {
-        // Only show error for rate limits or upgrade prompts
-        if (result.error.includes('limit') || result.error.includes('Upgrade') || result.error.includes('RATE_LIMIT')) {
-          setError(result.error)
-          setProcessingOCR(false)
-        } else if (result.allowManualEntry !== false && result.extractedData) {
-          // If manual entry is allowed and we have partial data, show confirmation
-          setOcrExtractedData(result.extractedData)
-          setProcessingOCR(false) // ✅ CRITICAL: Close processing modal
-          setShowOCRConfirmation(true) // ✅ CRITICAL: Open confirmation modal
-        } else {
-          // Friendly message - encourage manual entry
-          setError('We found some information. Please review and complete missing fields.')
-          // Still try to show confirmation if we have any data
-          if (result.extractedData) {
-            setOcrExtractedData(result.extractedData)
-            setProcessingOCR(false) // ✅ CRITICAL: Close processing modal
-            setShowOCRConfirmation(true) // ✅ CRITICAL: Open confirmation modal
-          } else {
-            setProcessingOCR(false)
-          }
-        }
-      } else {
-        // No error but no data - show friendly message
-        setError('We found some information. Please review and complete missing fields.')
-        setProcessingOCR(false)
-      }
-    } catch (err: unknown) {
-      const errorMessage = err instanceof Error ? err.message : String(err)
-      console.error('OCR processing error:', errorMessage)
-      // Don't show error - allow manual entry
-      // Show friendly message instead
-      setError('We found some information. Please review and complete missing fields.')
-    } finally {
+      console.log('OCR RESULT:', result)
+
+      // ✅ ALWAYS STORE RESULT (even partial or empty)
+      // Store extractedData if available, otherwise store empty object
+      const extractedData = result.extractedData || result.data || {}
+      setOcrExtractedData(extractedData)
+
+      // ✅ FORCE UI TRANSITION - Always open confirmation modal
       setProcessingOCR(false)
+      setShowOCRConfirmation(true)
+
+      // Only set error for rate limits (but still show confirmation)
+      if (result.error && (result.error.includes('limit') || result.error.includes('Upgrade') || result.error.includes('RATE_LIMIT'))) {
+        setError(result.error)
+      }
+
+    } catch (error: unknown) {
+      console.error('OCR failed:', error)
+      // Even on error, show confirmation modal with empty data for manual entry
+      setOcrExtractedData({})
+      setProcessingOCR(false)
+      setShowOCRConfirmation(true)
     }
   }
 
@@ -262,16 +243,16 @@ export default function OCRFileUploadModal({
         </div>
       )}
 
-      {/* OCR Confirmation Modal - Show when we have data */}
-      {showOCRConfirmation && ocrExtractedData && (
+      {/* OCR Confirmation Modal - ALWAYS show when flag is true, even with empty data */}
+      {showOCRConfirmation && (
         <OCRConfirmationModal
           isOpen={showOCRConfirmation}
-          extractedData={ocrExtractedData}
+          extractedData={ocrExtractedData || {}}
           onConfirm={handleOCRConfirm}
           onCancel={handleOCRCancel}
           onEdit={(field, value) => {
             // Update extracted data
-            const updated = { ...ocrExtractedData }
+            const updated = ocrExtractedData ? { ...ocrExtractedData } : {}
             if (field === 'expiryDate') {
               updated.expiryDate = { ...updated.expiryDate, value }
             } else {

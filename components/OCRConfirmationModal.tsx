@@ -63,23 +63,36 @@ export default function OCRConfirmationModal({
   const [editValue, setEditValue] = useState('')
   const [fieldStates, setFieldStates] = useState<Record<string, FieldState>>({})
 
-  // Allow modal to open even with empty data - show fields for manual entry
+  // ✅ NEVER SELF-BLOCK: Always render modal if isOpen is true
   if (!isOpen) return null
   
-  // If no extractedData, show empty form for manual entry
-  if (!extractedData) {
+  // If no extractedData, show empty form for manual entry (never return null)
+  if (!extractedData || Object.keys(extractedData).length === 0) {
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
         <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
           <div className="p-6">
             <h2 className="text-xl font-bold text-gray-900 mb-4">Confirm Extracted Information</h2>
             <p className="text-gray-600 mb-4">No data was extracted. Please enter the details manually.</p>
-            <button
-              onClick={onCancel}
-              className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200"
-            >
-              Close
-            </button>
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                onClick={onCancel}
+                className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => onConfirm({ 
+                  category: 'other', 
+                  categoryConfidence: 'Low' as const,
+                  categoryConfidencePercentage: 0,
+                  expiryDate: { value: null, confidence: 'Low' as const, sourceKeyword: null }
+                })}
+                className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700"
+              >
+                Continue with Manual Entry
+              </button>
+            </div>
           </div>
         </div>
       </div>
