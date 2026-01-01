@@ -39,6 +39,14 @@ export default function OCRFileUploadModal({
     }
   }, [isOpen, file])
 
+  // Safety net: Ensure confirmation modal opens when we have data
+  useEffect(() => {
+    if (ocrExtractedData && !showOCRConfirmation) {
+      setProcessingOCR(false)
+      setShowOCRConfirmation(true)
+    }
+  }, [ocrExtractedData, showOCRConfirmation])
+
   const processOCR = async (fileToProcess: File) => {
     setProcessingOCR(true)
     setError(null)
@@ -60,27 +68,34 @@ export default function OCRFileUploadModal({
       if (result.success && result.extractedData) {
         // Show confirmation modal with extracted data (even if partial)
         setOcrExtractedData(result.extractedData)
-        setShowOCRConfirmation(true)
+        setProcessingOCR(false) // ✅ CRITICAL: Close processing modal
+        setShowOCRConfirmation(true) // ✅ CRITICAL: Open confirmation modal
       } else if (result.error) {
         // Only show error for rate limits or upgrade prompts
         if (result.error.includes('limit') || result.error.includes('Upgrade') || result.error.includes('RATE_LIMIT')) {
           setError(result.error)
+          setProcessingOCR(false)
         } else if (result.allowManualEntry !== false && result.extractedData) {
           // If manual entry is allowed and we have partial data, show confirmation
           setOcrExtractedData(result.extractedData)
-          setShowOCRConfirmation(true)
+          setProcessingOCR(false) // ✅ CRITICAL: Close processing modal
+          setShowOCRConfirmation(true) // ✅ CRITICAL: Open confirmation modal
         } else {
           // Friendly message - encourage manual entry
           setError('We found some information. Please review and complete missing fields.')
           // Still try to show confirmation if we have any data
           if (result.extractedData) {
             setOcrExtractedData(result.extractedData)
-            setShowOCRConfirmation(true)
+            setProcessingOCR(false) // ✅ CRITICAL: Close processing modal
+            setShowOCRConfirmation(true) // ✅ CRITICAL: Open confirmation modal
+          } else {
+            setProcessingOCR(false)
           }
         }
       } else {
         // No error but no data - show friendly message
         setError('We found some information. Please review and complete missing fields.')
+        setProcessingOCR(false)
       }
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : String(err)
@@ -213,24 +228,27 @@ export default function OCRFileUploadModal({
 
   return (
     <>
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-        <div className="bg-white rounded-lg max-w-md w-full p-6">
-          <h2 className="text-xl font-bold text-gray-900 mb-4">Processing Document</h2>
-
-          {processingOCR && (
+      {/* Processing Modal - Only show when processing and NOT showing confirmation */}
+      {processingOCR && !showOCRConfirmation && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-md w-full p-6">
+            <h2 className="text-xl font-bold text-gray-900 mb-4">Processing Document</h2>
             <div className="text-center py-8">
               <div className="w-12 h-12 border-4 border-primary-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
               <p className="text-gray-600">Extracting details from document...</p>
             </div>
-          )}
+          </div>
+        </div>
+      )}
 
-          {error && !showOCRConfirmation && (
+      {/* Error Display - Only show when there's an error and NOT showing confirmation */}
+      {error && !showOCRConfirmation && !processingOCR && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-md w-full p-6">
+            <h2 className="text-xl font-bold text-gray-900 mb-4">Processing Document</h2>
             <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 px-4 py-3 rounded-md text-sm mb-4">
               {error}
             </div>
-          )}
-
-          {!processingOCR && !error && !showOCRConfirmation && (
             <div className="text-center py-4">
               <p className="text-gray-600 mb-4">Document: {file.name}</p>
               <button
@@ -240,11 +258,11 @@ export default function OCRFileUploadModal({
                 Close
               </button>
             </div>
-          )}
+          </div>
         </div>
-      </div>
+      )}
 
-      {/* OCR Confirmation Modal */}
+      {/* OCR Confirmation Modal - Show when we have data */}
       {showOCRConfirmation && ocrExtractedData && (
         <OCRConfirmationModal
           isOpen={showOCRConfirmation}

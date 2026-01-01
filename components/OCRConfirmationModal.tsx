@@ -63,7 +63,28 @@ export default function OCRConfirmationModal({
   const [editValue, setEditValue] = useState('')
   const [fieldStates, setFieldStates] = useState<Record<string, FieldState>>({})
 
-  if (!isOpen || !extractedData) return null
+  // Allow modal to open even with empty data - show fields for manual entry
+  if (!isOpen) return null
+  
+  // If no extractedData, show empty form for manual entry
+  if (!extractedData) {
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="p-6">
+            <h2 className="text-xl font-bold text-gray-900 mb-4">Confirm Extracted Information</h2>
+            <p className="text-gray-600 mb-4">No data was extracted. Please enter the details manually.</p>
+            <button
+              onClick={onCancel}
+              className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   const handleEdit = (field: string, currentValue: string | null) => {
     setEditingField(field)
