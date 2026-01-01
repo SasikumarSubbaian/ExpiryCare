@@ -35,6 +35,11 @@ type ExtractedData = {
   issuer?: FieldWithConfidence
   holderName?: FieldWithConfidence
   warnings?: string[]
+  // New format fields
+  extractedFields?: Record<string, any>
+  fields?: Record<string, any>
+  fullText?: string
+  success?: boolean
 }
 
 type OCRConfirmationModalProps = {
@@ -310,16 +315,79 @@ export default function OCRConfirmationModal({
 
   // Get category-specific fields based on schema
   const getCategoryFields = () => {
-    const category = extractedData.category.toLowerCase()
+    const category = extractedData.category || 'other'
+    const categoryLower = category.toLowerCase()
     const fields: Array<{ label: string; fieldName: string; fieldData: any; isRequired: boolean }> = []
 
+    // Import category field map
+    // Use dynamic import to avoid SSR issues
+    let categoryFieldKeys: string[] = []
+    try {
+      const categoryFieldMap = require('@/lib/ocr/categoryFieldMap')
+      categoryFieldKeys = categoryFieldMap.getFieldsForCategory(category)
+    } catch (e) {
+      // Fallback to default fields
+      categoryFieldKeys = ['expiryDate', 'documentName']
+    }
+    
+    // Get extractedFields from API response (new format)
+    const extractedFields = extractedData.extractedFields || extractedData.fields || {}
+    
+    // Map field keys to display fields
+    for (const fieldKey of categoryFieldKeys) {
+      // Skip if already added
+      if (fields.find(f => f.fieldName === fieldKey)) continue
+      
+      // Get field value from extractedFields or legacy format
+      let fieldValue: any = null
+      let isRequired = fieldKey === 'expiryDate' || fieldKey === 'documentName'
+      
+      // Try new format first (extractedFields)
+      if (extractedFields[fieldKey]) {
+        fieldValue = extractedFields[fieldKey]
+      } else {
+        // Try legacy format
+        const legacyKey = fieldKey === 'documentProvider' ? 'issuer' : 
+                         fieldKey === 'dateOfBirth' ? 'dob' :
+                         fieldKey === 'dateOfIssue' ? 'issueDate' :
+                         fieldKey
+        const legacyData = (extractedData as any)[legacyKey]
+        if (legacyData) {
+          fieldValue = legacyData
+        } else {
+          // Empty field
+          fieldValue = { value: '', confidence: 'Low' }
+        }
+      }
+      
+      // Format label from field key
+      const label = fieldKey
+        .replace(/([A-Z])/g, ' $1')
+        .replace(/^./, str => str.toUpperCase())
+        .trim()
+      
+      fields.push({
+        label,
+        fieldName: fieldKey,
+        fieldData: fieldValue,
+        isRequired,
+      })
+    }
+    
     // Always show expiry date first (required) - PINNED TO TOP
-    fields.push({
-      label: 'Expiry Date',
-      fieldName: 'expiryDate',
-      fieldData: extractedData.expiryDate.value,
-      isRequired: true,
-    })
+    const expiryIndex = fields.findIndex(f => f.fieldName === 'expiryDate')
+    if (expiryIndex > 0) {
+      const expiryField = fields.splice(expiryIndex, 1)[0]
+      fields.unshift(expiryField)
+    } else if (expiryIndex === -1) {
+      // Add expiry date if missing
+      fields.unshift({
+        label: 'Expiry Date',
+        fieldName: 'expiryDate',
+        fieldData: extractedData.expiryDate?.value || { value: '', confidence: 'Low' },
+        isRequired: true,
+      })
+    }
 
     // Category-specific fields - ALWAYS show required fields, even if empty
     // Optional fields only shown if they have values

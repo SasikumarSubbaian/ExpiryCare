@@ -67,11 +67,28 @@ export default function OCRFileUploadModal({
       console.log('OCR RESULT:', result)
 
       // ✅ ALWAYS STORE RESULT (even partial or empty)
+      // Use fullText to determine if we should show success
+      const fullText = result.fullText || result.text || result.rawText || ''
+      const hasText = fullText.trim().length > 30
+      
       // Store extractedData if available, otherwise store empty object
-      const extractedData = result.extractedData || result.data || {}
+      // Include fullText in extractedData for popup
+      const extractedData = {
+        ...(result.extractedData || result.data || {}),
+        fullText: fullText, // Include full text for reference
+        success: result.success !== false, // Use API success, default to true
+        category: result.category || 'other',
+        extractedFields: result.extractedFields || result.fields || {},
+      }
+      
       setOcrExtractedData(extractedData)
 
-      // ✅ FORCE UI TRANSITION - Always open confirmation modal
+      // ✅ FORCE UI TRANSITION - Always open confirmation modal if text exists
+      // Only show error if no text at all
+      if (!hasText && !result.success) {
+        setError('No text found in document. Please ensure the document is clear and readable.')
+      }
+      
       setProcessingOCR(false)
       setShowOCRConfirmation(true)
 

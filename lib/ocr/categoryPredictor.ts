@@ -64,6 +64,9 @@ const categoryKeywords: Record<Category, Array<{ keyword: string; weight: number
     { keyword: 'driving license', weight: 10 },
     { keyword: 'dl no', weight: 9 },
     { keyword: 'date of issue', weight: 7 },
+    { keyword: 'valid till', weight: 7 },
+    { keyword: 'union of india', weight: 8 },
+    { keyword: 'transport department', weight: 8 },
     { keyword: 'transport authority', weight: 8 },
   ],
 }
@@ -76,8 +79,15 @@ export function predictCategory(ocrText: string): Category {
   const t = ocrText.toLowerCase()
   
   // PRIORITY: Check for driving licence first (high confidence)
-  if (t.includes('driving licence') || t.includes('driving license') || 
-      t.includes('dl no') || t.includes('transport authority')) {
+  // Enhanced detection with more keywords
+  const drivingLicenseKeywords = [
+    'driving licence', 'driving license', 'dl no', 'dl no.', 'dl number',
+    'date of issue', 'valid till', 'union of india', 'transport department',
+    'transport authority', 'rto', 'regional transport office'
+  ]
+  
+  const drivingLicenseScore = drivingLicenseKeywords.filter(kw => t.includes(kw)).length
+  if (drivingLicenseScore >= 2) {
     return 'other' // Driving licence is "other" category
   }
   

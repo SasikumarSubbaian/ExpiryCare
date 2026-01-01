@@ -17,6 +17,8 @@ import {
 } from './fieldExtractors'
 import { sanitizeOCRText } from './sanitizeOCRText'
 import { extractByCategory } from './extractors'
+import { extractDrivingLicenseFields } from './fieldExtractors'
+import { getFieldsForCategory } from './categoryFieldMap'
 import type { Category } from './categorySchemas'
 import type { ExtractedField, OCRResult } from './ocrPipeline'
 
@@ -179,35 +181,27 @@ export function processOCRText(ocrText: string, userSelectedCategory?: string | 
     }
   }
   
-  // Special handling for driving license
+  // Special handling for driving license - extract all fields
   const lowerText = sanitizedText.toLowerCase()
   if (category === 'other' && (lowerText.includes('driving licence') || lowerText.includes('driving license') || lowerText.includes('dl no'))) {
-    // Auto-fill document name if not extracted or empty
-    if (!fields.documentName || !fields.documentName.value) {
-      fields.documentName = {
-        label: 'Document Name',
-        value: 'Driving Licence',
-        confidence: 95,
-        required: true,
-      }
+    // Extract all Driving License fields
+    const dlFields = extractDrivingLicenseFields(ocrText) // Use original text for extraction
+    
+    // Merge extracted fields
+    for (const [key, field] of Object.entries(dlFields)) {
+      fields[key] = field
     }
     
-    // Auto-fill issuer if not extracted
-    if (!fields.issuer || !fields.issuer.value) {
-      // Check for transport authority
-      if (lowerText.includes('transport') || lowerText.includes('rto')) {
-        fields.issuer = {
-          label: 'Issued By',
-          value: 'Transport Authority',
-          confidence: 80,
-          required: false,
-        }
-      } else {
-        fields.issuer = {
-          label: 'Issued By',
-          value: 'Government of India',
-          confidence: 70,
-          required: false,
+    // Ensure required fields exist (even if empty)
+    const requiredFields = getFieldsForCategory('Driving License')
+    for (const fieldKey of requiredFields) {
+      if (!fields[fieldKey]) {
+        // Add empty required field
+        fields[fieldKey] = {
+          label: fieldKey.charAt(0).toUpperCase() + fieldKey.slice(1).replace(/([A-Z])/g, ' $1').trim(),
+          value: '',
+          confidence: 0,
+          required: fieldKey === 'expiryDate' || fieldKey === 'documentName',
         }
       }
     }

@@ -335,3 +335,157 @@ export function extractIssuer(text: string): ExtractedField | null {
   
   return null
 }
+
+/**
+ * Extract Driving License specific fields
+ */
+export function extractDrivingLicenseFields(text: string): Record<string, ExtractedField> {
+  const fields: Record<string, ExtractedField> = {}
+  const lowerText = text.toLowerCase()
+  
+  // License Number: /(DL|DL No|DL No\.)\s*[:\-]?\s*[A-Z0-9]+/
+  const licensePatterns = [
+    /(?:DL|DL\s+No|DL\s+No\.|DL\s+Number)\s*[:\-]?\s*([A-Z0-9\-\s]{5,20})/i,
+    /DL\s*[:\-]?\s*([A-Z0-9\-\s]{5,20})/i,
+  ]
+  
+  for (const pattern of licensePatterns) {
+    const match = text.match(pattern)
+    if (match && match[1]) {
+      const value = match[1].trim()
+      if (value.length >= 5 && value.length <= 20) {
+        fields.licenseNumber = {
+          label: 'License Number',
+          value,
+          confidence: 90, // Regex exact match
+          required: true,
+        }
+        break
+      }
+    }
+  }
+  
+  // Holder Name: Line following "Name" OR line above DOB
+  const namePatterns = [
+    /(?:Name|Name\s+of\s+Holder)\s*[:\-]?\s*([A-Za-z\s]{2,50})/i,
+    /Name\s*[:\-]?\s*([A-Za-z\s]{2,50})/i,
+  ]
+  
+  for (const pattern of namePatterns) {
+    const match = text.match(pattern)
+    if (match && match[1]) {
+      const value = match[1].trim()
+      if (value.length >= 2 && value.length <= 50 && !value.toLowerCase().includes('date')) {
+        fields.holderName = {
+          label: 'Holder Name',
+          value,
+          confidence: 90,
+          required: false,
+        }
+        break
+      }
+    }
+  }
+  
+  // DOB: /(Date of Birth|DOB)\s*[:\-]?\s*\d{2}-\d{2}-\d{4}/
+  const dobPatterns = [
+    /(?:Date\s+of\s+Birth|DOB|D\.O\.B\.)\s*[:\-]?\s*(\d{2}[-\/]\d{2}[-\/]\d{4})/i,
+    /(?:Date\s+of\s+Birth|DOB)\s*[:\-]?\s*(\d{2}\.\d{2}\.\d{4})/i,
+  ]
+  
+  for (const pattern of dobPatterns) {
+    const match = text.match(pattern)
+    if (match && match[1]) {
+      const value = match[1].trim()
+      fields.dateOfBirth = {
+        label: 'Date of Birth',
+        value,
+        confidence: 90,
+        required: false,
+      }
+      break
+    }
+  }
+  
+  // Issue Date: /(Date of Issue)\s*[:\-]?\s*\d{2}-\d{2}-\d{4}/
+  const issuePatterns = [
+    /(?:Date\s+of\s+Issue|Issue\s+Date)\s*[:\-]?\s*(\d{2}[-\/]\d{2}[-\/]\d{4})/i,
+    /(?:Date\s+of\s+Issue|Issue\s+Date)\s*[:\-]?\s*(\d{2}\.\d{2}\.\d{4})/i,
+  ]
+  
+  for (const pattern of issuePatterns) {
+    const match = text.match(pattern)
+    if (match && match[1]) {
+      const value = match[1].trim()
+      fields.dateOfIssue = {
+        label: 'Date of Issue',
+        value,
+        confidence: 90,
+        required: false,
+      }
+      break
+    }
+  }
+  
+  // Expiry Date: /(Valid Till|Expiry)\s*[:\-]?\s*\d{2}-\d{2}-\d{4}/
+  const expiryPatterns = [
+    /(?:Valid\s+Till|Expiry|Expiry\s+Date)\s*[:\-]?\s*(\d{2}[-\/]\d{2}[-\/]\d{4})/i,
+    /(?:Valid\s+Till|Expiry)\s*[:\-]?\s*(\d{2}\.\d{2}\.\d{4})/i,
+  ]
+  
+  for (const pattern of expiryPatterns) {
+    const match = text.match(pattern)
+    if (match && match[1]) {
+      const value = match[1].trim()
+      fields.expiryDate = {
+        label: 'Expiry Date',
+        value,
+        confidence: 90,
+        required: true,
+      }
+      break
+    }
+  }
+  
+  // Document Name: Auto-fill if driving license detected
+  if (lowerText.includes('driving licence') || lowerText.includes('driving license')) {
+    fields.documentName = {
+      label: 'Document Name',
+      value: 'Driving Licence',
+      confidence: 95,
+      required: true,
+    }
+  }
+  
+  // Document Provider: If text contains "Union of India" → provider = "Government of India"
+  if (lowerText.includes('union of india') || lowerText.includes('government of india')) {
+    fields.documentProvider = {
+      label: 'Document Provider',
+      value: 'Government of India',
+      confidence: 90,
+      required: false,
+    }
+  } else if (lowerText.includes('transport') || lowerText.includes('rto')) {
+    fields.documentProvider = {
+      label: 'Document Provider',
+      value: 'Transport Authority',
+      confidence: 80,
+      required: false,
+    }
+  }
+  
+  // Blood Group (optional)
+  const bloodGroupPattern = /(?:Blood\s+Group|Blood\s+Type)\s*[:\-]?\s*([A|B|AB|O][\+\-])/i
+  const bloodMatch = text.match(bloodGroupPattern)
+  if (bloodMatch && bloodMatch[1]) {
+    fields.bloodGroup = {
+      label: 'Blood Group',
+      value: bloodMatch[1].trim(),
+      confidence: 90,
+      required: false,
+    }
+  }
+  
+  return fields
+}
+

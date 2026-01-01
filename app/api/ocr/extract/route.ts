@@ -470,16 +470,21 @@ export async function POST(request: NextRequest) {
       // Continue - don't block response on logging errors
     }
 
-    // 16. Return success response - ALWAYS return success: true with structured data
-    // 🔥 CRITICAL: Never return success: false unless server crashes
-    // OCR failure ≠ API failure - always return structured response
+    // 16. Return success response - success = true if ANY readable text is detected
+    // 🔥 CRITICAL: success should NOT depend on field extraction success
+    const fullText = ocrText || ''
+    const fullTextLength = fullText.trim().length
+    const apiSuccess = fullTextLength > 30 // If fullText.length > 30 → success MUST be true
+    
+    // Standardize OCR response format
     return NextResponse.json({
-      success: true, // 🔥 ALWAYS TRUE
-      text: sanitizedText || '', // Include sanitized OCR text (may be empty)
-      rawText: ocrText || '', // Original OCR text (may be empty)
+      success: apiSuccess, // true if text detected, false only if no text
+      fullText: fullText, // Full OCR text (exactly as returned from Google Vision)
+      text: sanitizedText || '', // Sanitized OCR text (legacy)
+      rawText: fullText, // Original OCR text (legacy)
       category, // ALWAYS try to predict
-      fields: result, // Structured fields (may be empty)
       confidence: hasText ? 0.9 : 0.3, // Fallback confidence
+      extractedFields: result, // Structured fields (may be empty)
       allowManualEntry: true, // Always allow manual entry
       source: 'google_vision',
       extractedData: result, // Legacy format for backward compatibility
