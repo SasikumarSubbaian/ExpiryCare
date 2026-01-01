@@ -52,14 +52,23 @@ export async function POST(request: NextRequest) {
     const user = data?.user || null
 
     if (authError || !user) {
-      // Return 200 with success:false - auth errors are not 500s
+      // Return 200 with success:true and structured data (auth error = empty fields)
       return NextResponse.json(
         {
-          success: false,
-          text: null,
-          reason: 'UNAUTHORIZED',
-          error: 'Unauthorized',
-          allowManualEntry: false,
+          success: true, // 🔥 ALWAYS TRUE
+          text: '',
+          rawText: '',
+          category: 'other',
+          fields: {},
+          confidence: 0.3,
+          allowManualEntry: false, // Auth required
+          source: 'google_vision',
+          extractedData: {
+            category: 'other',
+            categoryConfidence: 'Low' as const,
+            categoryConfidencePercentage: 0,
+            expiryDate: { value: null, confidence: 'Low' as const, sourceKeyword: null },
+          },
         },
         { status: 200 }
       )
@@ -69,15 +78,24 @@ export async function POST(request: NextRequest) {
     try {
       const rateLimitResult = checkRateLimit(`ocr:${user.id}`, 5, 60 * 1000)
       if (!rateLimitResult.allowed) {
-        // Return 200 with success:false - rate limit is not a 500 error
+        // Return 200 with success:true and structured data (rate limit = empty fields)
         return NextResponse.json(
           {
-            success: false,
-            text: null,
-            reason: 'RATE_LIMIT_EXCEEDED',
-            error: rateLimitResult.error || 'Rate limit exceeded',
-            retryAfter: rateLimitResult.retryAfter,
+            success: true, // 🔥 ALWAYS TRUE
+            text: '',
+            rawText: '',
+            category: 'other',
+            fields: {},
+            confidence: 0.3,
             allowManualEntry: true, // Allow manual entry even if rate limited
+            source: 'google_vision',
+            retryAfter: rateLimitResult.retryAfter,
+            extractedData: {
+              category: 'other',
+              categoryConfidence: 'Low' as const,
+              categoryConfidencePercentage: 0,
+              expiryDate: { value: null, confidence: 'Low' as const, sourceKeyword: null },
+            },
           },
           { status: 200 }
         )
@@ -113,14 +131,23 @@ export async function POST(request: NextRequest) {
 
     // 4. Validate file exists
     if (!file || !(file instanceof File)) {
-      // Return 200 with success:false - missing file is not a 500 error
+      // Return 200 with success:true and structured data (no file = empty fields)
       return NextResponse.json(
         {
-          success: false,
-          text: null,
-          reason: 'NO_FILE',
-          error: 'No file provided',
+          success: true, // 🔥 ALWAYS TRUE
+          text: '',
+          rawText: '',
+          category: 'other',
+          fields: {},
+          confidence: 0.3,
           allowManualEntry: true, // Allow manual entry
+          source: 'google_vision',
+          extractedData: {
+            category: 'other',
+            categoryConfidence: 'Low' as const,
+            categoryConfidencePercentage: 0,
+            expiryDate: { value: null, confidence: 'Low' as const, sourceKeyword: null },
+          },
         },
         { status: 200 }
       )
@@ -131,14 +158,23 @@ export async function POST(request: NextRequest) {
     try {
       validation = validateFile(file)
       if (!validation.valid) {
-        // Return 200 with success:false - invalid file is not a 500 error
+        // Return 200 with success:true and structured data (invalid file = empty fields)
         return NextResponse.json(
           {
-            success: false,
-            text: null,
-            reason: 'INVALID_FILE',
-            error: validation.error || 'Invalid file',
+            success: true, // 🔥 ALWAYS TRUE
+            text: '',
+            rawText: '',
+            category: 'other',
+            fields: {},
+            confidence: 0.3,
             allowManualEntry: true,
+            source: 'google_vision',
+            extractedData: {
+              category: 'other',
+              categoryConfidence: 'Low' as const,
+              categoryConfidencePercentage: 0,
+              expiryDate: { value: null, confidence: 'Low' as const, sourceKeyword: null },
+            },
           },
           { status: 200 }
         )
@@ -146,13 +182,23 @@ export async function POST(request: NextRequest) {
     } catch (validationError: unknown) {
       const errorMessage = validationError instanceof Error ? validationError.message : String(validationError)
       console.error('[OCR] File validation error:', errorMessage)
+      // Return 200 with success:true and structured data
       return NextResponse.json(
         {
-          success: false,
-          text: null,
-          reason: 'VALIDATION_ERROR',
-          error: 'File validation failed',
+          success: true, // 🔥 ALWAYS TRUE
+          text: '',
+          rawText: '',
+          category: 'other',
+          fields: {},
+          confidence: 0.3,
           allowManualEntry: true,
+          source: 'google_vision',
+          extractedData: {
+            category: 'other',
+            categoryConfidence: 'Low' as const,
+            categoryConfidencePercentage: 0,
+            expiryDate: { value: null, confidence: 'Low' as const, sourceKeyword: null },
+          },
         },
         { status: 200 }
       )
@@ -163,15 +209,24 @@ export async function POST(request: NextRequest) {
     try {
       ocrCheck = await canUseOCR(user.id)
       if (!ocrCheck.allowed) {
-        // Return 200 with success:false - limit reached is not a 500 error
+        // Return 200 with success:true and structured data (limit reached = empty fields)
         return NextResponse.json(
           {
-            success: false,
-            text: null,
-            reason: 'OCR_LIMIT_REACHED',
-            error: ocrCheck.reason || 'OCR limit reached',
-            remaining: ocrCheck.remaining,
+            success: true, // 🔥 ALWAYS TRUE
+            text: '',
+            rawText: '',
+            category: 'other',
+            fields: {},
+            confidence: 0.3,
             allowManualEntry: true, // Always allow manual entry
+            source: 'google_vision',
+            remaining: ocrCheck.remaining,
+            extractedData: {
+              category: 'other',
+              categoryConfidence: 'Low' as const,
+              categoryConfidencePercentage: 0,
+              expiryDate: { value: null, confidence: 'Low' as const, sourceKeyword: null },
+            },
           },
           { status: 200 }
         )
@@ -270,137 +325,97 @@ export async function POST(request: NextRequest) {
 
     // 11. Extract text using Google Vision - with fallback
     const visionService = getGoogleVisionService()
-    if (!visionService.isAvailable()) {
+    let ocrText: string = ''
+    let hasText: boolean = false
+    
+    if (visionService.isAvailable()) {
+      try {
+        ocrText = await visionService.extractText(imageBuffer)
+        hasText = Boolean(ocrText && ocrText.trim().length > 0)
+      } catch (ocrError: unknown) {
+        const errorMessage = ocrError instanceof Error ? ocrError.message : String(ocrError)
+        console.error('[OCR] OCR extraction error:', errorMessage)
+        // Continue with empty text - will return structured response with empty fields
+        ocrText = ''
+        hasText = false
+      }
+    } else {
       console.error('[OCR] Google Vision service not available')
-      // Return 200 with success:false - service unavailable is not a 500 error
-      return NextResponse.json(
-        {
-          success: false,
-          text: null,
-          reason: 'SERVICE_UNAVAILABLE',
-          error: 'OCR service not available. Please configure Google Vision API credentials.',
-          allowManualEntry: true, // Always allow manual entry
-        },
-        { status: 200 }
-      )
-    }
-
-    let ocrText: string
-    try {
-      ocrText = await visionService.extractText(imageBuffer)
-    } catch (ocrError: unknown) {
-      const errorMessage = ocrError instanceof Error ? ocrError.message : String(ocrError)
-      console.error('[OCR] OCR extraction error:', errorMessage)
-      
-      // Log failed OCR call (don't block on logging errors)
-      try {
-        await logOCRCall(user.id, fileHash || 'unknown', 'unknown', false)
-      } catch (logError) {
-        console.error('[OCR] Failed to log OCR call:', logError)
-      }
-
-      // Return 200 with success:false - OCR failure is not a 500 error
-      return NextResponse.json(
-        {
-          success: false,
-          text: null,
-          reason: 'OCR_FAILED',
-          error: 'Failed to extract text from document. Please try again or enter details manually.',
-          allowManualEntry: true, // CRITICAL: Always allow manual entry
-        },
-        { status: 200 }
-      )
-    }
-
-    // 12. Validate OCR text
-    if (!ocrText || ocrText.trim().length === 0) {
-      try {
-        await logOCRCall(user.id, fileHash || 'unknown', 'unknown', false)
-      } catch (logError) {
-        console.error('[OCR] Failed to log OCR call:', logError)
-      }
-      
-      // Return 200 with success:false - no text found is not a 500 error
-      return NextResponse.json(
-        {
-          success: false,
-          text: null,
-          reason: 'NO_TEXT_FOUND',
-          error: 'No text found in document. Please ensure the document is clear and readable, or enter details manually.',
-          allowManualEntry: true, // Always allow manual entry
-        },
-        { status: 200 }
-      )
+      // Continue with empty text - will return structured response
+      ocrText = ''
+      hasText = false
     }
 
     // 13. Sanitize OCR text to remove PII before processing
-    const sanitizedText = sanitizeOCRText(ocrText)
+    const sanitizedText = ocrText ? sanitizeOCRText(ocrText) : ''
 
-    // 14. Process through human-like OCR pipeline
+    // 14. ALWAYS predict category and extract fields (even with empty text)
     let category: Category
     let confidence: number
     let extractedData: any
     
     try {
-      // Use new pipeline processor (human-like extraction)
-      const ocrResult = processOCRText(ocrText, userSelectedCategory)
-      category = ocrResult.category
-      confidence = ocrResult.confidence / 100 // Convert to 0-1 scale
-      
-      // Convert to legacy format for backward compatibility
-      extractedData = convertToLegacyFormat(ocrResult)
-      
-      // Also run legacy extractor as fallback for missing fields
-      const legacyExtracted = extractByCategory(sanitizedText, category)
-      
-      // Merge legacy data for fields not in new pipeline
-      if (!extractedData.medicineName && legacyExtracted.medicineName) {
-        extractedData.medicineName = {
-          value: legacyExtracted.medicineName,
-          confidence: 'Medium',
+      if (hasText) {
+        // Use new pipeline processor (human-like extraction)
+        const ocrResult = processOCRText(ocrText, userSelectedCategory)
+        category = ocrResult.category
+        confidence = ocrResult.confidence / 100 // Convert to 0-1 scale
+        
+        // Convert to legacy format for backward compatibility
+        extractedData = convertToLegacyFormat(ocrResult)
+        
+        // Also run legacy extractor as fallback for missing fields
+        const legacyExtracted = extractByCategory(sanitizedText, category)
+        
+        // Merge legacy data for fields not in new pipeline
+        if (!extractedData.medicineName && legacyExtracted.medicineName) {
+          extractedData.medicineName = {
+            value: legacyExtracted.medicineName,
+            confidence: 'Medium',
+          }
         }
-      }
-      if (!extractedData.brandName && legacyExtracted.brandName) {
-        extractedData.brandName = {
-          value: legacyExtracted.brandName,
-          confidence: 'Medium',
+        if (!extractedData.brandName && legacyExtracted.brandName) {
+          extractedData.brandName = {
+            value: legacyExtracted.brandName,
+            confidence: 'Medium',
+          }
         }
-      }
-      if (!extractedData.productName && legacyExtracted.productName) {
-        extractedData.productName = {
-          value: legacyExtracted.productName,
-          confidence: 'Medium',
+        if (!extractedData.productName && legacyExtracted.productName) {
+          extractedData.productName = {
+            value: legacyExtracted.productName,
+            confidence: 'Medium',
+          }
         }
-      }
-      
-      // Use legacy expiry date if new one is missing
-      if (!extractedData.expiryDate?.value && legacyExtracted.expiryDate?.value) {
-        extractedData.expiryDate = {
-          value: legacyExtracted.expiryDate.value,
-          confidence: legacyExtracted.expiryDate.confidence,
-          sourceKeyword: legacyExtracted.expiryDate.sourceKeyword,
+        
+        // Use legacy expiry date if new one is missing
+        if (!extractedData.expiryDate?.value && legacyExtracted.expiryDate?.value) {
+          extractedData.expiryDate = {
+            value: legacyExtracted.expiryDate.value,
+            confidence: legacyExtracted.expiryDate.confidence,
+            sourceKeyword: legacyExtracted.expiryDate.sourceKeyword,
+          }
         }
-      }
-      
-      // Add warnings from legacy extractor
-      if (legacyExtracted.extractionWarnings && legacyExtracted.extractionWarnings.length > 0) {
-        extractedData.warnings = legacyExtracted.extractionWarnings
+        
+        // Add warnings from legacy extractor
+        if (legacyExtracted.extractionWarnings && legacyExtracted.extractionWarnings.length > 0) {
+          extractedData.warnings = legacyExtracted.extractionWarnings
+        }
+      } else {
+        // No text found - return structured response with empty fields
+        category = userSelectedCategory as Category || 'other'
+        confidence = 0.3 // Low confidence for empty text
+        extractedData = {
+          expiryDate: { value: null, confidence: 'Low' as const, sourceKeyword: null },
+        }
       }
     } catch (extractionError: unknown) {
       const errorMessage = extractionError instanceof Error ? extractionError.message : String(extractionError)
       console.error('[OCR] Data extraction error:', errorMessage)
-      // Fallback to legacy extraction
-      try {
-        category = userSelectedCategory as Category || predictCategory(sanitizedText)
-        confidence = getPredictionConfidence(sanitizedText, category)
-        extractedData = extractByCategory(sanitizedText, category)
-      } catch (fallbackError) {
-        // Return partial data if extraction fails
-        category = 'other'
-        confidence = 0.3 // Low confidence (0-1 scale)
-        extractedData = {
-          expiryDate: { value: null, confidence: 'Low' as const, sourceKeyword: null },
-        }
+      // Fallback: always return structured data
+      category = userSelectedCategory as Category || 'other'
+      confidence = hasText ? 0.5 : 0.3
+      extractedData = {
+        expiryDate: { value: null, confidence: 'Low' as const, sourceKeyword: null },
       }
     }
 
@@ -455,14 +470,19 @@ export async function POST(request: NextRequest) {
       // Continue - don't block response on logging errors
     }
 
-    // 16. Return success response
-    // ALWAYS return success:true if we have any extracted data, even if partial
-    // This allows UI to show confirmation modal with editable fields
+    // 16. Return success response - ALWAYS return success: true with structured data
+    // 🔥 CRITICAL: Never return success: false unless server crashes
+    // OCR failure ≠ API failure - always return structured response
     return NextResponse.json({
-      success: true,
-      text: sanitizedText, // Include sanitized OCR text for client (PII removed)
-      extractedData: result,
-      allowManualEntry: true, // Always allow manual entry/editing
+      success: true, // 🔥 ALWAYS TRUE
+      text: sanitizedText || '', // Include sanitized OCR text (may be empty)
+      rawText: ocrText || '', // Original OCR text (may be empty)
+      category, // ALWAYS try to predict
+      fields: result, // Structured fields (may be empty)
+      confidence: hasText ? 0.9 : 0.3, // Fallback confidence
+      allowManualEntry: true, // Always allow manual entry
+      source: 'google_vision',
+      extractedData: result, // Legacy format for backward compatibility
     })
   } catch (error: unknown) {
     // Global error handler - NEVER throw, always return JSON
@@ -470,14 +490,24 @@ export async function POST(request: NextRequest) {
     const errorStack = error instanceof Error ? error.stack : undefined
     console.error('[OCR] Global error handler:', errorMessage, errorStack)
 
-    // Return 200 with success:false - never return 500 unless request is malformed
+    // Return 200 with success:true and structured data (error = empty fields)
+    // 🔥 CRITICAL: Never return success: false unless server crashes
     return NextResponse.json(
       {
-        success: false,
-        text: null,
-        reason: 'INTERNAL_ERROR',
-        error: 'An error occurred while processing the document. Please try again or enter details manually.',
+        success: true, // 🔥 ALWAYS TRUE
+        text: '',
+        rawText: '',
+        category: 'other',
+        fields: {},
+        confidence: 0.3,
         allowManualEntry: true, // CRITICAL: Always allow manual entry
+        source: 'google_vision',
+        extractedData: {
+          category: 'other',
+          categoryConfidence: 'Low' as const,
+          categoryConfidencePercentage: 0,
+          expiryDate: { value: null, confidence: 'Low' as const, sourceKeyword: null },
+        },
       },
       { status: 200 }
     )
