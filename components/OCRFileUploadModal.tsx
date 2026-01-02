@@ -66,26 +66,26 @@ export default function OCRFileUploadModal({
 
       console.log('OCR RESULT:', result)
 
-      // ✅ ALWAYS STORE RESULT (even partial or empty)
-      // Use fullText to determine if we should show success
-      const fullText = result.fullText || result.text || result.rawText || ''
-      const hasText = fullText.trim().length > 30
-      
-      // Store extractedData if available, otherwise store empty object
-      // Include fullText in extractedData for popup
-      const extractedData = {
-        ...(result.extractedData || result.data || {}),
-        fullText: fullText, // Include full text for reference
-        success: result.success !== false, // Use API success, default to true
+      // STEP 1: Force OCR normalization - create normalizedOCR object
+      // NEVER trust text or rawText alone - use extractedData as first-class source
+      const normalizedOCR = {
+        success: result.success !== false,
         category: result.category || 'other',
-        extractedFields: result.extractedFields || result.fields || {},
+        confidence: result.confidence || 0.3,
+        source: result.source || 'google_vision',
+        rawText: result.text || result.rawText || result.fullText || '',
+        extractedData: result.extractedData || result.data || {},
       }
       
-      setOcrExtractedData(extractedData)
+      // Do NOT block UI when rawText is empty - extractedData may still contain useful values
+      // Store normalized OCR as single source of truth
+      setOcrExtractedData(normalizedOCR.extractedData)
 
-      // ✅ FORCE UI TRANSITION - Always open confirmation modal if text exists
-      // Only show error if no text at all
-      if (!hasText && !result.success) {
+      // ✅ FORCE UI TRANSITION - Always open confirmation modal
+      // Modal must open when success === true, even if fields are empty
+      // Only show error if no text at all AND success is false
+      const hasText = normalizedOCR.rawText.trim().length > 0
+      if (!hasText && !normalizedOCR.success) {
         setError('No text found in document. Please ensure the document is clear and readable.')
       }
       

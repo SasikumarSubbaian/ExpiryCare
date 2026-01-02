@@ -205,7 +205,7 @@ export default function OCRConfirmationModal({
     
     // NEVER return null - always show field, even if empty
     // Empty fields will show placeholder text
-    const isEmpty = value === null || value === undefined || (typeof value === 'string' && value.trim() === '')
+    const isEmpty = !value || (typeof value === 'string' && value.trim() === '')
 
     const fieldState = fieldStates[fieldName] || { confirmed: false, skipped: false, edited: false, value }
     const isEditing = editingField === fieldName
@@ -313,62 +313,124 @@ export default function OCRConfirmationModal({
     )
   }
 
+  // STEP 4: Category → Field Map (MANDATORY)
+  const CATEGORY_FIELDS: Record<string, string[]> = {
+    other: [ // License fields (other category with license detection)
+      'documentName',
+      'licenseNumber',
+      'holderName',
+      'dateOfBirth',
+      'expiryDate',
+    ],
+    medicine: [
+      'productName',
+      'expiryDate',
+      'batchNumber',
+    ],
+    warranty: [
+      'productName',
+      'purchaseDate',
+      'expiryDate',
+    ],
+    insurance: [
+      'policyNumber',
+      'provider',
+      'expiryDate',
+    ],
+    subscription: [
+      'serviceName',
+      'planType',
+      'expiryDate',
+    ],
+    amc: [
+      'serviceType',
+      'providerName',
+      'expiryDate',
+    ],
+  }
+
   // Get category-specific fields based on schema
   const getCategoryFields = () => {
-    const category = extractedData.category || 'other'
+    // STEP 2: Category must never default to "other" without checking extractedData
+    let category = extractedData.category || 'other'
+    
+    // Re-evaluate category based on extractedData keys
+    if (category === 'other') {
+      const data = extractedData as any // Type assertion for dynamic properties
+      const hasLicenseNumber = data.licenseNumber?.value || data.dlNumber?.value
+      const hasDateOfBirth = data.dateOfBirth?.value || data.dob?.value
+      const hasDateOfIssue = data.dateOfIssue?.value || data.issueDate?.value
+      
+      if (hasLicenseNumber || (hasDateOfBirth && hasDateOfIssue)) {
+        // Keep as "other" but use license fields
+        category = 'other'
+      } else {
+        const hasExpiryDate = extractedData.expiryDate?.value
+        const hasProductName = data.productName?.value || data.medicineName?.value
+        const hasBatchNumber = data.batchNumber?.value
+        
+        if (hasExpiryDate && hasProductName) {
+          if (hasBatchNumber || data.medicineName?.value) {
+            category = 'medicine'
+          } else if (data.purchaseDate?.value) {
+            category = 'warranty'
+          } else {
+            category = 'medicine' // Default to medicine if has product name and expiry
+          }
+        } else if (hasExpiryDate && data.purchaseDate?.value) {
+          category = 'warranty'
+        }
+      }
+    }
+    
     const categoryLower = category.toLowerCase()
     const fields: Array<{ label: string; fieldName: string; fieldData: any; isRequired: boolean }> = []
     const seenFields = new Set<string>() // Track seen fields to prevent duplicates
 
-    // Import category field map
-    // Use dynamic import to avoid SSR issues
-    let categoryFieldKeys: string[] = []
-    try {
-      const categoryFieldMap = require('@/lib/ocr/categoryFieldMap')
-      categoryFieldKeys = categoryFieldMap.getFieldsForCategory(category)
-    } catch (e) {
-      // Fallback to default fields
-      categoryFieldKeys = ['expiryDate', 'documentName']
-    }
+    // STEP 3: Single source of truth - ONLY read from extractedData
+    // Determine visible fields based on category
+    const visibleFields = CATEGORY_FIELDS[categoryLower] || CATEGORY_FIELDS.other
     
-    // Get extractedFields from API response (new format)
-    // extractedFields is the new format from API (result object)
-    // extractedData is the legacy format
-    const extractedFields = extractedData.extractedFields || {}
+    // STEP 3: Single source of truth - ONLY read from extractedData
+    // DELETE any logic that reads from fields, text, rawText for UI rendering
+    // UI must ONLY read from extractedData
     
-    // Map field keys to display fields
-    for (const fieldKey of categoryFieldKeys) {
+    // Map visible fields to display fields
+    for (const fieldKey of visibleFields) {
       // Skip if already added (prevent duplicates)
       if (seenFields.has(fieldKey)) continue
       seenFields.add(fieldKey)
       
-      // Get field value from extractedFields or legacy format
-      let fieldValue: any = null
-      let isRequired = fieldKey === 'expiryDate' || fieldKey === 'documentName' || fieldKey === 'medicineName' || fieldKey === 'productName'
+      // STEP 5: For each field, value = extractedData[field]?.value ?? ""
+      // Map field keys to extractedData keys
+      const dataKey = fieldKey === 'dateOfBirth' ? 'dob' :
+                     fieldKey === 'dateOfIssue' ? 'issueDate' :
+                     fieldKey === 'licenseNumber' ? 'dlNumber' :
+                     fieldKey === 'documentProvider' ? 'issuer' :
+                     fieldKey === 'productName' ? (extractedData.medicineName ? 'medicineName' : 'productName') :
+                     fieldKey
       
-      // Try new format first (extractedFields from API)
-      if (extractedFields[fieldKey]) {
-        fieldValue = extractedFields[fieldKey]
-      } else {
-        // Try legacy format from extractedData
-        const legacyKey = fieldKey === 'documentProvider' ? 'issuer' : 
-                         fieldKey === 'dateOfBirth' ? 'dob' :
-                         fieldKey === 'dateOfIssue' ? 'issueDate' :
-                         fieldKey === 'licenseNumber' ? 'dlNumber' :
-                         fieldKey
-        const legacyData = (extractedData as any)[legacyKey]
-        if (legacyData) {
-          // Handle both object format { value, confidence } and direct value
-          if (typeof legacyData === 'object' && legacyData !== null && 'value' in legacyData) {
-            fieldValue = legacyData
-          } else {
-            fieldValue = { value: legacyData, confidence: 'Medium' }
-          }
-        } else {
-          // Empty field - show editable input
-          fieldValue = { value: '', confidence: 'Low' }
+      // Get value from extractedData (single source of truth)
+      const fieldData = (extractedData as any)[dataKey] || (extractedData as any)[fieldKey]
+      
+      // Extract value and confidence
+      let value = ''
+      let confidence: 'High' | 'Medium' | 'Low' = 'Low'
+      
+      if (fieldData) {
+        if (typeof fieldData === 'object' && fieldData !== null && 'value' in fieldData) {
+          value = fieldData.value || ''
+          confidence = fieldData.confidence || 'Low'
+        } else if (typeof fieldData === 'string') {
+          value = fieldData
+          confidence = 'Medium'
         }
       }
+      
+      // Empty value MUST render editable input - never hide field because value is null
+      const isRequired = fieldKey === 'expiryDate' || fieldKey === 'documentName' || 
+                        fieldKey === 'medicineName' || fieldKey === 'productName' ||
+                        fieldKey === 'licenseNumber'
       
       // Format label from field key
       const label = fieldKey
@@ -379,7 +441,7 @@ export default function OCRConfirmationModal({
       fields.push({
         label,
         fieldName: fieldKey,
-        fieldData: fieldValue,
+        fieldData: { value, confidence },
         isRequired,
       })
     }
@@ -447,9 +509,10 @@ export default function OCRConfirmationModal({
           )}
 
           {/* Render all fields - Expiry Date pinned to top */}
-          {/* Fix duplicate keys by using category + fieldName + index */}
+          {/* STEP 6: Fix duplicate key warning - use category + fieldName */}
           {categoryFields.map((field, index) => {
-            const uniqueKey = `${extractedData.category || 'other'}-${field.fieldName}-${index}`
+            const category = extractedData.category || 'other'
+            const uniqueKey = `${category}-${field.fieldName}-${index}`
             
             if (field.fieldName === 'expiryDate') {
               return (

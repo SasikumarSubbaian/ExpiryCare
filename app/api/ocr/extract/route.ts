@@ -7,6 +7,7 @@ import { predictCategory, getPredictionConfidence } from '@/lib/ocr/categoryPred
 import { extractByCategory } from '@/lib/ocr/extractors'
 import { sanitizeOCRText } from '@/lib/ocr/sanitizeOCRText'
 import { processOCRText, convertToLegacyFormat } from '@/lib/ocr/pipelineProcessor'
+import { reevaluateCategoryFromExtractedData } from '@/lib/ocr/categoryReevaluator'
 import type { Category } from '@/lib/ocr/categorySchemas'
 import sharp from 'sharp'
 
@@ -367,6 +368,17 @@ export async function POST(request: NextRequest) {
         
         // Convert to legacy format for backward compatibility
         extractedData = convertToLegacyFormat(ocrResult)
+        
+        // STEP 2: Re-evaluate category based on extractedData keys
+        // If category is "other", check extractedData for signals
+        if (category === 'other') {
+          const reevaluatedCategory = reevaluateCategoryFromExtractedData(extractedData)
+          // Only update if we found a better match
+          if (reevaluatedCategory !== 'other' || Object.keys(extractedData).length > 1) {
+            // Keep as "other" but ensure fields are populated
+            category = category as Category // Keep "other" but fields will be license fields
+          }
+        }
         
         // Also run legacy extractor as fallback for missing fields
         const legacyExtracted = extractByCategory(sanitizedText, category)
