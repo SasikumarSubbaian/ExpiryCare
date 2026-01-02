@@ -152,6 +152,32 @@ export default function OCRConfirmationModal({
     }))
   }
 
+  // 🔧 LAYER 6: Handle final confirmation with skipped fields
+  const handleFinalConfirm = () => {
+    // Collect skipped fields
+    const skippedFields: string[] = []
+    for (const [fieldName, state] of Object.entries(fieldStates)) {
+      if (state.skipped) {
+        skippedFields.push(fieldName)
+      }
+    }
+    
+    // Create final data object without skipped fields
+    const finalData = { ...extractedData }
+    
+    // Remove skipped fields from final data
+    for (const fieldName of skippedFields) {
+      delete (finalData as any)[fieldName]
+    }
+    
+    // Add skippedFields metadata
+    if (skippedFields.length > 0) {
+      (finalData as any).skippedFields = skippedFields
+    }
+    
+    onConfirm(finalData)
+  }
+
   const getConfidenceColor = (confidence: 'High' | 'Medium' | 'Low') => {
     switch (confidence) {
       case 'High':
@@ -286,6 +312,7 @@ export default function OCRConfirmationModal({
                   >
                     <span>✎</span> Edit
                   </button>
+                  {/* LAYER 6: Enable Skip button if field.required === false */}
                   {!isRequired && (
                     <button
                       onClick={() => handleSkipField(fieldName)}
@@ -313,39 +340,39 @@ export default function OCRConfirmationModal({
     )
   }
 
-  // STEP 4: Category → Field Map (MANDATORY)
-  const CATEGORY_FIELDS: Record<string, string[]> = {
+  // LAYER 5: Dynamic fields based on category (NO HARD CODING)
+  const CATEGORY_FIELDS: Record<string, Array<{ key: string; required: boolean }>> = {
     other: [ // License fields (other category with license detection)
-      'documentName',
-      'licenseNumber',
-      'holderName',
-      'dateOfBirth',
-      'expiryDate',
+      { key: 'documentName', required: true },
+      { key: 'licenseNumber', required: true },
+      { key: 'holderName', required: false },
+      { key: 'dateOfBirth', required: false },
+      { key: 'expiryDate', required: true },
     ],
     medicine: [
-      'productName',
-      'expiryDate',
-      'batchNumber',
+      { key: 'productName', required: true },
+      { key: 'expiryDate', required: true },
+      { key: 'batchNumber', required: false },
     ],
     warranty: [
-      'productName',
-      'purchaseDate',
-      'expiryDate',
+      { key: 'productName', required: true },
+      { key: 'purchaseDate', required: true },
+      { key: 'expiryDate', required: true },
     ],
     insurance: [
-      'policyNumber',
-      'provider',
-      'expiryDate',
+      { key: 'policyNumber', required: true },
+      { key: 'provider', required: false },
+      { key: 'expiryDate', required: true },
     ],
     subscription: [
-      'serviceName',
-      'planType',
-      'expiryDate',
+      { key: 'serviceName', required: true },
+      { key: 'planType', required: false },
+      { key: 'expiryDate', required: true },
     ],
     amc: [
-      'serviceType',
-      'providerName',
-      'expiryDate',
+      { key: 'serviceType', required: true },
+      { key: 'providerName', required: false },
+      { key: 'expiryDate', required: true },
     ],
   }
 
@@ -387,31 +414,23 @@ export default function OCRConfirmationModal({
     const fields: Array<{ label: string; fieldName: string; fieldData: any; isRequired: boolean }> = []
     const seenFields = new Set<string>() // Track seen fields to prevent duplicates
 
+    // LAYER 6: Confirmation modal fix - render ONLY from CATEGORY_FIELDS
     // STEP 3: Single source of truth - ONLY read from extractedData
     // Determine visible fields based on category
     const visibleFields = CATEGORY_FIELDS[categoryLower] || CATEGORY_FIELDS.other
     
-    // STEP 3: Single source of truth - ONLY read from extractedData
-    // DELETE any logic that reads from fields, text, rawText for UI rendering
-    // UI must ONLY read from extractedData
-    
     // Map visible fields to display fields
-    for (const fieldKey of visibleFields) {
+    for (const fieldDef of visibleFields) {
+      const fieldKey = fieldDef.key
+      
       // Skip if already added (prevent duplicates)
       if (seenFields.has(fieldKey)) continue
       seenFields.add(fieldKey)
       
-      // STEP 5: For each field, value = extractedData[field]?.value ?? ""
-      // Map field keys to extractedData keys
-      const dataKey = fieldKey === 'dateOfBirth' ? 'dob' :
-                     fieldKey === 'dateOfIssue' ? 'issueDate' :
-                     fieldKey === 'licenseNumber' ? 'dlNumber' :
-                     fieldKey === 'documentProvider' ? 'issuer' :
-                     fieldKey === 'productName' ? (extractedData.medicineName ? 'medicineName' : 'productName') :
-                     fieldKey
-      
-      // Get value from extractedData (single source of truth)
-      const fieldData = (extractedData as any)[dataKey] || (extractedData as any)[fieldKey]
+      // LAYER 6: For each field:
+      // value = extractedData[field.key]?.value ?? ""
+      // confidence = extractedData[field.key]?.confidence ?? "Low"
+      const fieldData = (extractedData as any)[fieldKey]
       
       // Extract value and confidence
       let value = ''
@@ -427,11 +446,7 @@ export default function OCRConfirmationModal({
         }
       }
       
-      // Empty value MUST render editable input - never hide field because value is null
-      const isRequired = fieldKey === 'expiryDate' || fieldKey === 'documentName' || 
-                        fieldKey === 'medicineName' || fieldKey === 'productName' ||
-                        fieldKey === 'licenseNumber'
-      
+      // LAYER 6: ALWAYS render input even if value is empty
       // Format label from field key
       const label = fieldKey
         .replace(/([A-Z])/g, ' $1')
@@ -442,7 +457,7 @@ export default function OCRConfirmationModal({
         label,
         fieldName: fieldKey,
         fieldData: { value, confidence },
-        isRequired,
+        isRequired: fieldDef.required,
       })
     }
     
@@ -566,7 +581,26 @@ export default function OCRConfirmationModal({
             Cancel
           </button>
           <button
-            onClick={() => onConfirm(extractedData)}
+            onClick={() => {
+              // LAYER 6: On Skip - mark field as skipped, DO NOT send skipped fields to backend
+              const skippedFields: string[] = []
+              for (const [fieldName, state] of Object.entries(fieldStates)) {
+                if (state.skipped) {
+                  skippedFields.push(fieldName)
+                }
+              }
+              
+              // Remove skipped fields from extractedData before sending
+              const dataToSend = { ...extractedData }
+              for (const fieldName of skippedFields) {
+                delete (dataToSend as any)[fieldName]
+              }
+              
+              // Add skippedFields metadata (for backend to ignore)
+              ;(dataToSend as any).skippedFields = skippedFields
+              
+              onConfirm(dataToSend)
+            }}
             className="px-4 py-2 border border-transparent rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
           >
             Apply Confirmed Fields

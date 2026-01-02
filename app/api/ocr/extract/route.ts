@@ -8,6 +8,7 @@ import { extractByCategory } from '@/lib/ocr/extractors'
 import { sanitizeOCRText } from '@/lib/ocr/sanitizeOCRText'
 import { processOCRText, convertToLegacyFormat } from '@/lib/ocr/pipelineProcessor'
 import { reevaluateCategoryFromExtractedData } from '@/lib/ocr/categoryReevaluator'
+import { extractDataFromRawText } from '@/lib/ocr/humanExtractionEngine'
 import type { Category } from '@/lib/ocr/categorySchemas'
 import sharp from 'sharp'
 
@@ -360,23 +361,64 @@ export async function POST(request: NextRequest) {
     
     try {
       if (hasText) {
-        // Use new pipeline processor (human-like extraction)
-        // Pass original text for better category detection
+        // 🔧 LAYER 2: ADD A REAL EXTRACTION ENGINE (CRITICAL)
+        // Google Vision ≠ Human reader - YOU must read like a human
+        const humanExtracted = extractDataFromRawText(normalizedText)
+        
+        // Map human extraction category to API category
+        // License is stored as "other" with license fields
+        const humanCategory = humanExtracted.category
+        category = (humanCategory === 'license' ? 'other' : humanCategory) as Category
+        confidence = 0.8 // High confidence for human extraction
+        
+        // 🔧 LAYER 4: FIX UI DATA CONTRACT
+        // extractedData must have: { fieldName: { value, confidence } }
+        extractedData = {
+          category,
+          categoryConfidence: 'High' as const,
+          categoryConfidencePercentage: 80,
+          expiryDate: humanExtracted.extractedData.expiryDate || { value: null, confidence: 'Low' as const, sourceKeyword: null },
+        }
+        
+        // Map all extracted fields from human extraction
+        if (humanExtracted.extractedData.documentName) {
+          extractedData.documentName = humanExtracted.extractedData.documentName
+        }
+        if (humanExtracted.extractedData.licenseNumber) {
+          extractedData.licenseNumber = humanExtracted.extractedData.licenseNumber
+        }
+        if (humanExtracted.extractedData.holderName) {
+          extractedData.holderName = humanExtracted.extractedData.holderName
+        }
+        if (humanExtracted.extractedData.dateOfBirth) {
+          extractedData.dateOfBirth = humanExtracted.extractedData.dateOfBirth
+        }
+        if (humanExtracted.extractedData.dateOfIssue) {
+          extractedData.dateOfIssue = humanExtracted.extractedData.dateOfIssue
+        }
+        if (humanExtracted.extractedData.productName) {
+          extractedData.productName = humanExtracted.extractedData.productName
+        }
+        if (humanExtracted.extractedData.batchNumber) {
+          extractedData.batchNumber = humanExtracted.extractedData.batchNumber
+        }
+        if (humanExtracted.extractedData.purchaseDate) {
+          extractedData.purchaseDate = humanExtracted.extractedData.purchaseDate
+        }
+        if (humanExtracted.extractedData.companyName) {
+          extractedData.companyName = humanExtracted.extractedData.companyName
+        }
+        
+        // Also run pipeline processor as fallback for additional fields
         const ocrResult = processOCRText(normalizedText, userSelectedCategory)
-        category = ocrResult.category
-        confidence = ocrResult.confidence / 100 // Convert to 0-1 scale
+        const pipelineData = convertToLegacyFormat(ocrResult)
         
-        // Convert to legacy format for backward compatibility
-        extractedData = convertToLegacyFormat(ocrResult)
-        
-        // STEP 2: Re-evaluate category based on extractedData keys
-        // If category is "other", check extractedData for signals
-        if (category === 'other') {
-          const reevaluatedCategory = reevaluateCategoryFromExtractedData(extractedData)
-          // Only update if we found a better match
-          if (reevaluatedCategory !== 'other' || Object.keys(extractedData).length > 1) {
-            // Keep as "other" but ensure fields are populated
-            category = category as Category // Keep "other" but fields will be license fields
+        // Merge pipeline data for fields not in human extraction
+        for (const [key, value] of Object.entries(pipelineData)) {
+          if (key !== 'category' && key !== 'categoryConfidence' && key !== 'categoryConfidencePercentage') {
+            if (!extractedData[key]) {
+              extractedData[key] = value
+            }
           }
         }
         

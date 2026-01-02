@@ -118,56 +118,59 @@ export class GoogleVisionService {
       let result
       let fullTextAnnotation
       
+      // 🔧 LAYER 1: FIX GOOGLE VISION RESPONSE MAPPING (MANDATORY)
+      // DO NOT read text from textAnnotations[0] alone
+      // Use fullTextAnnotation.text OR join all textAnnotations
+      
+      let rawText = ''
+      
       try {
-        // Try TEXT_DETECTION first (better for general documents)
-        const [textResult] = await this.client.textDetection({
+        // Try DOCUMENT_TEXT_DETECTION first (better for structured documents)
+        const [docResult] = await this.client.documentTextDetection({
           image: { content: imageBuffer },
           imageContext: {
             languageHints: ['en'],
           },
         })
+        result = docResult
+        fullTextAnnotation = result.fullTextAnnotation
         
-        // TEXT_DETECTION returns textAnnotations array
-        if (textResult.textAnnotations && textResult.textAnnotations.length > 0) {
-          // First annotation contains full text
-          const fullText = textResult.textAnnotations[0].description || ''
-          if (fullText.trim().length > 0) {
-            return fullText
-          }
+        // LAYER 1: Extract from fullTextAnnotation.text first
+        if (fullTextAnnotation?.text) {
+          rawText = fullTextAnnotation.text
         }
-        
-        // Fallback to DOCUMENT_TEXT_DETECTION
-        const [docResult] = await this.client.documentTextDetection({
-          image: { content: imageBuffer },
-          imageContext: {
-            languageHints: ['en'],
-          },
-        })
-        result = docResult
-        fullTextAnnotation = result.fullTextAnnotation
-      } catch (textError) {
-        // If TEXT_DETECTION fails, use DOCUMENT_TEXT_DETECTION
-        const [docResult] = await this.client.documentTextDetection({
-          image: { content: imageBuffer },
-          imageContext: {
-            languageHints: ['en'],
-          },
-        })
-        result = docResult
-        fullTextAnnotation = result.fullTextAnnotation
+      } catch (docError) {
+        // Fallback to TEXT_DETECTION
+        try {
+          const [textResult] = await this.client.textDetection({
+            image: { content: imageBuffer },
+            imageContext: {
+              languageHints: ['en'],
+            },
+          })
+          result = textResult
+          fullTextAnnotation = result.fullTextAnnotation
+        } catch (textError) {
+          console.error('[GoogleVision] Both detection methods failed:', textError)
+        }
       }
 
-      // Extract full text annotation
-      if (!fullTextAnnotation && result) {
-        fullTextAnnotation = result.fullTextAnnotation
+      // 🔧 LAYER 1: EXACT PATTERN - fullTextAnnotation.text OR join all textAnnotations
+      // DO NOT read from textAnnotations[0] alone
+      if (result) {
+        rawText =
+          result.fullTextAnnotation?.text ||
+          (result.textAnnotations && result.textAnnotations.length > 0
+            ? result.textAnnotations
+                .map((t: any) => t.description || '')
+                .filter((desc: string) => desc && desc.trim().length > 0)
+                .join('\n')
+            : '') ||
+          ''
       }
 
-      if (!fullTextAnnotation || !fullTextAnnotation.text) {
-        return ''
-      }
-
-      // Return original text (preserve for better extraction)
-      return fullTextAnnotation.text
+      // LAYER 1: Ensure rawText is NEVER undefined
+      return rawText || ''
     } catch (error: any) {
       console.error('Google Vision OCR error:', error)
       throw new Error(`OCR extraction failed: ${error.message}`)
