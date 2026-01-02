@@ -359,6 +359,9 @@ export async function POST(request: NextRequest) {
     let confidence: number
     let extractedData: any
     
+    // 🔧 CRITICAL: Initialize ocrResultFields BEFORE human extraction so we can merge
+    let ocrResultFields: Record<string, any> = {}
+    
     try {
       if (hasText) {
         // 🔧 LAYER 2: ADD A REAL EXTRACTION ENGINE (CRITICAL)
@@ -380,34 +383,94 @@ export async function POST(request: NextRequest) {
           expiryDate: humanExtracted.extractedData.expiryDate || { value: null, confidence: 'Low' as const, sourceKeyword: null },
         }
         
-        // Map all extracted fields from human extraction
-        if (humanExtracted.extractedData.documentName) {
-          extractedData.documentName = humanExtracted.extractedData.documentName
+      // 🔧 CRITICAL: Map all extracted fields from human extraction to extractedData
+      // These fields are already in { value, confidence } format
+      if (humanExtracted.extractedData.documentName) {
+        extractedData.documentName = humanExtracted.extractedData.documentName
+      }
+      if (humanExtracted.extractedData.licenseNumber) {
+        extractedData.licenseNumber = humanExtracted.extractedData.licenseNumber
+      }
+      if (humanExtracted.extractedData.holderName) {
+        extractedData.holderName = humanExtracted.extractedData.holderName
+      }
+      if (humanExtracted.extractedData.dateOfBirth) {
+        extractedData.dateOfBirth = humanExtracted.extractedData.dateOfBirth
+      }
+      if (humanExtracted.extractedData.dateOfIssue) {
+        extractedData.dateOfIssue = humanExtracted.extractedData.dateOfIssue
+      }
+      if (humanExtracted.extractedData.productName) {
+        extractedData.productName = humanExtracted.extractedData.productName
+      }
+      if (humanExtracted.extractedData.batchNumber) {
+        extractedData.batchNumber = humanExtracted.extractedData.batchNumber
+      }
+      if (humanExtracted.extractedData.purchaseDate) {
+        extractedData.purchaseDate = humanExtracted.extractedData.purchaseDate
+      }
+      if (humanExtracted.extractedData.companyName) {
+        extractedData.companyName = humanExtracted.extractedData.companyName
+      }
+      
+      // 🔧 CRITICAL: Also add human-extracted fields to ocrResultFields for extractedFields
+      // This ensures they appear in the confirmation modal
+      if (humanExtracted.extractedData.documentName) {
+        ocrResultFields.documentName = {
+          value: humanExtracted.extractedData.documentName.value || '',
+          confidence: humanExtracted.extractedData.documentName.confidence === 'High' ? 90 : 
+                     humanExtracted.extractedData.documentName.confidence === 'Medium' ? 60 : 30,
         }
-        if (humanExtracted.extractedData.licenseNumber) {
-          extractedData.licenseNumber = humanExtracted.extractedData.licenseNumber
+      }
+      if (humanExtracted.extractedData.licenseNumber) {
+        ocrResultFields.licenseNumber = {
+          value: humanExtracted.extractedData.licenseNumber.value || '',
+          confidence: humanExtracted.extractedData.licenseNumber.confidence === 'High' ? 90 : 
+                     humanExtracted.extractedData.licenseNumber.confidence === 'Medium' ? 60 : 30,
         }
-        if (humanExtracted.extractedData.holderName) {
-          extractedData.holderName = humanExtracted.extractedData.holderName
+      }
+      if (humanExtracted.extractedData.holderName) {
+        ocrResultFields.holderName = {
+          value: humanExtracted.extractedData.holderName.value || '',
+          confidence: humanExtracted.extractedData.holderName.confidence === 'High' ? 90 : 
+                     humanExtracted.extractedData.holderName.confidence === 'Medium' ? 60 : 30,
         }
-        if (humanExtracted.extractedData.dateOfBirth) {
-          extractedData.dateOfBirth = humanExtracted.extractedData.dateOfBirth
+      }
+      if (humanExtracted.extractedData.dateOfBirth) {
+        ocrResultFields.dateOfBirth = {
+          value: humanExtracted.extractedData.dateOfBirth.value || '',
+          confidence: humanExtracted.extractedData.dateOfBirth.confidence === 'High' ? 90 : 
+                     humanExtracted.extractedData.dateOfBirth.confidence === 'Medium' ? 60 : 30,
         }
-        if (humanExtracted.extractedData.dateOfIssue) {
-          extractedData.dateOfIssue = humanExtracted.extractedData.dateOfIssue
+      }
+      if (humanExtracted.extractedData.dateOfIssue) {
+        ocrResultFields.dateOfIssue = {
+          value: humanExtracted.extractedData.dateOfIssue.value || '',
+          confidence: humanExtracted.extractedData.dateOfIssue.confidence === 'High' ? 90 : 
+                     humanExtracted.extractedData.dateOfIssue.confidence === 'Medium' ? 60 : 30,
         }
-        if (humanExtracted.extractedData.productName) {
-          extractedData.productName = humanExtracted.extractedData.productName
+      }
+      if (humanExtracted.extractedData.productName) {
+        ocrResultFields.productName = {
+          value: humanExtracted.extractedData.productName.value || '',
+          confidence: humanExtracted.extractedData.productName.confidence === 'High' ? 90 : 
+                     humanExtracted.extractedData.productName.confidence === 'Medium' ? 60 : 30,
         }
-        if (humanExtracted.extractedData.batchNumber) {
-          extractedData.batchNumber = humanExtracted.extractedData.batchNumber
+      }
+      if (humanExtracted.extractedData.batchNumber) {
+        ocrResultFields.batchNumber = {
+          value: humanExtracted.extractedData.batchNumber.value || '',
+          confidence: humanExtracted.extractedData.batchNumber.confidence === 'High' ? 90 : 
+                     humanExtracted.extractedData.batchNumber.confidence === 'Medium' ? 60 : 30,
         }
-        if (humanExtracted.extractedData.purchaseDate) {
-          extractedData.purchaseDate = humanExtracted.extractedData.purchaseDate
+      }
+      if (humanExtracted.extractedData.purchaseDate) {
+        ocrResultFields.purchaseDate = {
+          value: humanExtracted.extractedData.purchaseDate.value || '',
+          confidence: humanExtracted.extractedData.purchaseDate.confidence === 'High' ? 90 : 
+                     humanExtracted.extractedData.purchaseDate.confidence === 'Medium' ? 60 : 30,
         }
-        if (humanExtracted.extractedData.companyName) {
-          extractedData.companyName = humanExtracted.extractedData.companyName
-        }
+      }
         
         // Also run pipeline processor as fallback for additional fields
         const ocrResult = processOCRText(normalizedText, userSelectedCategory)
@@ -479,24 +542,35 @@ export async function POST(request: NextRequest) {
 
     // 14. Prepare response - all serializable data with confidence scores
     // Map confidence levels: High (≥70%), Medium (40-69%), Low (<40%)
-    const mapConfidence = (value: string | null | undefined): { value: string | null; confidence: 'High' | 'Medium' | 'Low' } => {
-      if (!value || value.trim().length === 0) {
+    // 🔧 FIX: Handle both string values and object values from human extraction
+    const mapConfidence = (value: string | null | undefined | { value: string | null; confidence: 'High' | 'Medium' | 'Low' }): { value: string | null; confidence: 'High' | 'Medium' | 'Low' } => {
+      // If value is already an object with value and confidence, return it
+      if (value && typeof value === 'object' && 'value' in value && 'confidence' in value) {
+        return {
+          value: value.value || null,
+          confidence: value.confidence,
+        }
+      }
+      
+      // If value is a string, convert it
+      const stringValue = typeof value === 'string' ? value : null
+      if (!stringValue || stringValue.trim().length === 0) {
         return { value: null, confidence: 'Low' }
       }
       // Simple heuristic: if value was extracted and is not empty, assume Medium confidence
       // In production, this would be calculated based on extraction quality
-      return { value, confidence: 'Medium' }
+      return { value: stringValue, confidence: 'Medium' }
     }
     
-    // Get OCRResult fields from pipeline processor
-    let ocrResultFields: Record<string, any> = {}
+    // ocrResultFields is already initialized above before human extraction
+    // Merge pipeline processor fields if not already set by human extraction
     try {
-      if (hasText) {
+      if (hasText && Object.keys(ocrResultFields).length === 0) {
         const ocrResult = processOCRText(normalizedText, userSelectedCategory)
         ocrResultFields = ocrResult.fields || {}
       }
     } catch (e) {
-      // Fallback - continue with empty fields
+      // Fallback - continue with human extraction only
     }
     
     // Build legacy format result
@@ -520,27 +594,37 @@ export async function POST(request: NextRequest) {
       medicineName: mapConfidence(extractedData.medicineName),
       brandName: mapConfidence(extractedData.brandName),
       documentType: mapConfidence(extractedData.documentType),
-      // Add new format fields from OCR pipeline
-      documentName: ocrResultFields.documentName ? {
-        value: ocrResultFields.documentName.value || '',
-        confidence: ocrResultFields.documentName.confidence >= 70 ? 'High' : ocrResultFields.documentName.confidence >= 40 ? 'Medium' : 'Low',
-      } : mapConfidence(null),
-      licenseNumber: ocrResultFields.licenseNumber ? {
-        value: ocrResultFields.licenseNumber.value || '',
-        confidence: ocrResultFields.licenseNumber.confidence >= 70 ? 'High' : ocrResultFields.licenseNumber.confidence >= 40 ? 'Medium' : 'Low',
-      } : mapConfidence(null),
-      holderName: ocrResultFields.holderName ? {
-        value: ocrResultFields.holderName.value || '',
-        confidence: ocrResultFields.holderName.confidence >= 70 ? 'High' : ocrResultFields.holderName.confidence >= 40 ? 'Medium' : 'Low',
-      } : mapConfidence(null),
-      dateOfBirth: ocrResultFields.dateOfBirth ? {
-        value: ocrResultFields.dateOfBirth.value || '',
-        confidence: ocrResultFields.dateOfBirth.confidence >= 70 ? 'High' : ocrResultFields.dateOfBirth.confidence >= 40 ? 'Medium' : 'Low',
-      } : mapConfidence(null),
-      dateOfIssue: ocrResultFields.dateOfIssue ? {
-        value: ocrResultFields.dateOfIssue.value || '',
-        confidence: ocrResultFields.dateOfIssue.confidence >= 70 ? 'High' : ocrResultFields.dateOfIssue.confidence >= 40 ? 'Medium' : 'Low',
-      } : mapConfidence(null),
+      // 🔧 CRITICAL: Use extractedData fields first (from human extraction), then fallback to ocrResultFields
+      documentName: extractedData.documentName ? mapConfidence(extractedData.documentName) : 
+        (ocrResultFields.documentName ? {
+          value: ocrResultFields.documentName.value || '',
+          confidence: (typeof ocrResultFields.documentName.confidence === 'number' && ocrResultFields.documentName.confidence >= 70) ? 'High' : 
+                     (typeof ocrResultFields.documentName.confidence === 'number' && ocrResultFields.documentName.confidence >= 40) ? 'Medium' : 'Low',
+        } : mapConfidence(null)),
+      licenseNumber: extractedData.licenseNumber ? mapConfidence(extractedData.licenseNumber) :
+        (ocrResultFields.licenseNumber ? {
+          value: ocrResultFields.licenseNumber.value || '',
+          confidence: (typeof ocrResultFields.licenseNumber.confidence === 'number' && ocrResultFields.licenseNumber.confidence >= 70) ? 'High' : 
+                     (typeof ocrResultFields.licenseNumber.confidence === 'number' && ocrResultFields.licenseNumber.confidence >= 40) ? 'Medium' : 'Low',
+        } : mapConfidence(null)),
+      holderName: extractedData.holderName ? mapConfidence(extractedData.holderName) :
+        (ocrResultFields.holderName ? {
+          value: ocrResultFields.holderName.value || '',
+          confidence: (typeof ocrResultFields.holderName.confidence === 'number' && ocrResultFields.holderName.confidence >= 70) ? 'High' : 
+                     (typeof ocrResultFields.holderName.confidence === 'number' && ocrResultFields.holderName.confidence >= 40) ? 'Medium' : 'Low',
+        } : mapConfidence(null)),
+      dateOfBirth: extractedData.dateOfBirth ? mapConfidence(extractedData.dateOfBirth) :
+        (ocrResultFields.dateOfBirth ? {
+          value: ocrResultFields.dateOfBirth.value || '',
+          confidence: (typeof ocrResultFields.dateOfBirth.confidence === 'number' && ocrResultFields.dateOfBirth.confidence >= 70) ? 'High' : 
+                     (typeof ocrResultFields.dateOfBirth.confidence === 'number' && ocrResultFields.dateOfBirth.confidence >= 40) ? 'Medium' : 'Low',
+        } : mapConfidence(null)),
+      dateOfIssue: extractedData.dateOfIssue ? mapConfidence(extractedData.dateOfIssue) :
+        (ocrResultFields.dateOfIssue ? {
+          value: ocrResultFields.dateOfIssue.value || '',
+          confidence: (typeof ocrResultFields.dateOfIssue.confidence === 'number' && ocrResultFields.dateOfIssue.confidence >= 70) ? 'High' : 
+                     (typeof ocrResultFields.dateOfIssue.confidence === 'number' && ocrResultFields.dateOfIssue.confidence >= 40) ? 'Medium' : 'Low',
+        } : mapConfidence(null)),
       additionalFields: extractedData.additionalFields || {},
       warnings: extractedData.extractionWarnings || [],
       rawText: sanitizedText.substring(0, 1000), // Limit raw text in response (sanitized)
