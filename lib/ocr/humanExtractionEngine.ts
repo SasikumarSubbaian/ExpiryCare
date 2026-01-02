@@ -7,6 +7,8 @@
  * Output: extractedData object
  */
 
+import { extractExpiryDate, type ExpiryDateResult } from './expiryExtractor'
+
 export interface ExtractedFieldData {
   value: string | null
   confidence: 'High' | 'Medium' | 'Low'
@@ -107,14 +109,13 @@ function extractLicenseFields(rawText: string): Partial<ExtractedDataResult['ext
     }
   }
   
-  // Valid Till: Valid Till : 31-12-2025
-  const validTillMatch = rawText.match(/Valid\s*Till\s*[:\-]?\s*(\d{2}[-/]\d{2}[-/]\d{4})/i)
-  if (validTillMatch) {
-    // Normalize date format
-    const dateStr = validTillMatch[1].replace(/\//g, '-')
+  // 🔧 CRITICAL: Use comprehensive expiry date extractor for "Valid Till" and all formats
+  // This handles: Valid Till, Valid Until, Expiry Date, etc. with all date formats
+  const expiryResult = extractExpiryDate(rawText)
+  if (expiryResult.value) {
     fields.expiryDate = {
-      value: dateStr,
-      confidence: 'High',
+      value: expiryResult.value, // Already in YYYY-MM-DD format
+      confidence: expiryResult.confidence,
     }
   }
   
@@ -162,22 +163,13 @@ function extractLicenseFields(rawText: string): Partial<ExtractedDataResult['ext
 function extractMedicineFields(rawText: string): Partial<ExtractedDataResult['extractedData']> {
   const fields: Partial<ExtractedDataResult['extractedData']> = {}
   
-  // Expiry Date: Expiry Date : 01/2026 or 2026
-  const expiryMatch = rawText.match(/Expiry\s*Date\s*[:\-]?\s*(\d{2}\/\d{4}|\d{4})/i)
-  if (expiryMatch) {
-    let expiryValue = expiryMatch[1]
-    // Normalize MM/YYYY to YYYY-MM-DD (use last day of month)
-    if (expiryValue.includes('/')) {
-      const [month, year] = expiryValue.split('/')
-      const lastDay = new Date(parseInt(year), parseInt(month), 0).getDate()
-      expiryValue = `${year}-${month.padStart(2, '0')}-${lastDay.toString().padStart(2, '0')}`
-    } else {
-      // Just year, use Dec 31
-      expiryValue = `${expiryValue}-12-31`
-    }
+  // 🔧 CRITICAL: Use comprehensive expiry date extractor for all formats
+  // This handles: Expiry Date, Exp Date, Use Before, Best Before, etc. with all date formats
+  const expiryResult = extractExpiryDate(rawText)
+  if (expiryResult.value) {
     fields.expiryDate = {
-      value: expiryValue,
-      confidence: 'High',
+      value: expiryResult.value, // Already in YYYY-MM-DD format
+      confidence: expiryResult.confidence,
     }
   }
   
@@ -217,13 +209,12 @@ function extractMedicineFields(rawText: string): Partial<ExtractedDataResult['ex
 function extractWarrantyFields(rawText: string): Partial<ExtractedDataResult['extractedData']> {
   const fields: Partial<ExtractedDataResult['extractedData']> = {}
   
-  // Expiry Date
-  const expiryMatch = rawText.match(/Expiry\s*Date\s*[:\-]?\s*(\d{2}[-/]\d{2}[-/]\d{4})/i)
-  if (expiryMatch) {
-    const dateStr = expiryMatch[1].replace(/\//g, '-')
+  // 🔧 CRITICAL: Use comprehensive expiry date extractor for all formats
+  const expiryResult = extractExpiryDate(rawText)
+  if (expiryResult.value) {
     fields.expiryDate = {
-      value: dateStr,
-      confidence: 'High',
+      value: expiryResult.value, // Already in YYYY-MM-DD format
+      confidence: expiryResult.confidence,
     }
   }
   
@@ -289,21 +280,13 @@ export function extractDataFromRawText(rawText: string): ExtractedDataResult {
       extractedData = extractWarrantyFields(rawText)
       break
     default:
-      // For "other", try to extract expiry date at least
-      const expiryMatch = rawText.match(/(?:Expiry|Exp)\s*Date\s*[:\-]?\s*(\d{2}[-/]\d{2}[-/]\d{4}|\d{2}\/\d{4})/i)
-      if (expiryMatch) {
-        let expiryValue = expiryMatch[1]
-        if (expiryValue.includes('/') && !expiryValue.includes('-')) {
-          // MM/YYYY format
-          const [month, year] = expiryValue.split('/')
-          const lastDay = new Date(parseInt(year), parseInt(month), 0).getDate()
-          expiryValue = `${year}-${month.padStart(2, '0')}-${lastDay.toString().padStart(2, '0')}`
-        } else {
-          expiryValue = expiryValue.replace(/\//g, '-')
-        }
+      // 🔧 CRITICAL: For "other" category (including licenses), use comprehensive expiry extractor
+      // This will catch "Valid Till", "Valid Until", "Expiry Date", etc. with all formats
+      const expiryResult = extractExpiryDate(rawText)
+      if (expiryResult.value) {
         extractedData.expiryDate = {
-          value: expiryValue,
-          confidence: 'High',
+          value: expiryResult.value, // Already in YYYY-MM-DD format
+          confidence: expiryResult.confidence,
         }
       } else {
         extractedData.expiryDate = { value: null, confidence: 'Low' }

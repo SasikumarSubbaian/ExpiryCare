@@ -200,6 +200,7 @@ function isLikelyNotExpiry(dateStr: string, context: string): boolean {
 
 /**
  * Extracts expiry date from OCR text
+ * 🔧 ENHANCED: Handles "Valid Till", "Valid Until", and all other expiry keywords
  */
 export function extractExpiryDate(ocrText: string): ExpiryDateResult {
   const text = ocrText.toUpperCase()
@@ -210,22 +211,28 @@ export function extractExpiryDate(ocrText: string): ExpiryDateResult {
     confidence: ConfidenceLevel
   } | null = null
 
-  // Search for expiry keywords with nearby dates
+  // 🔧 CRITICAL: Search for expiry keywords with nearby dates
+  // This includes "Valid Till", "Valid Until", "Expiry Date", etc.
   for (const keyword of expiryKeywords) {
     const keywordUpper = keyword.toUpperCase()
-    const keywordIndex = text.indexOf(keywordUpper)
+    // 🔧 FIX: Use case-insensitive search with word boundaries for better matching
+    const keywordRegex = new RegExp(`\\b${keywordUpper.replace(/\s+/g, '\\s+')}\\b`, 'i')
+    const keywordMatch = text.match(keywordRegex)
+    
+    if (!keywordMatch) continue
+    
+    const keywordIndex = keywordMatch.index!
+    const keywordLength = keywordMatch[0].length
 
-    if (keywordIndex === -1) continue
-
-    // Extract context around keyword (200 characters)
-    const start = Math.max(0, keywordIndex - 100)
-    const end = Math.min(text.length, keywordIndex + keyword.length + 100)
+    // Extract context around keyword (200 characters) - increased for better matching
+    const start = Math.max(0, keywordIndex - 150)
+    const end = Math.min(text.length, keywordIndex + keywordLength + 150)
     const context = text.substring(start, end)
 
-      // Find dates in context
-      for (const pattern of datePatterns) {
-        const matches = Array.from(context.matchAll(pattern))
-        for (const match of matches) {
+    // Find dates in context
+    for (const pattern of datePatterns) {
+      const matches = Array.from(context.matchAll(pattern))
+      for (const match of matches) {
         const dateStr = match[0].trim()
 
         // Skip if likely not expiry date
@@ -241,9 +248,14 @@ export function extractExpiryDate(ocrText: string): ExpiryDateResult {
         const parsed = parseDate(dateStr)
         if (!parsed) continue
 
-        // Determine confidence
+        // 🔧 ENHANCED: Determine confidence based on keyword type and distance
         let confidence: ConfidenceLevel = 'Medium'
-        if (distance < 50 && keyword) {
+        
+        // High confidence keywords (explicit expiry indicators)
+        const highConfidenceKeywords = ['valid till', 'valid until', 'expiry date', 'expires on', 'expiration date']
+        if (highConfidenceKeywords.includes(keyword.toLowerCase()) && distance < 80) {
+          confidence = 'High'
+        } else if (distance < 50 && keyword) {
           confidence = 'High'
         } else if (distance < 100) {
           confidence = 'Medium'
@@ -251,16 +263,17 @@ export function extractExpiryDate(ocrText: string): ExpiryDateResult {
           confidence = 'Low'
         }
 
-        // If month-only or year-only, reduce confidence
+        // If month-only or year-only, reduce confidence slightly
         if (parsed.day === null) {
-          confidence = confidence === 'High' ? 'Medium' : 'Low'
+          confidence = confidence === 'High' ? 'Medium' : confidence
         }
 
         // Keep best match (closest to keyword, highest confidence)
         if (
           !bestMatch ||
           (confidence === 'High' && bestMatch.confidence !== 'High') ||
-          (confidence === bestMatch.confidence && distance < bestMatch.distance)
+          (confidence === bestMatch.confidence && distance < bestMatch.distance) ||
+          (bestMatch.confidence !== 'High' && confidence === 'High')
         ) {
           bestMatch = {
             date: dateStr,
