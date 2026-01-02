@@ -104,16 +104,22 @@ function normalizeDate(
  * Parses date from various formats
  */
 function parseDate(dateStr: string): { day: number | null; month: number | null; year: number } | null {
-  // Try DD/MM/YYYY or DD-MM-YYYY
-  const ddmmyyyy = dateStr.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{2,4})$/)
+  // 🔧 CRITICAL: Try DD/MM/YYYY or DD-MM-YYYY (most common in Indian documents)
+  // Handle both 2-digit and 4-digit years
+  // Also handle cases with spaces: "27 - 08 - 2038"
+  const ddmmyyyy = dateStr.match(/^(\d{1,2})\s*[-\/]\s*(\d{1,2})\s*[-\/]\s*(\d{2,4})$/)
   if (ddmmyyyy) {
     const day = parseInt(ddmmyyyy[1], 10)
     const month = parseInt(ddmmyyyy[2], 10)
     let year = parseInt(ddmmyyyy[3], 10)
+    
+    // Handle 2-digit years: 00-50 = 2000-2050, 51-99 = 1951-1999
     if (year < 100) {
       year = year < 50 ? 2000 + year : 1900 + year
     }
-    if (month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+    
+    // Validate: month 1-12, day 1-31, year reasonable (1900-2100)
+    if (month >= 1 && month <= 12 && day >= 1 && day <= 31 && year >= 1900 && year <= 2100) {
       return { day, month, year }
     }
   }
@@ -211,6 +217,45 @@ export function extractExpiryDate(ocrText: string): ExpiryDateResult {
     confidence: ConfidenceLevel
   } | null = null
 
+  // 🔧 CRITICAL FIX: First, try direct pattern matching for "Valid Till" with date
+  // This handles cases like "Valid Till: 27-08-2038" or "Valid Till 27-08-2038"
+  const validTillDirectPattern = /VALID\s+TILL\s*[:\-]?\s*(\d{1,2}[-\/]\d{1,2}[-\/]\d{2,4})/i
+  const validTillMatch = ocrText.match(validTillDirectPattern)
+  if (validTillMatch) {
+    const dateStr = validTillMatch[1].trim()
+    const parsed = parseDate(dateStr)
+    if (parsed) {
+      const normalized = normalizeDate(parsed.day, parsed.month, parsed.year)
+      if (normalized) {
+        return {
+          value: normalized,
+          confidence: 'High',
+          sourceKeyword: 'valid till',
+          rawValue: dateStr,
+        }
+      }
+    }
+  }
+
+  // Also try "Valid Until" pattern
+  const validUntilDirectPattern = /VALID\s+UNTIL\s*[:\-]?\s*(\d{1,2}[-\/]\d{1,2}[-\/]\d{2,4})/i
+  const validUntilMatch = ocrText.match(validUntilDirectPattern)
+  if (validUntilMatch) {
+    const dateStr = validUntilMatch[1].trim()
+    const parsed = parseDate(dateStr)
+    if (parsed) {
+      const normalized = normalizeDate(parsed.day, parsed.month, parsed.year)
+      if (normalized) {
+        return {
+          value: normalized,
+          confidence: 'High',
+          sourceKeyword: 'valid until',
+          rawValue: dateStr,
+        }
+      }
+    }
+  }
+
   // 🔧 CRITICAL: Search for expiry keywords with nearby dates
   // This includes "Valid Till", "Valid Until", "Expiry Date", etc.
   for (const keyword of expiryKeywords) {
@@ -224,7 +269,7 @@ export function extractExpiryDate(ocrText: string): ExpiryDateResult {
     const keywordIndex = keywordMatch.index!
     const keywordLength = keywordMatch[0].length
 
-    // Extract context around keyword (200 characters) - increased for better matching
+    // Extract context around keyword (300 characters) - increased for better matching
     const start = Math.max(0, keywordIndex - 150)
     const end = Math.min(text.length, keywordIndex + keywordLength + 150)
     const context = text.substring(start, end)
