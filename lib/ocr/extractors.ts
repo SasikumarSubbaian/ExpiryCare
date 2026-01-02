@@ -177,6 +177,20 @@ function extractMedicineFields(ocrText: string): Partial<ExtractedData> {
   const result: Partial<ExtractedData> = {}
 
   // Strategy 1: Look for prominent product names (usually at the start or large text)
+  // 🔧 CRITICAL FIX: Pattern for "Medicine 250" style names
+  // Priority 1: Direct pattern for "Medicine" + number (e.g., "Medicine 250")
+  const medicineNumberPattern = /(?:Medicine|MEDICINE)\s+(\d+[A-Za-z0-9\s]*)/i
+  const medicineNumberMatch = originalText.match(medicineNumberPattern)
+  if (medicineNumberMatch) {
+    const fullMatch = originalText.match(/(?:Medicine|MEDICINE)\s+\d+[A-Za-z0-9\s]*/i)
+    if (fullMatch) {
+      const candidate = fullMatch[0].trim()
+      if (candidate.length >= 5 && candidate.length <= 100) {
+        result.medicineName = candidate
+      }
+    }
+  }
+  
   // Pattern: "VITAMIN C CHEWABLE TABLETS" or similar - capture full name including descriptors
   const prominentMedicinePatterns = [
     // Match full product names like "VITAMIN C CHEWABLE TABLETS" (capture everything including descriptors)
@@ -185,55 +199,65 @@ function extractMedicineFields(ocrText: string): Partial<ExtractedData> {
     /^([A-Za-z][A-Za-z0-9\s]{2,60}?)(?:\s+(?:TABLET|TABLETS|CAPSULE|CAPSULES))/i,
     // Match medicine name with descriptors before common keywords
     /([A-Za-z][A-Za-z0-9\s]{3,60}?)(?:\s+(?:CHEWABLE|TABLET|TABLETS|CAPSULE|CAPSULES|MG|ML))/i,
-    // Match after "MEDICINE", "DRUG", "MEDICATION" labels
+    // Match after "MEDICINE", "DRUG", "MEDICATION" labels (but not if already found above)
     /(?:MEDICINE|DRUG|MEDICATION|PRODUCT)\s*:?\s*([A-Za-z0-9\s]{3,60})/i,
     // Special pattern for "Vitamin C" style names
     /(VITAMIN\s+[A-Z]\s+[A-Za-z\s]{0,30}(?:CHEWABLE|TABLET|TABLETS|CAPSULE|CAPSULES)?)/i,
   ]
 
-  for (const pattern of prominentMedicinePatterns) {
-    const match = originalText.match(pattern)
-    if (match && match[1]) {
-      let candidate = match[1].trim()
-      // Clean up extra whitespace
-      candidate = candidate.replace(/\s+/g, ' ')
-      // Filter out common non-medicine words
-      if (!candidate.toUpperCase().match(/^(EXPIRY|DATE|BATCH|MFG|USE|BEST|BEFORE|VALID|TILL|UNTIL)/i) &&
-          candidate.length >= 3 && candidate.length <= 60) {
-        result.medicineName = candidate
-        break
+  // Only run prominent patterns if we haven't found medicine name yet
+  if (!result.medicineName) {
+  // Only run prominent patterns if we haven't found medicine name yet
+  if (!result.medicineName) {
+    for (const pattern of prominentMedicinePatterns) {
+      const match = originalText.match(pattern)
+      if (match && match[1]) {
+        let candidate = match[1].trim()
+        // Clean up extra whitespace
+        candidate = candidate.replace(/\s+/g, ' ')
+        // Filter out common non-medicine words
+        if (!candidate.toUpperCase().match(/^(EXPIRY|DATE|BATCH|MFG|USE|BEST|BEFORE|VALID|TILL|UNTIL)/i) &&
+            candidate.length >= 3 && candidate.length <= 60) {
+          result.medicineName = candidate
+          break
+        }
       }
     }
   }
+  }
 
-  // Strategy 2: If no medicine name found, try to extract from first few lines
-  // Look for lines that contain medicine-related keywords
+  // Strategy 2: Look for product-like patterns (word + number, e.g., "Medicine 250", "Vitamin C 500")
   if (!result.medicineName) {
-    const lines = originalText.split('\n').slice(0, 8) // First 8 lines
-    for (const line of lines) {
-      const trimmed = line.trim()
-      const upperLine = trimmed.toUpperCase()
-      // Look for lines that contain medicine keywords and look like product names
-      if (trimmed.length >= 3 && trimmed.length <= 60 && 
-          (upperLine.includes('VITAMIN') || upperLine.includes('TABLET') || 
-           upperLine.includes('CAPSULE') || upperLine.includes('CHEWABLE') ||
-           upperLine.includes('MEDICINE') || upperLine.includes('DRUG')) &&
-          !upperLine.match(/^(EXPIRY|DATE|BATCH|MFG|USE|BEST|BEFORE|VALID|TILL|UNTIL|MANUFACTURING|STORE)/i)) {
-        result.medicineName = trimmed
-        break
+    const allLines = originalText.split('\n').map(line => line.trim()).filter(line => line.length > 0)
+    for (const line of allLines.slice(0, 8)) {
+      // Pattern: Word(s) followed by number (e.g., "Medicine 250", "Vitamin C 500mg")
+      const productPattern = /^([A-Za-z][A-Za-z\s]{2,40}?\s+\d+[A-Za-z0-9\s]*)$/
+      const match = line.match(productPattern)
+      if (match && line.length >= 5 && line.length <= 100) {
+        // Exclude common non-product lines
+        const upperLine = line.toUpperCase()
+        if (!upperLine.match(/^(EXPIRY|DATE|BATCH|MFG|USE|BEST|BEFORE|VALID|TILL|UNTIL|STORE|MANUFACTURING|BATCH|NO|NUMBER)/)) {
+          result.medicineName = line.trim()
+          break
+        }
       }
     }
   }
 
   // Strategy 3: Extract from lines that look like product names (fallback)
   if (!result.medicineName) {
-    const lines = originalText.split('\n').slice(0, 5) // First 5 lines
-    for (const line of lines) {
+    const allLines = originalText.split('\n').map(line => line.trim()).filter(line => line.length > 0)
+    for (const line of allLines.slice(0, 5)) {
       const trimmed = line.trim()
-      // Look for lines that look like product names (2-60 chars, mostly letters/numbers)
-      if (trimmed.length >= 3 && trimmed.length <= 60 && 
+      const upperLine = trimmed.toUpperCase()
+      
+      // Look for lines that look like product names (5-100 chars, mostly letters/numbers)
+      // Exclude single characters, dates, and instruction lines
+      if (trimmed.length >= 5 && trimmed.length <= 100 && 
           trimmed.match(/^[A-Za-z0-9\s]+$/) && 
-          !trimmed.toUpperCase().match(/^(EXPIRY|DATE|BATCH|MFG|USE|BEST|BEFORE|VALID|TILL|UNTIL|MANUFACTURING|STORE)/i)) {
+          !upperLine.match(/^(EXPIRY|DATE|BATCH|MFG|USE|BEST|BEFORE|VALID|TILL|UNTIL|MANUFACTURING|STORE|CHEWABLE|TABLET|TABLETS|CAPSULE|CAPSULES)/i) &&
+          !trimmed.match(/^\d{1,2}[-\/]\d{1,2}[-\/]\d{2,4}$/) && // Not a date
+          trimmed.split(/\s+/).length <= 5) { // Not too many words
         result.medicineName = trimmed
         break
       }

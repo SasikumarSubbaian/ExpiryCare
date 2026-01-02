@@ -173,21 +173,88 @@ function extractMedicineFields(rawText: string): Partial<ExtractedDataResult['ex
     }
   }
   
-  // Product Name: First line or before "tablet"/"capsule"
-  const productMatch = rawText.match(/^([A-Za-z0-9\s]+?)(?:\s+tablet|\s+capsule|$)/im)
-  if (productMatch) {
-    fields.productName = {
-      value: productMatch[1].trim(),
-      confidence: 'High',
-    }
-  } else {
-    // Fallback: first non-empty line
-    const lines = rawText.split('\n').filter(line => line.trim().length > 0)
-    if (lines.length > 0 && lines[0].trim().length > 2) {
-      fields.productName = {
-        value: lines[0].trim(),
-        confidence: 'Medium',
+  // 🔧 CRITICAL FIX: Product Name extraction - think like a human reader
+  // Strategy 1: Look for lines containing "Medicine" or product-like text
+  const lines = rawText.split('\n').map(line => line.trim()).filter(line => line.length > 0)
+  
+  let productName: string | null = null
+  let confidence: 'High' | 'Medium' | 'Low' = 'Low'
+  
+  // Strategy 1: Look for lines containing "Medicine" keyword
+  for (const line of lines) {
+    const upperLine = line.toUpperCase()
+    // Look for lines with "MEDICINE" followed by numbers or text
+    if (upperLine.includes('MEDICINE')) {
+      // Extract the full product name (e.g., "Medicine 250")
+      const medicineMatch = line.match(/(?:Medicine|MEDICINE)\s*([A-Za-z0-9\s]+)/i)
+      if (medicineMatch) {
+        productName = line.trim() // Use the full line
+        confidence = 'High'
+        break
+      } else {
+        // If line contains "Medicine", use the whole line
+        if (line.length >= 5 && line.length <= 100) {
+          productName = line.trim()
+          confidence = 'High'
+          break
+        }
       }
+    }
+  }
+  
+  // Strategy 2: Look for product-like patterns (word + number, e.g., "Medicine 250", "Vitamin C 500")
+  if (!productName) {
+    for (const line of lines) {
+      // Pattern: Word(s) followed by number (e.g., "Medicine 250", "Vitamin C 500mg")
+      const productPattern = /^([A-Za-z][A-Za-z\s]{2,40}?\s+\d+[A-Za-z0-9\s]*)$/
+      const match = line.match(productPattern)
+      if (match && line.length >= 5 && line.length <= 100) {
+        // Exclude common non-product lines
+        const upperLine = line.toUpperCase()
+        if (!upperLine.match(/^(EXPIRY|DATE|BATCH|MFG|USE|BEST|BEFORE|VALID|TILL|UNTIL|STORE|MANUFACTURING|BATCH|NO|NUMBER)/)) {
+          productName = line.trim()
+          confidence = 'High'
+          break
+        }
+      }
+    }
+  }
+  
+  // Strategy 3: Look for lines that look like product names (2-60 chars, mostly letters/numbers)
+  if (!productName) {
+    for (const line of lines.slice(0, 8)) { // First 8 lines
+      const trimmed = line.trim()
+      const upperLine = trimmed.toUpperCase()
+      
+      // Skip if it's a date, batch, or instruction line
+      if (trimmed.length >= 5 && trimmed.length <= 100 &&
+          !upperLine.match(/^(EXPIRY|DATE|BATCH|MFG|USE|BEST|BEFORE|VALID|TILL|UNTIL|STORE|MANUFACTURING|CHEWABLE|TABLET|TABLETS|CAPSULE|CAPSULES)/) &&
+          !trimmed.match(/^\d{1,2}[-\/]\d{1,2}[-\/]\d{2,4}$/) && // Not a date
+          trimmed.match(/^[A-Za-z0-9\s]+$/) && // Only letters, numbers, spaces
+          trimmed.split(/\s+/).length <= 5) { // Not too many words
+        productName = trimmed
+        confidence = 'Medium'
+        break
+      }
+    }
+  }
+  
+  // Strategy 4: Fallback - use first substantial line
+  if (!productName) {
+    for (const line of lines.slice(0, 5)) {
+      const trimmed = line.trim()
+      if (trimmed.length >= 3 && trimmed.length <= 100) {
+        productName = trimmed
+        confidence = 'Low'
+        break
+      }
+    }
+  }
+  
+  if (productName) {
+    fields.productName = {
+      value: productName,
+      confidence,
     }
   }
   
