@@ -318,6 +318,7 @@ export default function OCRConfirmationModal({
     const category = extractedData.category || 'other'
     const categoryLower = category.toLowerCase()
     const fields: Array<{ label: string; fieldName: string; fieldData: any; isRequired: boolean }> = []
+    const seenFields = new Set<string>() // Track seen fields to prevent duplicates
 
     // Import category field map
     // Use dynamic import to avoid SSR issues
@@ -331,31 +332,40 @@ export default function OCRConfirmationModal({
     }
     
     // Get extractedFields from API response (new format)
-    const extractedFields = extractedData.extractedFields || extractedData.fields || {}
+    // extractedFields is the new format from API (result object)
+    // extractedData is the legacy format
+    const extractedFields = extractedData.extractedFields || {}
     
     // Map field keys to display fields
     for (const fieldKey of categoryFieldKeys) {
-      // Skip if already added
-      if (fields.find(f => f.fieldName === fieldKey)) continue
+      // Skip if already added (prevent duplicates)
+      if (seenFields.has(fieldKey)) continue
+      seenFields.add(fieldKey)
       
       // Get field value from extractedFields or legacy format
       let fieldValue: any = null
-      let isRequired = fieldKey === 'expiryDate' || fieldKey === 'documentName'
+      let isRequired = fieldKey === 'expiryDate' || fieldKey === 'documentName' || fieldKey === 'medicineName' || fieldKey === 'productName'
       
-      // Try new format first (extractedFields)
+      // Try new format first (extractedFields from API)
       if (extractedFields[fieldKey]) {
         fieldValue = extractedFields[fieldKey]
       } else {
-        // Try legacy format
+        // Try legacy format from extractedData
         const legacyKey = fieldKey === 'documentProvider' ? 'issuer' : 
                          fieldKey === 'dateOfBirth' ? 'dob' :
                          fieldKey === 'dateOfIssue' ? 'issueDate' :
+                         fieldKey === 'licenseNumber' ? 'dlNumber' :
                          fieldKey
         const legacyData = (extractedData as any)[legacyKey]
         if (legacyData) {
-          fieldValue = legacyData
+          // Handle both object format { value, confidence } and direct value
+          if (typeof legacyData === 'object' && legacyData !== null && 'value' in legacyData) {
+            fieldValue = legacyData
+          } else {
+            fieldValue = { value: legacyData, confidence: 'Medium' }
+          }
         } else {
-          // Empty field
+          // Empty field - show editable input
           fieldValue = { value: '', confidence: 'Low' }
         }
       }
@@ -384,139 +394,20 @@ export default function OCRConfirmationModal({
       fields.unshift({
         label: 'Expiry Date',
         fieldName: 'expiryDate',
-        fieldData: extractedData.expiryDate?.value || { value: '', confidence: 'Low' },
+        fieldData: extractedData.expiryDate || { value: '', confidence: 'Low' },
         isRequired: true,
       })
     }
 
-    // Category-specific fields - ALWAYS show required fields, even if empty
-    // Optional fields only shown if they have values
-    if (category === 'medicine') {
-      // Always show required fields
+    // Always show category field at the end (only once)
+    if (!seenFields.has('category')) {
       fields.push({
-        label: 'Medicine Name',
-        fieldName: 'medicineName',
-        fieldData: extractedData.medicineName || { value: '', confidence: 'Low' },
-        isRequired: true,
+        label: 'Category',
+        fieldName: 'category',
+        fieldData: extractedData.category || category,
+        isRequired: false,
       })
-      fields.push({
-        label: 'Manufacturer',
-        fieldName: 'companyName',
-        fieldData: extractedData.companyName || { value: '', confidence: 'Low' },
-        isRequired: true,
-      })
-      // Optional fields
-      if (extractedData.brandName) {
-        fields.push({
-          label: 'Brand Name',
-          fieldName: 'brandName',
-          fieldData: extractedData.brandName,
-          isRequired: false,
-        })
-      }
-    } else if (category === 'warranty') {
-      // Always show required fields
-      fields.push({
-        label: 'Product Name',
-        fieldName: 'productName',
-        fieldData: extractedData.productName || { value: '', confidence: 'Low' },
-        isRequired: true,
-      })
-      fields.push({
-        label: 'Company Name',
-        fieldName: 'companyName',
-        fieldData: extractedData.companyName || { value: '', confidence: 'Low' },
-        isRequired: true,
-      })
-    } else if (category === 'insurance') {
-      // Always show required fields
-      fields.push({
-        label: 'Policy Number',
-        fieldName: 'policyNumber',
-        fieldData: extractedData.policyNumber || { value: '', confidence: 'Low' },
-        isRequired: true,
-      })
-      fields.push({
-        label: 'Insurance Provider',
-        fieldName: 'provider',
-        fieldData: extractedData.provider || extractedData.insurerName || { value: '', confidence: 'Low' },
-        isRequired: true,
-      })
-      // Legacy field names (optional)
-      if (extractedData.insurerName && !extractedData.provider) {
-        fields.push({
-          label: 'Insurer Name',
-          fieldName: 'insurerName',
-          fieldData: extractedData.insurerName,
-          isRequired: false,
-        })
-      }
-    } else if (category === 'amc') {
-      // Always show required fields
-      fields.push({
-        label: 'Service Type',
-        fieldName: 'serviceType',
-        fieldData: extractedData.serviceType || { value: '', confidence: 'Low' },
-        isRequired: true,
-      })
-      fields.push({
-        label: 'Provider Name',
-        fieldName: 'providerName',
-        fieldData: extractedData.providerName || { value: '', confidence: 'Low' },
-        isRequired: true,
-      })
-    } else if (category === 'subscription') {
-      // Always show required fields
-      fields.push({
-        label: 'Service Name',
-        fieldName: 'serviceName',
-        fieldData: extractedData.serviceName || { value: '', confidence: 'Low' },
-        isRequired: true,
-      })
-      // Optional fields
-      if (extractedData.planType) {
-        fields.push({
-          label: 'Plan Type',
-          fieldName: 'planType',
-          fieldData: extractedData.planType,
-          isRequired: false,
-        })
-      }
-    } else if (category === 'other') {
-      // ALWAYS show required fields for "Other" category
-      fields.push({
-        label: 'Document Name',
-        fieldName: 'documentName',
-        fieldData: extractedData.documentName || extractedData.documentType || { value: '', confidence: 'Low' },
-        isRequired: true,
-      })
-      // Optional fields
-      if (extractedData.issuer) {
-        fields.push({
-          label: 'Issued By',
-          fieldName: 'issuer',
-          fieldData: extractedData.issuer,
-          isRequired: false,
-        })
-      }
-      // Holder name (optional, only if extracted)
-      if (extractedData.holderName) {
-        fields.push({
-          label: 'Holder Name',
-          fieldName: 'holderName',
-          fieldData: extractedData.holderName,
-          isRequired: false,
-        })
-      }
     }
-
-    // Always show category field at the end
-    fields.push({
-      label: 'Category',
-      fieldName: 'category',
-      fieldData: extractedData.category,
-      isRequired: false,
-    })
 
     return fields
   }
@@ -556,38 +447,41 @@ export default function OCRConfirmationModal({
           )}
 
           {/* Render all fields - Expiry Date pinned to top */}
-          {categoryFields.map((field) => {
+          {/* Fix duplicate keys by using category + fieldName + index */}
+          {categoryFields.map((field, index) => {
+            const uniqueKey = `${extractedData.category || 'other'}-${field.fieldName}-${index}`
+            
             if (field.fieldName === 'expiryDate') {
               return (
-                <div key={field.fieldName}>
+                <div key={uniqueKey}>
                   {renderFieldCard(
                     field.label,
                     field.fieldName,
-                    extractedData.expiryDate.value,
-                    extractedData.expiryDate.confidence,
+                    extractedData.expiryDate?.value,
+                    extractedData.expiryDate?.confidence,
                     true
                   )}
                 </div>
               )
             } else if (field.fieldName === 'category') {
               return (
-                <div key={field.fieldName} className="mb-4 p-4 rounded-lg border-2 bg-white border-gray-200">
+                <div key={uniqueKey} className="mb-4 p-4 rounded-lg border-2 bg-white border-gray-200">
                   <div className="flex items-center justify-between mb-2">
                     <label className="text-sm font-semibold text-gray-900">{field.label}</label>
                     <span className={`px-2 py-1 text-xs font-medium rounded ${getConfidenceColor(
-                      extractedData.categoryConfidence
+                      extractedData.categoryConfidence || 'Medium'
                     )}`}>
-                      {extractedData.categoryConfidence} ({extractedData.categoryConfidencePercentage || 0}%)
+                      {extractedData.categoryConfidence || 'Medium'} ({extractedData.categoryConfidencePercentage || 0}%)
                     </span>
                   </div>
                   <div className="mb-3">
-                    <p className="text-gray-900 font-medium capitalize">{field.fieldData}</p>
+                    <p className="text-gray-900 font-medium capitalize">{field.fieldData || extractedData.category || 'other'}</p>
                   </div>
                 </div>
               )
             } else {
               return (
-                <div key={field.fieldName}>
+                <div key={uniqueKey}>
                   {renderFieldCard(
                     field.label,
                     field.fieldName,

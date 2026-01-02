@@ -26,17 +26,22 @@ import type { ExtractedField, OCRResult } from './ocrPipeline'
  * Process OCR text through the human-like pipeline
  */
 export function processOCRText(ocrText: string, userSelectedCategory?: string | null): OCRResult {
-  // Sanitize text to remove PII
-  const sanitizedText = sanitizeOCRText(ocrText)
+  // CRITICAL: Use ORIGINAL text for category detection (not sanitized)
+  // Sanitization removes important keywords needed for detection
+  const originalText = ocrText || ''
+  
+  // Sanitize text to remove PII (only for field extraction, not category detection)
+  const sanitizedText = originalText ? sanitizeOCRText(originalText) : ''
   
   // Predict or use user-selected category
+  // Use ORIGINAL text for category prediction to preserve keywords
   const validCategories: Category[] = ['warranty', 'insurance', 'amc', 'medicine', 'subscription', 'other']
   const userCategory = userSelectedCategory && validCategories.includes(userSelectedCategory as Category)
     ? (userSelectedCategory as Category)
     : null
   
-  const category = userCategory || predictCategory(sanitizedText)
-  const confidence = getPredictionConfidence(sanitizedText, category)
+  const category = userCategory || predictCategory(originalText) // Use original text
+  const confidence = getPredictionConfidence(originalText, category) // Use original text
   
   // Get field definitions for this category
   const fieldDefinitions = getCategoryFields(category)
@@ -182,23 +187,32 @@ export function processOCRText(ocrText: string, userSelectedCategory?: string | 
   }
   
   // Special handling for driving license - extract all fields
-  const lowerText = sanitizedText.toLowerCase()
-  if (category === 'other' && (lowerText.includes('driving licence') || lowerText.includes('driving license') || lowerText.includes('dl no'))) {
-    // Extract all Driving License fields
-    const dlFields = extractDrivingLicenseFields(ocrText) // Use original text for extraction
+  // Use ORIGINAL text (not sanitized) for better extraction
+  const lowerText = originalText.toLowerCase()
+  const isDrivingLicense = category === 'other' && 
+    (lowerText.includes('driving licence') || lowerText.includes('driving license') || 
+     lowerText.includes('dl no') || lowerText.includes('dl number'))
+  
+  if (isDrivingLicense) {
+    // Extract all Driving License fields using original text
+    const dlFields = extractDrivingLicenseFields(originalText)
     
     // Merge extracted fields
     for (const [key, field] of Object.entries(dlFields)) {
       fields[key] = field
     }
     
-    // Ensure required fields exist (even if empty)
-    const requiredFields = getFieldsForCategory('Driving License')
+    // Ensure required fields exist (even if empty) - use lowercase "other"
+    const requiredFields = getFieldsForCategory('other')
     for (const fieldKey of requiredFields) {
       if (!fields[fieldKey]) {
         // Add empty required field
+        const label = fieldKey
+          .replace(/([A-Z])/g, ' $1')
+          .replace(/^./, str => str.toUpperCase())
+          .trim()
         fields[fieldKey] = {
-          label: fieldKey.charAt(0).toUpperCase() + fieldKey.slice(1).replace(/([A-Z])/g, ' $1').trim(),
+          label,
           value: '',
           confidence: 0,
           required: fieldKey === 'expiryDate' || fieldKey === 'documentName',

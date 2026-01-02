@@ -346,10 +346,13 @@ export async function POST(request: NextRequest) {
       hasText = false
     }
 
-    // 13. Sanitize OCR text to remove PII before processing
-    const sanitizedText = ocrText ? sanitizeOCRText(ocrText) : ''
+    // 13. Normalize OCR text - CRITICAL: Use original text for category detection
+    // Always derive normalizedText from full OCR text
+    const normalizedText = ocrText || ''
+    const sanitizedText = normalizedText ? sanitizeOCRText(normalizedText) : ''
 
     // 14. ALWAYS predict category and extract fields (even with empty text)
+    // Use ORIGINAL text for category detection (not sanitized)
     let category: Category
     let confidence: number
     let extractedData: any
@@ -357,7 +360,8 @@ export async function POST(request: NextRequest) {
     try {
       if (hasText) {
         // Use new pipeline processor (human-like extraction)
-        const ocrResult = processOCRText(ocrText, userSelectedCategory)
+        // Pass original text for better category detection
+        const ocrResult = processOCRText(normalizedText, userSelectedCategory)
         category = ocrResult.category
         confidence = ocrResult.confidence / 100 // Convert to 0-1 scale
         
@@ -430,6 +434,18 @@ export async function POST(request: NextRequest) {
       return { value, confidence: 'Medium' }
     }
     
+    // Get OCRResult fields from pipeline processor
+    let ocrResultFields: Record<string, any> = {}
+    try {
+      if (hasText) {
+        const ocrResult = processOCRText(normalizedText, userSelectedCategory)
+        ocrResultFields = ocrResult.fields || {}
+      }
+    } catch (e) {
+      // Fallback - continue with empty fields
+    }
+    
+    // Build legacy format result
     const result = {
       category,
       categoryConfidence: confidence >= 0.7 ? 'High' : confidence >= 0.4 ? 'Medium' : 'Low',
@@ -450,9 +466,41 @@ export async function POST(request: NextRequest) {
       medicineName: mapConfidence(extractedData.medicineName),
       brandName: mapConfidence(extractedData.brandName),
       documentType: mapConfidence(extractedData.documentType),
+      // Add new format fields from OCR pipeline
+      documentName: ocrResultFields.documentName ? {
+        value: ocrResultFields.documentName.value || '',
+        confidence: ocrResultFields.documentName.confidence >= 70 ? 'High' : ocrResultFields.documentName.confidence >= 40 ? 'Medium' : 'Low',
+      } : mapConfidence(null),
+      licenseNumber: ocrResultFields.licenseNumber ? {
+        value: ocrResultFields.licenseNumber.value || '',
+        confidence: ocrResultFields.licenseNumber.confidence >= 70 ? 'High' : ocrResultFields.licenseNumber.confidence >= 40 ? 'Medium' : 'Low',
+      } : mapConfidence(null),
+      holderName: ocrResultFields.holderName ? {
+        value: ocrResultFields.holderName.value || '',
+        confidence: ocrResultFields.holderName.confidence >= 70 ? 'High' : ocrResultFields.holderName.confidence >= 40 ? 'Medium' : 'Low',
+      } : mapConfidence(null),
+      dateOfBirth: ocrResultFields.dateOfBirth ? {
+        value: ocrResultFields.dateOfBirth.value || '',
+        confidence: ocrResultFields.dateOfBirth.confidence >= 70 ? 'High' : ocrResultFields.dateOfBirth.confidence >= 40 ? 'Medium' : 'Low',
+      } : mapConfidence(null),
+      dateOfIssue: ocrResultFields.dateOfIssue ? {
+        value: ocrResultFields.dateOfIssue.value || '',
+        confidence: ocrResultFields.dateOfIssue.confidence >= 70 ? 'High' : ocrResultFields.dateOfIssue.confidence >= 40 ? 'Medium' : 'Low',
+      } : mapConfidence(null),
       additionalFields: extractedData.additionalFields || {},
       warnings: extractedData.extractionWarnings || [],
       rawText: sanitizedText.substring(0, 1000), // Limit raw text in response (sanitized)
+    }
+    
+    // Build extractedFields in new format (for confirmation modal)
+    const extractedFields: Record<string, any> = {}
+    for (const [key, field] of Object.entries(ocrResultFields)) {
+      if (field && typeof field === 'object' && 'value' in field) {
+        extractedFields[key] = {
+          value: field.value || '',
+          confidence: field.confidence >= 70 ? 'High' : field.confidence >= 40 ? 'Medium' : 'Low',
+        }
+      }
     }
 
     // 15. Log successful OCR call (don't block on logging errors)
@@ -472,20 +520,24 @@ export async function POST(request: NextRequest) {
 
     // 16. Return success response - success = true if ANY readable text is detected
     // 🔥 CRITICAL: success should NOT depend on field extraction success
-    const fullText = ocrText || ''
-    const fullTextLength = fullText.trim().length
+    // normalizedText is already defined above, use it
+    const fullTextLength = normalizedText.trim().length
     const apiSuccess = fullTextLength > 30 // If fullText.length > 30 → success MUST be true
     
+    // If normalizedText is empty, still allow manual entry
+    const allowManual = true // Always allow manual entry
+    
     // Standardize OCR response format
+    const finalNormalizedText = normalizedText.trim() // Use already defined normalizedText
     return NextResponse.json({
       success: apiSuccess, // true if text detected, false only if no text
-      fullText: fullText, // Full OCR text (exactly as returned from Google Vision)
-      text: sanitizedText || '', // Sanitized OCR text (legacy)
-      rawText: fullText, // Original OCR text (legacy)
+      fullText: finalNormalizedText, // Full OCR text (exactly as returned from Google Vision)
+      text: finalNormalizedText || sanitizedText || '', // Normalized text (fallback to sanitized)
+      rawText: finalNormalizedText, // Original OCR text (same as fullText)
       category, // ALWAYS try to predict
       confidence: hasText ? 0.9 : 0.3, // Fallback confidence
-      extractedFields: result, // Structured fields (may be empty)
-      allowManualEntry: true, // Always allow manual entry
+      extractedFields: extractedFields, // New format: structured fields from OCR pipeline
+      allowManualEntry: allowManual, // Always allow manual entry
       source: 'google_vision',
       extractedData: result, // Legacy format for backward compatibility
     })

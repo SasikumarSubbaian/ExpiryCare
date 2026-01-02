@@ -74,11 +74,16 @@ const categoryKeywords: Record<Category, Array<{ keyword: string; weight: number
 /**
  * Predicts document category from OCR text
  * Uses keyword weight scoring for human-like prediction
+ * Rule-based, NO ML - ensures stability
  */
 export function predictCategory(ocrText: string): Category {
+  if (!ocrText || ocrText.trim().length === 0) {
+    return 'other'
+  }
+  
   const t = ocrText.toLowerCase()
   
-  // PRIORITY: Check for driving licence first (high confidence)
+  // PRIORITY 1: Check for driving licence first (high confidence)
   // Enhanced detection with more keywords
   const drivingLicenseKeywords = [
     'driving licence', 'driving license', 'dl no', 'dl no.', 'dl number',
@@ -91,7 +96,26 @@ export function predictCategory(ocrText: string): Category {
     return 'other' // Driving licence is "other" category
   }
   
-  // Calculate scores for each category
+  // PRIORITY 2: Check for Medicine (enhanced keywords - lower threshold)
+  const medicineKeywords = [
+    'expiry date', 'mfg', 'tablet', 'capsule', 'batch', 'vitamin', 'mg',
+    'medicine', 'medication', 'pharma', 'manufactured', 'use before', 'mfg date'
+  ]
+  const medicineScore = medicineKeywords.filter(kw => t.includes(kw)).length
+  if (medicineScore >= 2) { // Lowered from 3 to 2
+    return 'medicine'
+  }
+  
+  // PRIORITY 3: Check for Warranty
+  const warrantyKeywords = [
+    'warranty', 'purchase date', 'invoice', 'valid until', 'guarantee'
+  ]
+  const warrantyScore = warrantyKeywords.filter(kw => t.includes(kw)).length
+  if (warrantyScore >= 2) {
+    return 'warranty'
+  }
+  
+  // Calculate scores for each category using weighted keywords
   const scores: Record<Category, number> = {
     warranty: 0,
     insurance: 0,
@@ -122,13 +146,18 @@ export function predictCategory(ocrText: string): Category {
     }
   }
   
-  // Threshold: if score is too low, default to "other"
-  const threshold = 10
-  if (maxScore < threshold) {
-    return 'other'
+  // Lower threshold: if score >= 5, use it (don't default to "other" too quickly)
+  const threshold = 5
+  if (maxScore >= threshold) {
+    return predictedCategory
   }
   
-  return predictedCategory
+  // If we have some matches but below threshold, still use the category
+  if (maxScore > 0) {
+    return predictedCategory
+  }
+  
+  return 'other'
 }
 
 /**
