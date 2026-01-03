@@ -339,6 +339,36 @@ export default function AddItemModal({ isOpen, onClose, onSuccess, userPlan = 'f
         throw new Error(insertError.message || 'Failed to add item. Please try again.')
       }
 
+      // FEATURE 01: Send welcome email after successful item creation
+      // This is non-blocking - item creation already succeeded
+      // Email failure should not affect item creation
+      try {
+        const welcomeEmailResponse = await fetch('/api/items/welcome-email', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            itemName: finalTitle,
+            expiryDate: expiryDate,
+            reminderDays: reminderDays,
+          }),
+        })
+
+        // Don't throw on email failure - item creation already succeeded
+        if (!welcomeEmailResponse.ok) {
+          console.warn('[AddItemModal] Welcome email API returned error, but item was created successfully')
+        } else {
+          const emailResult = await welcomeEmailResponse.json()
+          if (emailResult.success) {
+            console.log('[AddItemModal] Welcome email queued successfully')
+          }
+        }
+      } catch (emailError: any) {
+        // Log but don't throw - item creation already succeeded
+        console.error('[AddItemModal] Failed to send welcome email (non-critical):', emailError?.message || emailError)
+      }
+
       // Insert succeeded - create a temporary object for reminder check
       // We don't fetch the item back to avoid RLS permission issues
       const insertedItem = {

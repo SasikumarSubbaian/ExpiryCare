@@ -121,12 +121,19 @@ export default function OCRFileUploadModal({
       }
 
       // Prepare item data from OCR extraction
+      // FEATURE: Use reminderDays and notes from confirmation modal
+      const reminderDaysFromData = data.reminderDays && Array.isArray(data.reminderDays) && data.reminderDays.length > 0
+        ? data.reminderDays
+        : (data.category === 'medicine' ? [30, 7, 0] : [7]) // Default based on category
+      
+      const notesFromData = data.notes || null
+
       const itemData: any = {
         user_id: user.id,
         category: data.category || 'other',
         expiry_date: data.expiryDate?.value || null,
-        reminder_days: [7], // Default reminder
-        notes: null,
+        reminder_days: reminderDaysFromData, // Use from confirmation modal
+        notes: notesFromData, // Use from confirmation modal
         document_url: null, // Will be uploaded separately if needed
         person_name: null,
       }
@@ -144,20 +151,27 @@ export default function OCRFileUploadModal({
         itemData.title = getFieldValue(data.productName) || 'Warranty'
         const companyName = getFieldValue(data.companyName)
         if (companyName) {
-          itemData.notes = `Company: ${companyName}`
+          // Append to existing notes if any, otherwise create new
+          itemData.notes = notesFromData 
+            ? `${notesFromData}\nCompany: ${companyName}`
+            : `Company: ${companyName}`
         }
       } else if (data.category === 'insurance') {
         const policyType = getFieldValue(data.policyType)
         itemData.title = policyType ? `${policyType} Insurance` : 'Insurance'
         const insurerName = getFieldValue(data.insurerName)
         if (insurerName) {
-          itemData.notes = `Insurer: ${insurerName}`
+          itemData.notes = notesFromData
+            ? `${notesFromData}\nInsurer: ${insurerName}`
+            : `Insurer: ${insurerName}`
         }
       } else if (data.category === 'amc') {
         itemData.title = getFieldValue(data.serviceType) || 'AMC'
         const providerName = getFieldValue(data.providerName)
         if (providerName) {
-          itemData.notes = `Provider: ${providerName}`
+          itemData.notes = notesFromData
+            ? `${notesFromData}\nProvider: ${providerName}`
+            : `Provider: ${providerName}`
         }
       } else if (data.category === 'subscription') {
         itemData.title = getFieldValue(data.serviceName) || 'Subscription'
@@ -167,9 +181,11 @@ export default function OCRFileUploadModal({
         itemData.person_name = 'Self' // Default for medicine
         const brandName = getFieldValue(data.brandName)
         if (brandName) {
-          itemData.notes = `Brand: ${brandName}`
+          itemData.notes = notesFromData
+            ? `${notesFromData}\nBrand: ${brandName}`
+            : `Brand: ${brandName}`
         }
-        itemData.reminder_days = [30, 7, 0] // Medicine reminders
+        // Don't override reminder_days here - use from confirmation modal
       } else {
         itemData.title = getFieldValue(data.documentType) || 'Other'
       }
@@ -207,6 +223,36 @@ export default function OCRFileUploadModal({
 
       if (insertError) {
         throw insertError
+      }
+
+      // FEATURE 01: Send welcome email after successful OCR item creation
+      // This is non-blocking - item creation already succeeded
+      // Email failure should not affect item creation
+      try {
+        const welcomeEmailResponse = await fetch('/api/items/welcome-email', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            itemName: itemData.title,
+            expiryDate: itemData.expiry_date,
+            reminderDays: itemData.reminder_days,
+          }),
+        })
+
+        // Don't throw on email failure - item creation already succeeded
+        if (!welcomeEmailResponse.ok) {
+          console.warn('[OCRFileUploadModal] Welcome email API returned error, but item was created successfully')
+        } else {
+          const emailResult = await welcomeEmailResponse.json()
+          if (emailResult.success) {
+            console.log('[OCRFileUploadModal] Welcome email queued successfully')
+          }
+        }
+      } catch (emailError: any) {
+        // Log but don't throw - item creation already succeeded
+        console.error('[OCRFileUploadModal] Failed to send welcome email (non-critical):', emailError?.message || emailError)
       }
 
       setShowOCRConfirmation(false)

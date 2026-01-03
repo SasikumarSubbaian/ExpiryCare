@@ -80,3 +80,6 @@ export async function sendExpiryReminder(
   return sendEmail({ to, subject, html, text })
 }
 
+
+
+export async function sendWelcomeEmail(to: string, itemName: string, expiryDate: string, reminderDays: number[], nextReminderDate: string) { try { const { getWelcomeEmail } = await import('./templates'); const { subject, html, text } = getWelcomeEmail(itemName, expiryDate, reminderDays, nextReminderDate); return await sendEmail({ to, subject, html, text }); } catch (error: any) { console.error('[Email] Failed to send welcome email:', error?.message || error); return null; } }

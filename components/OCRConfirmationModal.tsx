@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import type { Category } from '@/lib/ocr/categorySchemas'
 
 type FieldWithConfidence = {
@@ -67,6 +67,9 @@ export default function OCRConfirmationModal({
   const [editingField, setEditingField] = useState<string | null>(null)
   const [editValue, setEditValue] = useState('')
   const [fieldStates, setFieldStates] = useState<Record<string, FieldState>>({})
+  // FEATURE: Reminder Days and Notes for OCR flow
+  const [reminderDays, setReminderDays] = useState<number[]>([7]) // Default to 7 days
+  const [notes, setNotes] = useState('')
 
   // ✅ NEVER SELF-BLOCK: Always render modal if isOpen is true
   if (!isOpen) return null
@@ -175,8 +178,42 @@ export default function OCRConfirmationModal({
       (finalData as any).skippedFields = skippedFields
     }
     
+    // FEATURE: Add reminderDays and notes to confirmation data
+    ;(finalData as any).reminderDays = reminderDays
+    ;(finalData as any).notes = notes.trim() || null
+    
     onConfirm(finalData)
   }
+
+  // Handle reminder day toggle (same logic as AddItemModal)
+  const handleReminderDayToggle = (day: number) => {
+    setReminderDays(prev => {
+      if (prev.includes(day)) {
+        return prev.filter(d => d !== day)
+      } else {
+        return [...prev, day].sort((a, b) => b - a) // Sort descending
+      }
+    })
+  }
+
+  // Set default reminder days based on category
+  const getDefaultReminderDays = (category: string): number[] => {
+    if (category === 'medicine') {
+      return [30, 7, 0] // Medicine defaults
+    }
+    return [7] // Default for other categories
+  }
+
+  // Update reminder days when category changes
+  useEffect(() => {
+    if (extractedData?.category) {
+      const defaultDays = getDefaultReminderDays(extractedData.category)
+      // Only set default if reminderDays is empty or still at default [7]
+      if (reminderDays.length === 0 || (reminderDays.length === 1 && reminderDays[0] === 7)) {
+        setReminderDays(defaultDays)
+      }
+    }
+  }, [extractedData?.category])
 
   const getConfidenceColor = (confidence: 'High' | 'Medium' | 'Low') => {
     switch (confidence) {
@@ -606,6 +643,53 @@ export default function OCRConfirmationModal({
               )
             }
           })}
+
+          {/* FEATURE: Reminder Days and Notes Section - Show at bottom of extracted fields */}
+          <div className="mt-6 pt-6 border-t border-gray-200">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Additional Settings</h3>
+            
+            {/* Reminder Days */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Reminder Days <span className="text-red-500">*</span>
+              </label>
+              <p className="text-xs text-gray-500 mb-3">Select when you want to be reminded before expiry</p>
+              <div className="flex gap-2 flex-wrap">
+                {[7, 15, 30].map((day) => (
+                  <button
+                    key={day}
+                    type="button"
+                    onClick={() => handleReminderDayToggle(day)}
+                    className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                      reminderDays.includes(day)
+                        ? 'bg-primary-600 text-white hover:bg-primary-700'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    {day} days
+                  </button>
+                ))}
+              </div>
+              {reminderDays.length === 0 && (
+                <p className="mt-2 text-xs text-red-600">Please select at least one reminder day</p>
+              )}
+            </div>
+
+            {/* Notes */}
+            <div>
+              <label htmlFor="ocr-notes" className="block text-sm font-medium text-gray-700 mb-2">
+                Notes (optional)
+              </label>
+              <textarea
+                id="ocr-notes"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                rows={3}
+                placeholder="Additional details..."
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 resize-y"
+              />
+            </div>
+          </div>
         </div>
 
         <div className="sticky bottom-0 bg-white border-t border-gray-200 px-6 py-4 flex gap-3 justify-end">
@@ -617,6 +701,12 @@ export default function OCRConfirmationModal({
           </button>
           <button
             onClick={() => {
+              // Validate reminder days
+              if (reminderDays.length === 0) {
+                alert('Please select at least one reminder day')
+                return
+              }
+
               // LAYER 6: On Skip - mark field as skipped, DO NOT send skipped fields to backend
               const skippedFields: string[] = []
               for (const [fieldName, state] of Object.entries(fieldStates)) {
@@ -633,6 +723,10 @@ export default function OCRConfirmationModal({
               
               // Add skippedFields metadata (for backend to ignore)
               ;(dataToSend as any).skippedFields = skippedFields
+              
+              // FEATURE: Add reminderDays and notes to confirmation data
+              ;(dataToSend as any).reminderDays = reminderDays
+              ;(dataToSend as any).notes = notes.trim() || null
               
               onConfirm(dataToSend)
             }}
