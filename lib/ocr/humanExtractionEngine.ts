@@ -8,6 +8,7 @@
  */
 
 import { extractExpiryDate, type ExpiryDateResult } from './expiryExtractor'
+import { extractManufacturingDate, type ManufacturingDateResult } from './manufacturingDateExtractor'
 
 export interface ExtractedFieldData {
   value: string | null
@@ -29,6 +30,7 @@ export interface ExtractedDataResult {
     // Medicine fields
     productName?: ExtractedFieldData
     batchNumber?: ExtractedFieldData
+    manufacturingDate?: ExtractedFieldData // For Medicine category only
     
     // Warranty fields
     purchaseDate?: ExtractedFieldData
@@ -170,6 +172,34 @@ function extractMedicineFields(rawText: string): Partial<ExtractedDataResult['ex
     fields.expiryDate = {
       value: expiryResult.value, // Already in YYYY-MM-DD format
       confidence: expiryResult.confidence,
+    }
+  }
+  
+  // 🔧 STEP 6: Extract Manufacturing Date for Medicine category
+  const mfgResult = extractManufacturingDate(rawText)
+  if (mfgResult.value) {
+    fields.manufacturingDate = {
+      value: mfgResult.value, // Already in YYYY-MM-DD format
+      confidence: mfgResult.confidence,
+    }
+    
+    // Validate: Manufacturing date should be before expiry date
+    if (fields.expiryDate?.value && fields.manufacturingDate.value) {
+      const mfgDate = new Date(fields.manufacturingDate.value)
+      const expDate = new Date(fields.expiryDate.value)
+      if (mfgDate >= expDate) {
+        // If MFG date is not before expiry date, downgrade confidence
+        fields.manufacturingDate.confidence = 'Low'
+        if (process.env.NODE_ENV === 'development') {
+          console.warn('[MedicineExtractor] Manufacturing date is not before expiry date')
+        }
+      }
+    }
+  } else {
+    // Add empty manufacturing date field even if not found
+    fields.manufacturingDate = {
+      value: null,
+      confidence: 'Low',
     }
   }
   

@@ -400,9 +400,13 @@ export async function POST(request: NextRequest) {
       if (humanExtracted.extractedData.dateOfIssue) {
         extractedData.dateOfIssue = humanExtracted.extractedData.dateOfIssue
       }
-      if (humanExtracted.extractedData.productName) {
-        extractedData.productName = humanExtracted.extractedData.productName
-      }
+            if (humanExtracted.extractedData.productName) {
+              extractedData.productName = humanExtracted.extractedData.productName
+            }
+            // 🔧 Add manufacturing date for medicine category
+            if (humanExtracted.extractedData.manufacturingDate) {
+              extractedData.manufacturingDate = humanExtracted.extractedData.manufacturingDate
+            }
       if (humanExtracted.extractedData.batchNumber) {
         extractedData.batchNumber = humanExtracted.extractedData.batchNumber
       }
@@ -593,6 +597,8 @@ export async function POST(request: NextRequest) {
       planType: mapConfidence(extractedData.planType),
       medicineName: mapConfidence(extractedData.medicineName),
       brandName: mapConfidence(extractedData.brandName),
+      // 🔧 Add manufacturing date for medicine category
+      manufacturingDate: mapConfidence(extractedData.manufacturingDate),
       documentType: mapConfidence(extractedData.documentType),
       // 🔧 CRITICAL: Use extractedData fields first (from human extraction), then fallback to ocrResultFields
       documentName: extractedData.documentName ? mapConfidence(extractedData.documentName) : 

@@ -187,9 +187,11 @@ function parseDate(dateStr: string): { day: number | null; month: number | null;
 
 /**
  * Checks if date is likely DOB, Issue Date, or MFG Date (not expiry)
+ * 🔧 CRITICAL: Also check if date is near MFG keywords (should not be treated as expiry)
  */
 function isLikelyNotExpiry(dateStr: string, context: string): boolean {
   const lowerContext = context.toLowerCase()
+  const upperContext = context.toUpperCase()
 
   // Check for DOB indicators
   const dobKeywords = ['dob', 'date of birth', 'born', 'birth date']
@@ -203,10 +205,20 @@ function isLikelyNotExpiry(dateStr: string, context: string): boolean {
     return true
   }
 
-  // Check for MFG date indicators
-  const mfgKeywords = ['mfg', 'manufacturing', 'manufactured', 'production date']
-  if (mfgKeywords.some((kw) => lowerContext.includes(kw))) {
-    return true
+  // 🔧 CRITICAL FIX: Check for MFG date indicators - exclude these from expiry
+  // Check if date is near MFG keywords (within 50 characters)
+  const mfgKeywords = ['mfg', 'mfd', 'manufacturing', 'manufactured', 'production date', 'mfg date', 'mfg dt', 'mfg.']
+  const dateIndex = context.indexOf(dateStr)
+  for (const keyword of mfgKeywords) {
+    const keywordUpper = keyword.toUpperCase()
+    const keywordIndex = upperContext.indexOf(keywordUpper)
+    if (keywordIndex !== -1) {
+      const distance = Math.abs(dateIndex - keywordIndex)
+      // If date is within 50 chars of MFG keyword, it's likely a manufacturing date
+      if (distance < 50) {
+        return true
+      }
+    }
   }
 
   // Check if date is too old (likely DOB or issue date)
@@ -308,17 +320,20 @@ export function extractExpiryDate(ocrText: string): ExpiryDateResult {
 
   // 🔧 CRITICAL FIX: Pattern for "MM/YY EXP" or "MM-YY EXP" format (e.g., "08/25 EXP")
   // This is common on product packaging
+  // PRIORITY: Check for EXP dates FIRST before MFG dates
   const expPatterns = [
-    // Pattern 1: "08/25 EXP" or "08-25 EXP" (same line)
+    // Pattern 1: "07/27 EXP" or "07-27 EXP" (same line) - HIGHEST PRIORITY
     /(\d{1,2})[-\/](\d{2})\s+EXP/i,
-    // Pattern 2: "EXP 08/25" or "EXP 08-25"
+    // Pattern 2: "EXP 07/27" or "EXP 07-27"
     /EXP\s+(\d{1,2})[-\/](\d{2})/i,
-    // Pattern 3: "08/25 EXP" with optional colon or other separators
+    // Pattern 3: "07/27 EXP" with optional colon or other separators
     /(\d{1,2})[-\/](\d{2})\s*[:\-]?\s*EXP/i,
     // Pattern 4: Multiline - "EXP" on one line, date on next
     /EXP[:\-]?\s*\n\s*(\d{1,2})[-\/](\d{2})/im,
     // Pattern 5: Date before "EXP" within 20 chars
     /(\d{1,2})[-\/](\d{2})[\s\S]{0,20}?EXP/i,
+    // Pattern 6: "EXP DATE: 07/27" or "EXP DT: 07-27"
+    /EXP\s+(?:DATE|DT)\s*[:\-]?\s*(\d{1,2})[-\/](\d{2})/i,
   ]
 
   for (const pattern of expPatterns) {

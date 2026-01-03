@@ -351,6 +351,7 @@ export default function OCRConfirmationModal({
     ],
     medicine: [
       { key: 'productName', required: true },
+      { key: 'manufacturingDate', required: false },
       { key: 'expiryDate', required: true },
       { key: 'batchNumber', required: false },
     ],
@@ -448,7 +449,26 @@ export default function OCRConfirmationModal({
       
       // LAYER 6: ALWAYS render input even if value is empty
       // Format label from field key
-      const label = fieldKey
+      // 🔧 FIX: Custom label mapping for better UX
+      const labelMap: Record<string, string> = {
+        productName: 'Product Name',
+        manufacturingDate: 'Manufacturing Date',
+        expiryDate: 'Expiry Date',
+        batchNumber: 'Batch Number',
+        purchaseDate: 'Purchase Date',
+        documentName: 'Document Name',
+        licenseNumber: 'License Number',
+        holderName: 'Holder Name',
+        dateOfBirth: 'Date of Birth',
+        dateOfIssue: 'Date of Issue',
+        policyNumber: 'Policy Number',
+        provider: 'Provider',
+        serviceName: 'Service Name',
+        planType: 'Plan Type',
+        serviceType: 'Service Type',
+        providerName: 'Provider Name',
+      }
+      const label = labelMap[fieldKey] || fieldKey
         .replace(/([A-Z])/g, ' $1')
         .replace(/^./, str => str.toUpperCase())
         .trim()
