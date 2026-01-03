@@ -329,20 +329,33 @@ export async function POST(request: NextRequest) {
     const visionService = getGoogleVisionService()
     let ocrText: string = ''
     let hasText: boolean = false
+    let visionAvailable: boolean = false
+    let visionError: string | null = null
     
     if (visionService.isAvailable()) {
+      visionAvailable = true
       try {
         ocrText = await visionService.extractText(imageBuffer)
         hasText = Boolean(ocrText && ocrText.trim().length > 0)
+        
+        // 🔧 PRODUCTION DEBUG: Log OCR text length (safe - no sensitive data)
+        if (process.env.NODE_ENV === 'production') {
+          console.log('[OCR] Google Vision extracted text length:', ocrText.length, 'hasText:', hasText)
+        }
       } catch (ocrError: unknown) {
-        const errorMessage = ocrError instanceof Error ? ocrError.message : String(ocrError)
-        console.error('[OCR] OCR extraction error:', errorMessage)
+        visionError = ocrError instanceof Error ? ocrError.message : String(ocrError)
+        console.error('[OCR] OCR extraction error:', visionError)
         // Continue with empty text - will return structured response with empty fields
         ocrText = ''
         hasText = false
       }
     } else {
-      console.error('[OCR] Google Vision service not available')
+      // 🔧 PRODUCTION DEBUG: Log why Google Vision is not available
+      if (process.env.NODE_ENV === 'production') {
+        console.error('[OCR] Google Vision service not available - check credentials')
+      } else {
+        console.error('[OCR] Google Vision service not available')
+      }
       // Continue with empty text - will return structured response
       ocrText = ''
       hasText = false
@@ -363,10 +376,24 @@ export async function POST(request: NextRequest) {
     let ocrResultFields: Record<string, any> = {}
     
     try {
-      if (hasText) {
+      // 🔧 CRITICAL FIX: Always run human extraction if we have ANY text (even minimal)
+      // This ensures extraction works even if Google Vision returns partial text
+      if (normalizedText && normalizedText.trim().length > 0) {
         // 🔧 LAYER 2: ADD A REAL EXTRACTION ENGINE (CRITICAL)
         // Google Vision ≠ Human reader - YOU must read like a human
         const humanExtracted = extractDataFromRawText(normalizedText)
+        
+        // 🔧 PRODUCTION DEBUG: Log extraction results (safe - no sensitive data)
+        if (process.env.NODE_ENV === 'production') {
+          console.log('[OCR] Human extraction completed:', {
+            category: humanExtracted.category,
+            fieldsFound: Object.keys(humanExtracted.extractedData).length,
+            hasExpiry: !!humanExtracted.extractedData.expiryDate?.value,
+            hasProductName: !!humanExtracted.extractedData.productName?.value,
+            hasManufacturingDate: !!humanExtracted.extractedData.manufacturingDate?.value,
+            hasBatchNumber: !!humanExtracted.extractedData.batchNumber?.value,
+          })
+        }
         
         // Map human extraction category to API category
         // License is stored as "other" with license fields
@@ -535,10 +562,75 @@ export async function POST(request: NextRequest) {
         }
       } else {
         // No text found - return structured response with empty fields
-        category = userSelectedCategory as Category || 'other'
-        confidence = 0.3 // Low confidence for empty text
-        extractedData = {
-          expiryDate: { value: null, confidence: 'Low' as const, sourceKeyword: null },
+        // 🔧 CRITICAL: Still try to extract from normalizedText even if hasText is false
+        // This handles cases where Google Vision returns text but hasText check failed
+        if (normalizedText && normalizedText.trim().length > 0) {
+          // Try extraction one more time with normalizedText
+          const humanExtracted = extractDataFromRawText(normalizedText)
+          const humanCategory = humanExtracted.category
+          category = (humanCategory === 'license' ? 'other' : humanCategory) as Category
+          confidence = 0.6 // Medium confidence since we have some text
+          extractedData = {
+            category,
+            categoryConfidence: 'Medium' as const,
+            categoryConfidencePercentage: 60,
+            expiryDate: humanExtracted.extractedData.expiryDate || { value: null, confidence: 'Low' as const, sourceKeyword: null },
+          }
+          
+          // Map all extracted fields to extractedData
+          if (humanExtracted.extractedData.productName) {
+            extractedData.productName = humanExtracted.extractedData.productName
+          }
+          if (humanExtracted.extractedData.manufacturingDate) {
+            extractedData.manufacturingDate = humanExtracted.extractedData.manufacturingDate
+          }
+          if (humanExtracted.extractedData.batchNumber) {
+            extractedData.batchNumber = humanExtracted.extractedData.batchNumber
+          }
+          if (humanExtracted.extractedData.expiryDate) {
+            extractedData.expiryDate = humanExtracted.extractedData.expiryDate
+          }
+          
+          // 🔧 CRITICAL: Also populate ocrResultFields for UI (extractedFields)
+          // This ensures the confirmation modal receives the extracted data
+          if (humanExtracted.extractedData.productName) {
+            ocrResultFields.productName = {
+              value: humanExtracted.extractedData.productName.value || '',
+              confidence: humanExtracted.extractedData.productName.confidence === 'High' ? 90 : 
+                         humanExtracted.extractedData.productName.confidence === 'Medium' ? 60 : 30,
+            }
+          }
+          if (humanExtracted.extractedData.manufacturingDate) {
+            ocrResultFields.manufacturingDate = {
+              value: humanExtracted.extractedData.manufacturingDate.value || '',
+              confidence: humanExtracted.extractedData.manufacturingDate.confidence === 'High' ? 90 : 
+                         humanExtracted.extractedData.manufacturingDate.confidence === 'Medium' ? 60 : 30,
+            }
+          }
+          if (humanExtracted.extractedData.batchNumber) {
+            ocrResultFields.batchNumber = {
+              value: humanExtracted.extractedData.batchNumber.value || '',
+              confidence: humanExtracted.extractedData.batchNumber.confidence === 'High' ? 90 : 
+                         humanExtracted.extractedData.batchNumber.confidence === 'Medium' ? 60 : 30,
+            }
+          }
+          if (humanExtracted.extractedData.expiryDate) {
+            ocrResultFields.expiryDate = {
+              value: humanExtracted.extractedData.expiryDate.value || '',
+              confidence: humanExtracted.extractedData.expiryDate.confidence === 'High' ? 90 : 
+                         humanExtracted.extractedData.expiryDate.confidence === 'Medium' ? 60 : 30,
+            }
+          }
+        } else {
+          // Truly no text - return structured response with empty fields
+          category = userSelectedCategory as Category || 'other'
+          confidence = 0.3 // Low confidence for empty text
+          extractedData = {
+            category: 'other',
+            categoryConfidence: 'Low' as const,
+            categoryConfidencePercentage: 30,
+            expiryDate: { value: null, confidence: 'Low' as const, sourceKeyword: null },
+          }
         }
       }
     } catch (extractionError: unknown) {
@@ -576,13 +668,17 @@ export async function POST(request: NextRequest) {
     
     // ocrResultFields is already initialized above before human extraction
     // Merge pipeline processor fields if not already set by human extraction
+    // 🔧 CRITICAL FIX: Check normalizedText instead of hasText to ensure extraction runs
     try {
-      if (hasText && Object.keys(ocrResultFields).length === 0) {
+      if (normalizedText && normalizedText.trim().length > 0 && Object.keys(ocrResultFields).length === 0) {
         const ocrResult = processOCRText(normalizedText, userSelectedCategory)
         ocrResultFields = ocrResult.fields || {}
       }
     } catch (e) {
       // Fallback - continue with human extraction only
+      if (process.env.NODE_ENV === 'production') {
+        console.error('[OCR] Pipeline processor error:', e instanceof Error ? e.message : String(e))
+      }
     }
     
     // Build legacy format result
