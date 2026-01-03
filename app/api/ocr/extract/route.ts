@@ -468,6 +468,14 @@ export async function POST(request: NextRequest) {
                      humanExtracted.extractedData.batchNumber.confidence === 'Medium' ? 60 : 30,
         }
       }
+      // 🔧 Add manufacturing date to ocrResultFields for medicine category
+      if (humanExtracted.extractedData.manufacturingDate) {
+        ocrResultFields.manufacturingDate = {
+          value: humanExtracted.extractedData.manufacturingDate.value || '',
+          confidence: humanExtracted.extractedData.manufacturingDate.confidence === 'High' ? 90 : 
+                     humanExtracted.extractedData.manufacturingDate.confidence === 'Medium' ? 60 : 30,
+        }
+      }
       if (humanExtracted.extractedData.purchaseDate) {
         ocrResultFields.purchaseDate = {
           value: humanExtracted.extractedData.purchaseDate.value || '',
@@ -597,8 +605,20 @@ export async function POST(request: NextRequest) {
       planType: mapConfidence(extractedData.planType),
       medicineName: mapConfidence(extractedData.medicineName),
       brandName: mapConfidence(extractedData.brandName),
-      // 🔧 Add manufacturing date for medicine category
-      manufacturingDate: mapConfidence(extractedData.manufacturingDate),
+      // 🔧 Add manufacturing date for medicine category - use extractedData first, then ocrResultFields
+      manufacturingDate: extractedData.manufacturingDate ? mapConfidence(extractedData.manufacturingDate) :
+        (ocrResultFields.manufacturingDate ? {
+          value: ocrResultFields.manufacturingDate.value || '',
+          confidence: (typeof ocrResultFields.manufacturingDate.confidence === 'number' && ocrResultFields.manufacturingDate.confidence >= 70) ? 'High' : 
+                     (typeof ocrResultFields.manufacturingDate.confidence === 'number' && ocrResultFields.manufacturingDate.confidence >= 40) ? 'Medium' : 'Low',
+        } : mapConfidence(null)),
+      // 🔧 Add batch number - use extractedData first, then ocrResultFields
+      batchNumber: extractedData.batchNumber ? mapConfidence(extractedData.batchNumber) :
+        (ocrResultFields.batchNumber ? {
+          value: ocrResultFields.batchNumber.value || '',
+          confidence: (typeof ocrResultFields.batchNumber.confidence === 'number' && ocrResultFields.batchNumber.confidence >= 70) ? 'High' : 
+                     (typeof ocrResultFields.batchNumber.confidence === 'number' && ocrResultFields.batchNumber.confidence >= 40) ? 'Medium' : 'Low',
+        } : mapConfidence(null)),
       documentType: mapConfidence(extractedData.documentType),
       // 🔧 CRITICAL: Use extractedData fields first (from human extraction), then fallback to ocrResultFields
       documentName: extractedData.documentName ? mapConfidence(extractedData.documentName) : 

@@ -64,7 +64,10 @@ export default function OCRFileUploadModal({
 
       const result = await response.json()
 
-      console.log('OCR RESULT:', result)
+      // Only log in development
+      if (process.env.NODE_ENV === 'development') {
+        console.log('OCR RESULT:', result)
+      }
 
       // STEP 1: Force OCR normalization - create normalizedOCR object
       // NEVER trust text or rawText alone - use extractedData as first-class source

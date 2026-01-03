@@ -318,42 +318,129 @@ export function extractExpiryDate(ocrText: string): ExpiryDateResult {
     }
   }
 
-  // 🔧 CRITICAL FIX: Pattern for "MM/YY EXP" or "MM-YY EXP" format (e.g., "08/25 EXP")
-  // This is common on product packaging
-  // PRIORITY: Check for EXP dates FIRST before MFG dates
+  // 🔧 CRITICAL FIX: Pattern for EXP dates - handle "08/25 EXP" followed by "07/27" (expiry on next line)
+  // REAL-WORLD: Many packages show "MM/YY EXP" (MFG date) on one line, then expiry date "MM/YY" on next line
+  // We need to find the date AFTER "EXP" keyword, not the date before it
+  
+  // Strategy 1: Look for dates that appear AFTER "EXP" keyword (on same line or next line)
+  // Pattern: "08/25 EXP\n07/27" - the expiry is "07/27" (after EXP), not "08/25" (before EXP)
+  const expAfterPattern = /EXP\s*\n\s*(\d{1,2})[-\/](\d{2})(?!\s*EXP)/im
+  const expAfterMatch = ocrText.match(expAfterPattern)
+  if (expAfterMatch && expAfterMatch[1] && expAfterMatch[2]) {
+    const month = parseInt(expAfterMatch[1], 10)
+    let year2Digit = parseInt(expAfterMatch[2], 10)
+    const year = year2Digit < 50 ? 2000 + year2Digit : 1900 + year2Digit
+    if (month >= 1 && month <= 12 && year >= 2000 && year <= 2100) {
+      const normalized = normalizeDate(null, month, year)
+      if (normalized) {
+        if (process.env.NODE_ENV === 'development') {
+          console.log('[ExpiryExtractor] Found EXP date on next line:', `${month}/${year2Digit}`, '->', normalized)
+        }
+        return {
+          value: normalized,
+          confidence: 'High',
+          sourceKeyword: 'exp',
+          rawValue: `${month}/${year2Digit}`,
+        }
+      }
+    }
+  }
+  
+  // Strategy 2: Look for "EXP.Dt.11/2027" format (with dots and Dt, 4-digit year)
+  // 🔧 CRITICAL: Handle "EXP.Dt.11/2027" format - HIGHEST PRIORITY for this format
+  const expDtPattern = /EXP\.?\s*DT\.?\s*(\d{1,2})[-\/](\d{4})/i
+  const expDtMatch = ocrText.match(expDtPattern)
+  if (expDtMatch && expDtMatch[1] && expDtMatch[2]) {
+    const month = parseInt(expDtMatch[1], 10)
+    const year = parseInt(expDtMatch[2], 10)
+    if (month >= 1 && month <= 12 && year >= 2000 && year <= 2100) {
+      const normalized = normalizeDate(null, month, year)
+      if (normalized) {
+        if (process.env.NODE_ENV === 'development') {
+          console.log('[ExpiryExtractor] Found EXP.Dt format (4-digit year):', `${month}/${year}`, '->', normalized)
+        }
+        return {
+          value: normalized,
+          confidence: 'High',
+          sourceKeyword: 'exp',
+          rawValue: `${month}/${year}`,
+        }
+      }
+    }
+  }
+  
+  // Strategy 2.5: Look for "EXP.Dt.11/27" format (with dots and Dt, 2-digit year)
+  const expDt2DigitPattern = /EXP\.?\s*DT\.?\s*(\d{1,2})[-\/](\d{2})/i
+  const expDt2DigitMatch = ocrText.match(expDt2DigitPattern)
+  if (expDt2DigitMatch && expDt2DigitMatch[1] && expDt2DigitMatch[2]) {
+    const month = parseInt(expDt2DigitMatch[1], 10)
+    let year2Digit = parseInt(expDt2DigitMatch[2], 10)
+    const year = year2Digit < 50 ? 2000 + year2Digit : 1900 + year2Digit
+    if (month >= 1 && month <= 12 && year >= 2000 && year <= 2100) {
+      const normalized = normalizeDate(null, month, year)
+      if (normalized) {
+        if (process.env.NODE_ENV === 'development') {
+          console.log('[ExpiryExtractor] Found EXP.Dt format (2-digit year):', `${month}/${year2Digit}`, '->', normalized)
+        }
+        return {
+          value: normalized,
+          confidence: 'High',
+          sourceKeyword: 'exp',
+          rawValue: `${month}/${year2Digit}`,
+        }
+      }
+    }
+  }
+  
+  // Strategy 3: Look for "EXP" followed by date within 50 chars (handles same line or nearby)
+  const expNearPattern = /EXP[\s\S]{0,50}?(\d{1,2})[-\/](\d{2})(?![\s\S]{0,20}?EXP)/i
+  const expNearMatch = ocrText.match(expNearPattern)
+  if (expNearMatch && expNearMatch[1] && expNearMatch[2]) {
+    const month = parseInt(expNearMatch[1], 10)
+    let year2Digit = parseInt(expNearMatch[2], 10)
+    const year = year2Digit < 50 ? 2000 + year2Digit : 1900 + year2Digit
+    if (month >= 1 && month <= 12 && year >= 2000 && year <= 2100) {
+      const normalized = normalizeDate(null, month, year)
+      if (normalized) {
+        if (process.env.NODE_ENV === 'development') {
+          console.log('[ExpiryExtractor] Found EXP date nearby:', `${month}/${year2Digit}`, '->', normalized)
+        }
+        return {
+          value: normalized,
+          confidence: 'High',
+          sourceKeyword: 'exp',
+          rawValue: `${month}/${year2Digit}`,
+        }
+      }
+    }
+  }
+  
+  // Strategy 3: Traditional patterns (date before EXP) - but exclude if we see "MM/YY EXP" pattern
+  // Only use if no "EXP" keyword appears after the date
   const expPatterns = [
-    // Pattern 1: "07/27 EXP" or "07-27 EXP" (same line) - HIGHEST PRIORITY
-    /(\d{1,2})[-\/](\d{2})\s+EXP/i,
-    // Pattern 2: "EXP 07/27" or "EXP 07-27"
+    // Pattern 1: "07/27 EXP" or "07-27 EXP" (same line, EXP after date)
+    /(\d{1,2})[-\/](\d{2})\s+EXP(?![\s\S]{0,30}?\d{1,2}[-\/]\d{2})/i,
+    // Pattern 2: "EXP 07/27" or "EXP 07-27" (EXP before date)
     /EXP\s+(\d{1,2})[-\/](\d{2})/i,
-    // Pattern 3: "07/27 EXP" with optional colon or other separators
-    /(\d{1,2})[-\/](\d{2})\s*[:\-]?\s*EXP/i,
-    // Pattern 4: Multiline - "EXP" on one line, date on next
-    /EXP[:\-]?\s*\n\s*(\d{1,2})[-\/](\d{2})/im,
-    // Pattern 5: Date before "EXP" within 20 chars
-    /(\d{1,2})[-\/](\d{2})[\s\S]{0,20}?EXP/i,
-    // Pattern 6: "EXP DATE: 07/27" or "EXP DT: 07-27"
+    // Pattern 3: "EXP DATE: 07/27" or "EXP DT: 07-27"
     /EXP\s+(?:DATE|DT)\s*[:\-]?\s*(\d{1,2})[-\/](\d{2})/i,
   ]
 
   for (const pattern of expPatterns) {
     const match = ocrText.match(pattern)
     if (match) {
-      // Extract month and year from match
       let month: number, year: number
       if (match[1] && match[2]) {
         month = parseInt(match[1], 10)
         let year2Digit = parseInt(match[2], 10)
-        // Convert 2-digit year: 00-50 = 2000-2050, 51-99 = 1951-1999
         year = year2Digit < 50 ? 2000 + year2Digit : 1900 + year2Digit
       } else {
         continue
       }
 
       if (month >= 1 && month <= 12 && year >= 2000 && year <= 2100) {
-        const normalized = normalizeDate(null, month, year) // Month-only, use last day of month
+        const normalized = normalizeDate(null, month, year)
         if (normalized) {
-          // Log for debugging (only in development)
           if (process.env.NODE_ENV === 'development') {
             console.log('[ExpiryExtractor] Found EXP format:', `${month}/${year % 100}`, '->', normalized)
           }
@@ -371,10 +458,11 @@ export function extractExpiryDate(ocrText: string): ExpiryDateResult {
   // 🔧 CRITICAL: Search for expiry keywords with nearby dates
   // This includes "Valid Till", "Valid Until", "Expiry Date", etc.
   // 🔧 ENHANCED: Prioritize "Valid Till" and "Valid Until" for better matching
+  // 🔧 CRITICAL: EXCLUDE "exp" and "exp dt" from keyword search since we already handled EXP patterns above
   const prioritizedKeywords = [
     'valid till',
     'valid until',
-    ...expiryKeywords.filter(k => k !== 'valid till' && k !== 'valid until')
+    ...expiryKeywords.filter(k => k !== 'valid till' && k !== 'valid until' && k !== 'exp' && k !== 'exp dt')
   ]
   
   for (const keyword of prioritizedKeywords) {

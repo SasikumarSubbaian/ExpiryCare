@@ -342,7 +342,13 @@ export default function OCRConfirmationModal({
 
   // LAYER 5: Dynamic fields based on category (NO HARD CODING)
   const CATEGORY_FIELDS: Record<string, Array<{ key: string; required: boolean }>> = {
-    other: [ // License fields (other category with license detection)
+    other: [ // Generic fields for other category (when no product name detected)
+      { key: 'field1', required: false },
+      { key: 'field2', required: false },
+      { key: 'field3', required: false },
+      { key: 'expiryDate', required: true },
+    ],
+    other_license: [ // License fields (other category with license detection)
       { key: 'documentName', required: true },
       { key: 'licenseNumber', required: true },
       { key: 'holderName', required: false },
@@ -383,35 +389,41 @@ export default function OCRConfirmationModal({
     let category = extractedData.category || 'other'
     
     // Re-evaluate category based on extractedData keys
+    let categoryForFields = category
     if (category === 'other') {
       const data = extractedData as any // Type assertion for dynamic properties
       const hasLicenseNumber = data.licenseNumber?.value || data.dlNumber?.value
       const hasDateOfBirth = data.dateOfBirth?.value || data.dob?.value
       const hasDateOfIssue = data.dateOfIssue?.value || data.issueDate?.value
+      const hasProductName = data.productName?.value || data.medicineName?.value
       
       if (hasLicenseNumber || (hasDateOfBirth && hasDateOfIssue)) {
-        // Keep as "other" but use license fields
-        category = 'other'
-      } else {
+        // Has license fields - use license-specific fields
+        categoryForFields = 'other_license'
+      } else if (hasProductName) {
+        // Has product name - re-evaluate category based on product
         const hasExpiryDate = extractedData.expiryDate?.value
-        const hasProductName = data.productName?.value || data.medicineName?.value
         const hasBatchNumber = data.batchNumber?.value
         
         if (hasExpiryDate && hasProductName) {
           if (hasBatchNumber || data.medicineName?.value) {
-            category = 'medicine'
+            categoryForFields = 'medicine'
           } else if (data.purchaseDate?.value) {
-            category = 'warranty'
+            categoryForFields = 'warranty'
           } else {
-            category = 'medicine' // Default to medicine if has product name and expiry
+            categoryForFields = 'medicine' // Default to medicine if has product name and expiry
           }
         } else if (hasExpiryDate && data.purchaseDate?.value) {
-          category = 'warranty'
+          categoryForFields = 'warranty'
         }
+        // If product name exists but doesn't match other categories, keep as "other" with generic fields
+      } else {
+        // No product name, no license fields - use generic fields (Field 1, Field 2, Field 3)
+        categoryForFields = 'other'
       }
     }
     
-    const categoryLower = category.toLowerCase()
+    const categoryLower = categoryForFields.toLowerCase()
     const fields: Array<{ label: string; fieldName: string; fieldData: any; isRequired: boolean }> = []
     const seenFields = new Set<string>() // Track seen fields to prevent duplicates
 
@@ -467,6 +479,9 @@ export default function OCRConfirmationModal({
         planType: 'Plan Type',
         serviceType: 'Service Type',
         providerName: 'Provider Name',
+        field1: 'Field 1',
+        field2: 'Field 2',
+        field3: 'Field 3',
       }
       const label = labelMap[fieldKey] || fieldKey
         .replace(/([A-Z])/g, ' $1')
