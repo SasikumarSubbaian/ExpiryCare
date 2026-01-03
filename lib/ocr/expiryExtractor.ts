@@ -51,6 +51,8 @@ const datePatterns = [
   /([A-Z]{3})\s+(\d{4})/g,
   // MM/YYYY or MM-YYYY
   /(\d{1,2})[-\/](\d{4})/g,
+  // 🔧 CRITICAL FIX: MM/YY or MM-YY (e.g., 08/25, 12/26) - 2-digit year
+  /(\d{1,2})[-\/](\d{2})(?!\d)/g,
   // YYYY only
   /(\d{4})/g,
 ]
@@ -153,6 +155,20 @@ function parseDate(dateStr: string): { day: number | null; month: number | null;
     const month = parseInt(mmYYYY[1], 10)
     const year = parseInt(mmYYYY[2], 10)
     if (month >= 1 && month <= 12) {
+      return { day: null, month, year }
+    }
+  }
+
+  // 🔧 CRITICAL FIX: Try MM/YY or MM-YY (2-digit year, e.g., 08/25 = August 2025)
+  const mmYY = cleanDateStr.match(/^(\d{1,2})[-\/](\d{2})$/)
+  if (mmYY) {
+    const month = parseInt(mmYY[1], 10)
+    let year = parseInt(mmYY[2], 10)
+    // Convert 2-digit year: 00-50 = 2000-2050, 51-99 = 1951-1999
+    if (year < 100) {
+      year = year < 50 ? 2000 + year : 1900 + year
+    }
+    if (month >= 1 && month <= 12 && year >= 2000 && year <= 2100) {
       return { day: null, month, year }
     }
   }
@@ -290,6 +306,53 @@ export function extractExpiryDate(ocrText: string): ExpiryDateResult {
     }
   }
 
+  // 🔧 CRITICAL FIX: Pattern for "MM/YY EXP" or "MM-YY EXP" format (e.g., "08/25 EXP")
+  // This is common on product packaging
+  const expPatterns = [
+    // Pattern 1: "08/25 EXP" or "08-25 EXP" (same line)
+    /(\d{1,2})[-\/](\d{2})\s+EXP/i,
+    // Pattern 2: "EXP 08/25" or "EXP 08-25"
+    /EXP\s+(\d{1,2})[-\/](\d{2})/i,
+    // Pattern 3: "08/25 EXP" with optional colon or other separators
+    /(\d{1,2})[-\/](\d{2})\s*[:\-]?\s*EXP/i,
+    // Pattern 4: Multiline - "EXP" on one line, date on next
+    /EXP[:\-]?\s*\n\s*(\d{1,2})[-\/](\d{2})/im,
+    // Pattern 5: Date before "EXP" within 20 chars
+    /(\d{1,2})[-\/](\d{2})[\s\S]{0,20}?EXP/i,
+  ]
+
+  for (const pattern of expPatterns) {
+    const match = ocrText.match(pattern)
+    if (match) {
+      // Extract month and year from match
+      let month: number, year: number
+      if (match[1] && match[2]) {
+        month = parseInt(match[1], 10)
+        let year2Digit = parseInt(match[2], 10)
+        // Convert 2-digit year: 00-50 = 2000-2050, 51-99 = 1951-1999
+        year = year2Digit < 50 ? 2000 + year2Digit : 1900 + year2Digit
+      } else {
+        continue
+      }
+
+      if (month >= 1 && month <= 12 && year >= 2000 && year <= 2100) {
+        const normalized = normalizeDate(null, month, year) // Month-only, use last day of month
+        if (normalized) {
+          // Log for debugging (only in development)
+          if (process.env.NODE_ENV === 'development') {
+            console.log('[ExpiryExtractor] Found EXP format:', `${month}/${year % 100}`, '->', normalized)
+          }
+          return {
+            value: normalized,
+            confidence: 'High',
+            sourceKeyword: 'exp',
+            rawValue: `${month}/${year % 100}`,
+          }
+        }
+      }
+    }
+  }
+
   // 🔧 CRITICAL: Search for expiry keywords with nearby dates
   // This includes "Valid Till", "Valid Until", "Expiry Date", etc.
   // 🔧 ENHANCED: Prioritize "Valid Till" and "Valid Until" for better matching
@@ -321,7 +384,21 @@ export function extractExpiryDate(ocrText: string): ExpiryDateResult {
     for (const pattern of datePatterns) {
       const matches = Array.from(context.matchAll(pattern))
       for (const match of matches) {
-        const dateStr = match[0].trim()
+        let dateStr = match[0].trim()
+        
+        // 🔧 CRITICAL FIX: Handle MM/YY format from datePatterns
+        // If pattern matched MM/YY (2-digit year), we need to convert it
+        if (match.length >= 3 && match[2] && match[2].length === 2 && !match[3]) {
+          // This is MM/YY format - convert to full year
+          const month = parseInt(match[1], 10)
+          let year2Digit = parseInt(match[2], 10)
+          if (month >= 1 && month <= 12) {
+            const year = year2Digit < 50 ? 2000 + year2Digit : 1900 + year2Digit
+            if (year >= 2000 && year <= 2100) {
+              dateStr = `${month}/${year2Digit}` // Keep original format for parsing
+            }
+          }
+        }
 
         // Skip if likely not expiry date
         if (isLikelyNotExpiry(dateStr, context)) {

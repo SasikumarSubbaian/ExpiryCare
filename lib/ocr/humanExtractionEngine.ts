@@ -202,6 +202,33 @@ function extractMedicineFields(rawText: string): Partial<ExtractedDataResult['ex
     }
   }
   
+  // Strategy 1.5: Look for product names with common product keywords (Wipes, etc.)
+  if (!productName) {
+    for (const line of lines.slice(0, 10)) {
+      const upperLine = line.toUpperCase()
+      // Look for product type keywords
+      if (upperLine.includes('WIPES') || upperLine.includes('WIPE')) {
+        // Try to get the full product name - look for word before "Wipes"
+        const wipesMatch = line.match(/([A-Za-z][A-Za-z0-9\s]{2,40}?)\s*(?:WIPES|WIPE)/i)
+        if (wipesMatch && wipesMatch[1]) {
+          const candidate = line.trim()
+          if (candidate.length >= 5 && candidate.length <= 100) {
+            productName = candidate
+            confidence = 'High'
+            break
+          }
+        } else {
+          // If line contains "Wipes", use the whole line
+          if (line.length >= 5 && line.length <= 100) {
+            productName = line.trim()
+            confidence = 'High'
+            break
+          }
+        }
+      }
+    }
+  }
+  
   // Strategy 2: Look for product-like patterns (word + number, e.g., "Medicine 250", "Vitamin C 500")
   if (!productName) {
     for (const line of lines) {
@@ -220,18 +247,20 @@ function extractMedicineFields(rawText: string): Partial<ExtractedDataResult['ex
     }
   }
   
-  // Strategy 3: Look for lines that look like product names (2-60 chars, mostly letters/numbers)
+  // Strategy 3: Look for lines that look like product names (5-100 chars, mostly letters/numbers)
   if (!productName) {
     for (const line of lines.slice(0, 8)) { // First 8 lines
       const trimmed = line.trim()
       const upperLine = trimmed.toUpperCase()
       
       // Skip if it's a date, batch, or instruction line
+      // 🔧 FIX: Allow longer product names (up to 100 chars) and check if it looks like a product name
       if (trimmed.length >= 5 && trimmed.length <= 100 &&
-          !upperLine.match(/^(EXPIRY|DATE|BATCH|MFG|USE|BEST|BEFORE|VALID|TILL|UNTIL|STORE|MANUFACTURING|CHEWABLE|TABLET|TABLETS|CAPSULE|CAPSULES)/) &&
+          !upperLine.match(/^(EXPIRY|DATE|BATCH|MFG|USE|BEST|BEFORE|VALID|TILL|UNTIL|STORE|MANUFACTURING|CHEWABLE|TABLET|TABLETS|CAPSULE|CAPSULES|M\.\s*R\.\s*P|MRP|BATCH\s*NO)/) &&
           !trimmed.match(/^\d{1,2}[-\/]\d{1,2}[-\/]\d{2,4}$/) && // Not a date
+          !trimmed.match(/^₹?\s*\d+[-\/]?$/) && // Not a price
           trimmed.match(/^[A-Za-z0-9\s]+$/) && // Only letters, numbers, spaces
-          trimmed.split(/\s+/).length <= 5) { // Not too many words
+          trimmed.split(/\s+/).length <= 6) { // Allow up to 6 words (e.g., "Premium Wet Wipes")
         productName = trimmed
         confidence = 'Medium'
         break
@@ -239,11 +268,16 @@ function extractMedicineFields(rawText: string): Partial<ExtractedDataResult['ex
     }
   }
   
-  // Strategy 4: Fallback - use first substantial line
+  // Strategy 4: Fallback - use first substantial line that looks like a product name
   if (!productName) {
     for (const line of lines.slice(0, 5)) {
       const trimmed = line.trim()
-      if (trimmed.length >= 3 && trimmed.length <= 100) {
+      const upperLine = trimmed.toUpperCase()
+      // More lenient fallback - just check it's not clearly a date, price, or instruction
+      if (trimmed.length >= 3 && trimmed.length <= 100 &&
+          !trimmed.match(/^\d{1,2}[-\/]\d{1,2}[-\/]\d{2,4}$/) && // Not a date
+          !trimmed.match(/^₹?\s*\d+[-\/]?$/) && // Not a price
+          !upperLine.match(/^(EXPIRY|DATE|BATCH|MFG|M\.\s*R\.\s*P|MRP)/)) {
         productName = trimmed
         confidence = 'Low'
         break
