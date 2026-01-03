@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getUserPlan } from '@/lib/supabase/plans'
 import { getItemCount, getFamilyMemberCount, getDocumentCount } from '@/lib/supabase/plans'
+import { canUseOCR } from '@/lib/ocr/pricingLogic'
 
 // Force Node.js runtime for database operations
 export const runtime = 'nodejs'
@@ -20,11 +21,13 @@ export async function GET() {
     if (!supabase) {
       return NextResponse.json(
         {
-          plan: 'free',
-          itemCount: 0,
-          familyMemberCount: 0,
-          documentCount: 0,
-          error: 'Service configuration error',
+        plan: 'free',
+        itemCount: 0,
+        familyMemberCount: 0,
+        documentCount: 0,
+        ocrAllowed: true,
+        ocrRemaining: 0,
+        error: 'Service configuration error',
         },
         { status: 200 }
       )
@@ -38,6 +41,8 @@ export async function GET() {
           itemCount: 0,
           familyMemberCount: 0,
           documentCount: 0,
+          ocrAllowed: true,
+          ocrRemaining: 0,
           error: 'Unauthorized',
         },
         { status: 200 }
@@ -47,11 +52,12 @@ export async function GET() {
     const user = data.user
 
     // Parallel data fetching for better performance
-    const [planResult, itemCountResult, familyMemberCountResult, documentCountResult] = await Promise.allSettled([
+    const [planResult, itemCountResult, familyMemberCountResult, documentCountResult, ocrCheckResult] = await Promise.allSettled([
       getUserPlan(user.id),
       getItemCount(user.id),
       getFamilyMemberCount(user.id),
       getDocumentCount(user.id),
+      canUseOCR(user.id),
     ])
 
     // Extract results with safe fallbacks
@@ -66,6 +72,9 @@ export async function GET() {
     
     const documentCount = 
       documentCountResult.status === 'fulfilled' ? documentCountResult.value : 0
+    
+    const ocrCheck = 
+      ocrCheckResult.status === 'fulfilled' ? ocrCheckResult.value : { allowed: true, remaining: 0 }
 
     // Log errors if any
     if (planResult.status === 'rejected') {
@@ -80,12 +89,18 @@ export async function GET() {
     if (documentCountResult.status === 'rejected') {
       console.error('[PlanLimits] Error fetching document count:', documentCountResult.reason)
     }
+    if (ocrCheckResult.status === 'rejected') {
+      console.error('[PlanLimits] Error checking OCR usage:', ocrCheckResult.reason)
+    }
 
     return NextResponse.json({
       plan,
       itemCount,
       familyMemberCount,
       documentCount,
+      ocrAllowed: ocrCheck.allowed,
+      ocrRemaining: ocrCheck.remaining || 0,
+      ocrLimitReason: ocrCheck.reason,
     })
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error)
@@ -98,6 +113,8 @@ export async function GET() {
         itemCount: 0,
         familyMemberCount: 0,
         documentCount: 0,
+        ocrAllowed: true,
+        ocrRemaining: 0,
         error: 'An error occurred',
       },
       { status: 200 }

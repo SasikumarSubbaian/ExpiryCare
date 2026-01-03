@@ -212,6 +212,7 @@ export async function POST(request: NextRequest) {
       ocrCheck = await canUseOCR(user.id)
       if (!ocrCheck.allowed) {
         // Return 200 with success:true and structured data (limit reached = empty fields)
+        // 🔧 CRITICAL: Include error message so client can show upgrade prompt
         return NextResponse.json(
           {
             success: true, // 🔥 ALWAYS TRUE
@@ -223,6 +224,7 @@ export async function POST(request: NextRequest) {
             allowManualEntry: true, // Always allow manual entry
             source: 'google_vision',
             remaining: ocrCheck.remaining,
+            error: ocrCheck.reason || 'OCR limit reached. Upgrade to Pro for unlimited OCR.',
             extractedData: {
               category: 'other',
               categoryConfidence: 'Low' as const,
