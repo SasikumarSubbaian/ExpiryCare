@@ -210,3 +210,89 @@ ExpiryCare - Never miss an important expiry
 
   return { subject, html, text }
 }
+
+/**
+ * OTP Email Template
+ * Sent for email verification during signup
+ */
+export function getOTPEmail(
+  otp: string,
+  userName?: string
+) {
+  const subject = `🔐 Verify your ExpiryCare account - Your OTP is ${otp}`
+
+  const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <div style="background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%); padding: 30px; text-align: center; border-radius: 8px 8px 0 0;">
+    <h1 style="color: white; margin: 0; font-size: 24px;">Verify Your Email</h1>
+  </div>
+  
+  <div style="background: #ffffff; padding: 30px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 8px 8px;">
+    <h2 style="color: #111827; margin-top: 0; font-size: 20px;">${userName ? `Hi ${userName},` : 'Hi there,'}</h2>
+    
+    <p style="color: #6b7280; font-size: 16px; margin: 0 0 20px 0;">
+      Thank you for signing up for ExpiryCare! To complete your registration, please verify your email address using the OTP below.
+    </p>
+
+    <div style="background: #f0f9ff; border: 2px solid #0ea5e9; border-radius: 8px; padding: 24px; margin: 30px 0; text-align: center;">
+      <p style="color: #6b7280; font-size: 14px; margin: 0 0 10px 0; font-weight: 500;">Your verification code:</p>
+      <div style="font-size: 36px; font-weight: bold; color: #0ea5e9; letter-spacing: 8px; margin: 10px 0;">
+        ${otp}
+      </div>
+      <p style="color: #ef4444; font-size: 12px; margin: 10px 0 0 0; font-weight: 500;">
+        ⏰ This code expires in 10 minutes
+      </p>
+    </div>
+
+    <div style="background: #fff7ed; border-left: 4px solid #f97316; padding: 16px; margin: 20px 0; border-radius: 4px;">
+      <p style="margin: 0; font-size: 14px; color: #9a3412; font-weight: 500;">
+        🔒 Security Tip: Never share this code with anyone. ExpiryCare will never ask for your OTP.
+      </p>
+    </div>
+
+    <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+      <p style="color: #6b7280; font-size: 14px; margin: 0 0 10px 0;">
+        <strong>Didn't request this code?</strong>
+      </p>
+      <p style="color: #6b7280; font-size: 14px; margin: 0;">
+        If you didn't sign up for ExpiryCare, you can safely ignore this email. No account will be created.
+      </p>
+    </div>
+  </div>
+
+  <div style="text-align: center; margin-top: 20px; color: #9ca3af; font-size: 12px;">
+    <p>ExpiryCare - Never miss an important expiry</p>
+    <p style="margin: 5px 0 0 0;">This is an automated email. Please do not reply.</p>
+  </div>
+</body>
+</html>
+  `
+
+  const text = `
+Verify Your Email - ExpiryCare
+
+${userName ? `Hi ${userName},` : 'Hi there,'}
+
+Thank you for signing up for ExpiryCare! To complete your registration, please verify your email address using the OTP below.
+
+Your verification code: ${otp}
+
+⏰ This code expires in 10 minutes
+
+🔒 Security Tip: Never share this code with anyone. ExpiryCare will never ask for your OTP.
+
+Didn't request this code?
+If you didn't sign up for ExpiryCare, you can safely ignore this email. No account will be created.
+
+ExpiryCare - Never miss an important expiry
+This is an automated email. Please do not reply.
+  `.trim()
+
+  return { subject, html, text }
+}

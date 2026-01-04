@@ -30,8 +30,47 @@ export default function Dashboard() {
   const supabase = createClient()
 
   useEffect(() => {
+    checkEmailVerification()
     loadExpiries()
   }, [])
+
+  // Check email verification status and redirect if not verified
+  const checkEmailVerification = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        router.push('/login')
+        return
+      }
+
+      const { data: profile, error } = await supabase
+        .from('profiles')
+        .select('email_verified, email')
+        .eq('id', user.id)
+        .single()
+
+      if (error) {
+        console.error('[Dashboard] Profile fetch error:', error)
+        return
+      }
+
+      // Block access if email is not verified
+      if (profile && !profile.email_verified) {
+        // Sign out the user
+        await supabase.auth.signOut()
+        
+        // Store email for verification page
+        if (profile.email) {
+          localStorage.setItem('pending_verification_email', profile.email)
+        }
+        
+        // Redirect to verification page
+        router.push(`/verify-email?email=${encodeURIComponent(profile.email || user.email || '')}`)
+      }
+    } catch (error) {
+      console.error('[Dashboard] Email verification check error:', error)
+    }
+  }
 
   const loadExpiries = async () => {
     try {

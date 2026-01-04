@@ -17,27 +17,30 @@ export async function GET(request: NextRequest) {
     const { data, error } = await supabase.auth.exchangeCodeForSession(code)
     
     if (!error && data?.user) {
-      // Update profile with name from Google OAuth if available
       const user = data.user
       const fullName = user.user_metadata?.full_name || 
                       user.user_metadata?.name ||
                       user.user_metadata?.display_name ||
                       null
       
-      if (fullName) {
-        // Update or create profile with name
-        await supabase
-          .from('profiles')
-          .upsert({
-            id: user.id,
-            email: user.email,
-            full_name: fullName,
-          }, {
-            onConflict: 'id'
-          })
-      }
+      // Check if this is OAuth (Google) - OAuth emails are pre-verified
+      const isOAuth = user.app_metadata?.provider === 'google'
       
-      // Redirect to dashboard after successful OAuth
+      // Update or create profile
+      // For email confirmation: email_confirmed_at is set by Supabase automatically
+      // For OAuth: emails are already verified
+      await supabase
+        .from('profiles')
+        .upsert({
+          id: user.id,
+          email: user.email,
+          full_name: fullName || user.user_metadata?.full_name || '',
+          email_verified: isOAuth || !!user.email_confirmed_at, // Verified if OAuth or email confirmed
+        }, {
+          onConflict: 'id'
+        })
+      
+      // Redirect to dashboard after successful auth
       return NextResponse.redirect(new URL(next, request.url))
     }
   }

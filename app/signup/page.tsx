@@ -1,11 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
 import { createClient } from '@/lib/supabase/client'
 import { validatePassword } from '@/lib/utils/passwordValidation'
+import { validateEmail } from '@/lib/utils/emailValidation'
 
 export default function SignUpPage() {
   const [name, setName] = useState('')
@@ -14,15 +15,38 @@ export default function SignUpPage() {
   const [loading, setLoading] = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [emailError, setEmailError] = useState<string | null>(null)
+  const [isEmailValid, setIsEmailValid] = useState(false)
   const router = useRouter()
   const supabase = createClient()
+
+  // Real-time email validation
+  useEffect(() => {
+    if (email.length === 0) {
+      setEmailError(null)
+      setIsEmailValid(false)
+      return
+    }
+
+    const validation = validateEmail(email)
+    setIsEmailValid(validation.valid)
+    setEmailError(validation.error || null)
+  }, [email])
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
     setError(null)
 
-    // Validate password before submitting
+    // 1. Validate email format (frontend validation)
+    const emailValidation = validateEmail(email)
+    if (!emailValidation.valid) {
+      setError(emailValidation.error || 'Please enter a valid email address')
+      setLoading(false)
+      return
+    }
+
+    // 2. Validate password before submitting
     const passwordValidation = validatePassword(password)
     if (!passwordValidation.valid) {
       setError(
@@ -33,36 +57,46 @@ export default function SignUpPage() {
     }
 
     try {
-      const { error } = await supabase.auth.signUp({
-        email,
+      // 3. Create user account in Supabase (email_verified will be false by default)
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+        email: emailValidation.normalized!, // Use normalized email
         password,
         options: {
           data: {
             full_name: name,
           },
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
         },
       })
 
-      if (error) {
+      if (signUpError) {
         // Provide helpful, calm error messages
         let errorMessage = 'Unable to create account. Please try again.'
         
-        if (error.message.includes('already registered')) {
+        if (signUpError.message.includes('already registered') || signUpError.message.includes('already exists')) {
           errorMessage = 'This email is already registered. Please sign in instead.'
-        } else if (error.message.includes('Password')) {
+        } else if (signUpError.message.includes('Password')) {
           errorMessage = 'Password does not meet requirements. Please check and try again.'
-        } else if (error.message.includes('network') || error.message.includes('fetch')) {
+        } else if (signUpError.message.includes('network') || signUpError.message.includes('fetch')) {
           errorMessage = 'Connection issue. Please check your internet and try again.'
-        } else if (error.message) {
-          errorMessage = error.message
+        } else if (signUpError.message) {
+          errorMessage = signUpError.message
         }
         
         setError(errorMessage)
         setLoading(false)
-      } else {
-        router.push('/dashboard')
-        router.refresh()
+        return
       }
+
+      if (!signUpData.user) {
+        setError('Failed to create account. Please try again.')
+        setLoading(false)
+        return
+      }
+
+      // 4. Supabase automatically sends confirmation email
+      // Redirect to verification message page
+      router.push(`/verify-email?email=${encodeURIComponent(emailValidation.normalized!)}`)
     } catch (err: any) {
       setError('Something went wrong. Please try again in a moment.')
       setLoading(false)
@@ -166,9 +200,25 @@ export default function SignUpPage() {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-4 py-3 text-base text-gray-900 border-2 border-gray-200 rounded-xl shadow-soft focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200"
+                className={`w-full px-4 py-3 text-base text-gray-900 border-2 rounded-xl shadow-soft focus:outline-none focus:ring-2 transition-all duration-200 ${
+                  emailError
+                    ? 'border-danger-300 focus:ring-danger-500 focus:border-danger-500'
+                    : isEmailValid && email.length > 0
+                    ? 'border-success-300 focus:ring-success-500 focus:border-success-500'
+                    : 'border-gray-200 focus:ring-primary-500 focus:border-primary-500'
+                }`}
                 placeholder="you@example.com"
               />
+              {emailError && (
+                <p className="mt-2 text-sm text-danger-600 animate-slide-down">
+                  {emailError}
+                </p>
+              )}
+              {isEmailValid && email.length > 0 && !emailError && (
+                <p className="mt-2 text-sm text-success-600 flex items-center gap-1">
+                  <span>✓</span> Valid email address
+                </p>
+              )}
             </div>
             
             <div>
@@ -193,7 +243,7 @@ export default function SignUpPage() {
             
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || !isEmailValid || !name.trim() || !password}
               className="w-full flex justify-center items-center gap-2 py-3.5 px-4 border border-transparent rounded-xl shadow-medium text-base font-semibold text-white gradient-primary hover:shadow-large focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 hover:scale-105"
             >
               {loading ? (

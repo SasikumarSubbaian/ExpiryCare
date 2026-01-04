@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -12,8 +12,17 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const router = useRouter()
   const supabase = createClient()
+
+  // Check for verified query param
+  useEffect(() => {
+    const verified = new URLSearchParams(window.location.search).get('verified')
+    if (verified === 'true') {
+      setSuccessMessage('Email verified successfully! You can now log in.')
+    }
+  }, [])
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -21,37 +30,55 @@ export default function LoginPage() {
     setError(null)
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
         email,
         password,
       })
 
-      if (error) {
-        console.error('Supabase auth error:', error)
+      if (signInError) {
+        console.error('Supabase auth error:', signInError)
         
         let errorMessage = 'Unable to log in. Please check your credentials and try again.'
         
-        if (error.message.includes('Invalid login') || error.message.includes('Invalid credentials')) {
+        if (signInError.message.includes('Invalid login') || signInError.message.includes('Invalid credentials')) {
           errorMessage = 'Email or password is incorrect. Please try again.'
-        } else if (error.message.includes('Email not confirmed') || error.message.includes('email_not_confirmed')) {
-          errorMessage = 'Please check your email and confirm your account first.'
-        } else if (error.message.includes('User not found') || error.message.includes('user_not_found')) {
+        } else if (signInError.message.includes('Email not confirmed') || signInError.message.includes('email_not_confirmed')) {
+          errorMessage = 'Please verify your email address first.'
+        } else if (signInError.message.includes('User not found') || signInError.message.includes('user_not_found')) {
           errorMessage = 'No account found with this email. Please sign up first.'
-        } else if (error.message.includes('network') || error.message.includes('fetch')) {
+        } else if (signInError.message.includes('network') || signInError.message.includes('fetch')) {
           errorMessage = 'Connection issue. Please check your internet and try again.'
-        } else if (error.message.includes('JWT') || error.message.includes('API key')) {
+        } else if (signInError.message.includes('JWT') || signInError.message.includes('API key')) {
           errorMessage = 'Configuration error. Please contact support.'
-          console.error('Possible API key issue:', error)
-        } else if (error.message) {
-          errorMessage = error.message
+          console.error('Possible API key issue:', signInError)
+        } else if (signInError.message) {
+          errorMessage = signInError.message
         }
         
         setError(errorMessage)
         setLoading(false)
-      } else {
-        router.push('/dashboard')
-        router.refresh()
+        return
       }
+
+      if (!signInData.user) {
+        setError('Login failed. Please try again.')
+        setLoading(false)
+        return
+      }
+
+      // Check if email is confirmed using Supabase Auth (not profiles table)
+      if (!signInData.user.email_confirmed_at) {
+        // Sign out the user (they shouldn't be logged in)
+        await supabase.auth.signOut()
+        
+        setError('Please verify your email address before logging in. Check your inbox for the confirmation link.')
+        setLoading(false)
+        return
+      }
+
+      // Email is confirmed - proceed to dashboard
+      router.push('/dashboard')
+      router.refresh()
     } catch (err: any) {
       setError('Something went wrong. Please try again in a moment.')
       setLoading(false)
@@ -114,6 +141,16 @@ export default function LoginPage() {
 
         {/* Form Card */}
         <div className="bg-white rounded-2xl shadow-large border border-gray-200 p-8">
+          {successMessage && (
+            <div className="mb-6 bg-success-50 border-2 border-success-200 text-success-700 px-4 py-3 rounded-xl flex items-start gap-3 animate-slide-down">
+              <span className="text-success-600 text-xl">✓</span>
+              <div className="flex-1">
+                <p className="font-semibold">Success!</p>
+                <p className="text-sm text-success-600 mt-1">{successMessage}</p>
+              </div>
+            </div>
+          )}
+
           {error && (
             <div className="mb-6 bg-danger-50 border-2 border-danger-200 text-danger-700 px-4 py-3 rounded-xl flex items-start gap-3 animate-slide-down">
               <span className="text-danger-600 text-xl">⚠️</span>
