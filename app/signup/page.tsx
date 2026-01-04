@@ -94,7 +94,12 @@ export default function SignUpPage() {
         return
       }
 
-      // 4. Supabase automatically sends confirmation email
+      // 4. CRITICAL FIX: Sign out user immediately after signup
+      // This prevents session from persisting and bypassing verification
+      // Supabase creates a session on signup, but we need to clear it until email is verified
+      await supabase.auth.signOut()
+
+      // 5. Supabase automatically sends confirmation email
       // Redirect to verification message page
       router.push(`/verify-email?email=${encodeURIComponent(emailValidation.normalized!)}`)
     } catch (err: any) {

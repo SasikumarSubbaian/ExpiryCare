@@ -85,36 +85,61 @@ export async function middleware(request: NextRequest) {
     )
 
     let user = null
+    let isEmailVerified = false
     try {
       const { data, error } = await supabase.auth.getUser()
-      if (!error && data) {
+      if (!error && data?.user) {
         user = data.user
+        // CRITICAL: Check email_confirmed_at (Supabase native field)
+        // This prevents unverified users from accessing protected routes
+        isEmailVerified = !!user.email_confirmed_at
       }
     } catch (authError) {
       // Auth check failed - continue without user
       // This is OK for public pages
     }
 
-    // Protected routes - redirect to login if not authenticated
-    // Includes all routes that require authentication
+    // Protected routes - require authentication AND email verification
     const protectedRoutes = ['/dashboard', '/upgrade', '/settings']
     const isProtectedRoute = protectedRoutes.some(route => pathname.startsWith(route))
 
-    // Auth routes - redirect to dashboard if already authenticated
+    // Auth routes - redirect if already authenticated AND verified
     const authRoutes = ['/login', '/signup']
     const isAuthRoute = authRoutes.includes(pathname)
 
+    // Verification page - allow access
+    const isVerifyEmailPage = pathname === '/verify-email'
+
     try {
+      // Block protected routes if not authenticated
       if (isProtectedRoute && !user) {
         const url = request.nextUrl.clone()
         url.pathname = '/login'
         return NextResponse.redirect(url)
       }
 
-      if (isAuthRoute && user) {
+      // CRITICAL FIX: Block protected routes if email not verified
+      // This prevents unverified users from accessing dashboard even if they have a session
+      if (isProtectedRoute && user && !isEmailVerified) {
+        const url = request.nextUrl.clone()
+        url.pathname = '/verify-email'
+        if (user.email) {
+          url.searchParams.set('email', user.email)
+        }
+        return NextResponse.redirect(url)
+      }
+
+      // Redirect authenticated AND verified users away from auth pages
+      if (isAuthRoute && user && isEmailVerified) {
         const url = request.nextUrl.clone()
         url.pathname = '/dashboard'
         return NextResponse.redirect(url)
+      }
+
+      // Allow unverified users to access verify-email page
+      if (isVerifyEmailPage && user && !isEmailVerified) {
+        // Allow access - user needs to verify
+        return response
       }
     } catch (redirectError) {
       // Redirect failed - continue with normal response

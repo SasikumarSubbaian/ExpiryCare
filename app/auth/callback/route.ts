@@ -26,21 +26,33 @@ export async function GET(request: NextRequest) {
       // Check if this is OAuth (Google) - OAuth emails are pre-verified
       const isOAuth = user.app_metadata?.provider === 'google'
       
+      // CRITICAL FIX: Verify email_confirmed_at before allowing dashboard access
+      // For email confirmation flow: email_confirmed_at is set by Supabase when user clicks link
+      // For OAuth: emails are already verified (email_confirmed_at should be set)
+      const isEmailVerified = isOAuth || !!user.email_confirmed_at
+      
+      if (!isEmailVerified) {
+        // Email not verified - redirect to verification page
+        const verifyUrl = new URL('/verify-email', request.url)
+        if (user.email) {
+          verifyUrl.searchParams.set('email', user.email)
+        }
+        return NextResponse.redirect(verifyUrl)
+      }
+      
       // Update or create profile
-      // For email confirmation: email_confirmed_at is set by Supabase automatically
-      // For OAuth: emails are already verified
       await supabase
         .from('profiles')
         .upsert({
           id: user.id,
           email: user.email,
           full_name: fullName || user.user_metadata?.full_name || '',
-          email_verified: isOAuth || !!user.email_confirmed_at, // Verified if OAuth or email confirmed
+          email_verified: isEmailVerified, // Sync with Supabase email_confirmed_at
         }, {
           onConflict: 'id'
         })
       
-      // Redirect to dashboard after successful auth
+      // Email is verified - redirect to dashboard
       return NextResponse.redirect(new URL(next, request.url))
     }
   }

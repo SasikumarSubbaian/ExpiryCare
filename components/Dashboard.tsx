@@ -35,40 +35,43 @@ export default function Dashboard() {
   }, [])
 
   // Check email verification status and redirect if not verified
+  // CRITICAL FIX: Use email_confirmed_at from Supabase Auth (not profiles table)
   const checkEmailVerification = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) {
+      const { data: { user }, error: userError } = await supabase.auth.getUser()
+      
+      if (userError || !user) {
         router.push('/login')
         return
       }
 
-      const { data: profile, error } = await supabase
-        .from('profiles')
-        .select('email_verified, email')
-        .eq('id', user.id)
-        .single()
-
-      if (error) {
-        console.error('[Dashboard] Profile fetch error:', error)
+      // CRITICAL: Check email_confirmed_at (Supabase native field)
+      // This is the source of truth for email verification
+      if (!user.email_confirmed_at) {
+        // Email not verified - sign out and redirect
+        await supabase.auth.signOut()
+        
+        // Redirect to verification page
+        const email = user.email || ''
+        router.push(`/verify-email?email=${encodeURIComponent(email)}`)
         return
       }
 
-      // Block access if email is not verified
-      if (profile && !profile.email_verified) {
-        // Sign out the user
-        await supabase.auth.signOut()
-        
-        // Store email for verification page
-        if (profile.email) {
-          localStorage.setItem('pending_verification_email', profile.email)
-        }
-        
-        // Redirect to verification page
-        router.push(`/verify-email?email=${encodeURIComponent(profile.email || user.email || '')}`)
+      // Email is verified - user can access dashboard
+      // Optionally sync with profiles table (for reference only)
+      try {
+        await supabase
+          .from('profiles')
+          .update({ email_verified: true })
+          .eq('id', user.id)
+      } catch (profileError) {
+        // Non-critical - continue even if profile update fails
+        console.warn('[Dashboard] Profile sync error (non-critical):', profileError)
       }
     } catch (error) {
       console.error('[Dashboard] Email verification check error:', error)
+      // On error, redirect to login for safety
+      router.push('/login')
     }
   }
 
